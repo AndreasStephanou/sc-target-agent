@@ -69,3 +69,25 @@ def test_stability_of_two_scripted_runs(cfg, agent_run, tmp_path_factory):
     run_pipeline(cfg, model_name="scripted", run_dir=rd2)
     st = stability([agent_run.run_dir, rd2], k=10)
     assert st["mean_jaccard_topk"] == 1.0 and st["rank1_consistent"]
+
+
+def test_resume_from_reruns_nominator_and_critic_only(cfg, agent_run, tmp_path_factory):
+    rd = tmp_path_factory.mktemp("resume") / "r"
+    res = run_pipeline(cfg, model_name="scripted", run_dir=rd, resume_from=agent_run.run_dir)
+    assert set(res.roles) == {"target", "critic"}
+    assert res.facts["findings"]["disease_state"]  # analyst's states kept
+    ev = evaluate_run(rd, _gt_for(agent_run))
+    assert ev.target_rank["ERBB4"] == 1
+
+
+def _gt_for(run):
+    import yaml
+    from tests.conftest import ROOT
+
+    with open(ROOT / "data" / "ground_truth" / "synthetic.yaml") as fh:
+        gt = yaml.safe_load(fh)
+    gt["per_cell_truth"] = None
+    p = run.run_dir / "gt_tmp.yaml"
+    with open(p, "w") as fh:
+        yaml.safe_dump(gt, fh)
+    return p

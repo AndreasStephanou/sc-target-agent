@@ -149,11 +149,15 @@ scripts/               make_synthetic, run_pipeline, run_baseline, run_eval
 config/                default.yaml, synthetic.yaml, caa_template.yaml
 data/ground_truth/     synthetic.yaml, caa_template.yaml
 data/fixtures/         mini_hallmark.gmt (test stand-in), knowledge_fixtures.json (offline DB stand-in)
-tests/                 34 tests: tools, privacy, registry, loop error handling, end-to-end + eval
+tests/                 35 tests: tools, privacy, registry, loop error handling, end-to-end + eval
 ```
 
 Each run directory contains `report.md/.html`, `run.jsonl`, `state.json`, `config_used.json`,
 `tables/*.csv` (full results), `figures/*.png`, `cluster_assignments.csv` (local only).
+
+`--resume-from runs/<earlier>` reuses an earlier run's analysis (states, DE tables, clustering)
+and runs only `--stages target critic` by default - re-run a nominator or critic (or try a
+different model for them) without repeating the 15-minute analysis.
 
 ## Scoring
 

@@ -35,6 +35,43 @@ class PipelineResult:
     elapsed_s: float = 0.0
 
 
+def _resume_session(session: AnalysisSession, source: Path, keep_findings_from: set[str]) -> None:
+    """Load facts from an earlier run's state.json, reload the data, and restore the cluster key,
+    so later stages can run without repeating the analysis. Findings produced by stages that will
+    be re-run are dropped; the rest (e.g. the analyst's disease states) are kept."""
+    import shutil
+
+    with open(source / "state.json") as fh:
+        state = json.load(fh)
+    facts = state["facts"]
+    drop = {"planner": {"summary"}, "target": {"candidate_target"}, "critic": {"critic_flag"}}
+    for role in set(drop) - keep_findings_from:
+        for kind in drop[role]:
+            facts.get("findings", {}).pop(kind, None)
+        facts.get("role_summaries", {}).pop(role, None)
+    for sub in ("tables", "figures"):
+        if (source / sub).exists():
+            for f in (source / sub).iterdir():
+                shutil.copy(f, session.run_dir / sub / f.name)
+    for v in facts.get("pseudobulk_de", {}).values():
+        if v.get("table_path"):
+            v["table_path"] = str(session.run_dir / "tables" / Path(v["table_path"]).name)
+    session.facts.update(facts)
+    from ..tools.analysis import load_dataset
+
+    load_dataset(session)
+    key = state.get("cluster_key")
+    a = session.adata
+    if key and key not in a.obs and (source / "cluster_assignments.csv").exists():
+        import pandas as pd
+
+        assign = pd.read_csv(source / "cluster_assignments.csv", index_col=0)["cluster"].astype(str)
+        a.obs[key] = assign.reindex(a.obs_names).astype(str).to_numpy()
+    session.cluster_key = key
+    session.figures = state.get("figures", [])
+    session.log.stage("resume", "loaded", source=str(source), cluster_key=key, kept_findings=sorted(keep_findings_from))
+
+
 def run_pipeline(
     cfg: Config,
     *,
@@ -43,10 +80,14 @@ def run_pipeline(
     stages: list[str] | None = None,
     model: Model | None = None,
     write_report: bool = True,
+    resume_from: Path | None = None,
 ) -> PipelineResult:
     t0 = time.time()
     run_dir = Path(run_dir) if run_dir else cfg.run_root / new_run_id()
     session = AnalysisSession.create(cfg, run_dir)
+    if resume_from is not None:
+        stages = stages or ["target", "critic"]
+        _resume_session(session, Path(resume_from), keep_findings_from=set(STAGES) - set(stages))
     model = model or make_model(model_name or cfg.agent.get("model", "scripted"), session, temperature=float(cfg.agent.get("temperature", 0.2)))
     session.log.stage("pipeline", "start", model=model.name, config=cfg.raw)
     with open(run_dir / "config_used.json", "w") as fh:

@@ -262,6 +262,10 @@ class ScriptedModel:
         states = f.get("findings", {}).get("disease_state", [])
         if not states:
             return ["No disease states were recorded by the analyst; nothing to nominate."]
+        # composition states carry the stronger evidence (a population that exists only in disease);
+        # score them first so a turn budget never silences them in favour of program states
+        states = sorted(states, key=lambda st: (0 if st.get("basis", "composition") == "composition" else 1))
+        self._step["target_order"] = [st["cluster"] for st in states[:4]]
         steps: list[ToolUse | str] = []
         species = self.session.cfg.dataset.get("species", "homo_sapiens")
         for st in states[:4]:
@@ -321,7 +325,7 @@ class ScriptedModel:
                 )
             )
         # a plain string ends the role, so only say "done" after the LAST state has been processed
-        states = [st["cluster"] for st in f.get("findings", {}).get("disease_state", [])][:4]
+        states = self._step.get("target_order") or [st["cluster"] for st in f.get("findings", {}).get("disease_state", [])][:4]
         if cl == states[-1]:
             n_total = len(f.get("findings", {}).get("candidate_target", [])) + len([s for s in steps if isinstance(s, ToolUse)])
             steps.append(f"Nominated {n_total} candidate targets across clusters {', '.join(states)}.")
@@ -373,6 +377,17 @@ class ScriptedModel:
         amb = f.get("disease_programs", {})
         if amb.get("ambient_note"):
             steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": "Ambient RNA from the dominant disease population", "detail": amb["ambient_note"] + f" Clusters affected: {', '.join(amb.get('ambient_suspect_clusters', []))}. Any 'disease-wide' label on state genes should be read with this in mind.", "severity": "major"}))
+        # a gene nominated from two states would otherwise get the same flag twice
+        seen_flags: set[tuple[str, str]] = set()
+        deduped: list[ToolUse | str] = []
+        for item in steps:
+            if isinstance(item, ToolUse) and item.name == "record_finding" and item.input.get("kind") == "critic_flag":
+                key = (",".join(item.input.get("genes") or []), item.input.get("title", ""))
+                if key in seen_flags:
+                    continue
+                seen_flags.add(key)
+            deduped.append(item)
+        steps = deduped
         n_flags = len([s for s in steps if isinstance(s, ToolUse)])
         steps.append(ToolUse("record_finding", {"kind": "summary", "title": "Critic summary", "detail": f"Raised {n_flags} flag(s). Candidates without flags are supported by replicate-aware DE, cluster specificity and consistency across disease samples; treat all nominations as hypotheses for IHC / pharmacologic validation.", "confidence": "medium"}))
         steps.append("Critic review complete.")

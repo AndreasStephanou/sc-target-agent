@@ -7,9 +7,8 @@ Examples
     # real agent run on your data
     python scripts/run_pipeline.py --config config/caa.yaml --model claude-sonnet-4-5
 
-    # only some stages (e.g. re-run the critic on an existing run is NOT supported; stages
-    # always start fresh)
-    python scripts/run_pipeline.py --config config/caa.yaml --stages planner analyst
+    # re-run only the nominator + critic on an existing run's analysis (no re-clustering / DE)
+    python scripts/run_pipeline.py --config config/caa.yaml --model scripted --resume-from runs/caa_dry6 --run-dir runs/caa_dry6b
 """
 from __future__ import annotations
 
@@ -31,13 +30,14 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--stages", nargs="+", default=None, choices=STAGES)
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--no-report", action="store_true")
+    ap.add_argument("--resume-from", default=None, help="reuse an earlier run directory's analysis (state.json, tables) and run only --stages (default: target critic)")
     args = ap.parse_args(argv)
 
     overrides = {}
     if args.seed is not None:
         overrides = {"agent": {"seed": args.seed}}
     cfg = load_config(args.config, overrides)
-    res = run_pipeline(cfg, model_name=args.model, run_dir=Path(args.run_dir) if args.run_dir else None, stages=args.stages, write_report=not args.no_report)
+    res = run_pipeline(cfg, model_name=args.model, run_dir=Path(args.run_dir) if args.run_dir else None, stages=args.stages, write_report=not args.no_report, resume_from=Path(args.resume_from) if args.resume_from else None)
     print(f"run dir : {res.run_dir}")
     for role, rr in res.roles.items():
         print(f"  {role:8s} turns={rr.n_turns:2d} tools={len(rr.tool_calls):2d} errors={sum(1 for c in rr.tool_calls if c['error'])}  stop={rr.stopped_reason}")

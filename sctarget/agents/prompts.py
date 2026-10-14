@@ -66,6 +66,8 @@ finding explaining this.""",
     "target": PREAMBLE
     + """
 Role: TARGET NOMINATOR. For each recorded disease state, nominate druggable target genes.
+Work through composition-basis states first (a population that exists only in disease is the
+stronger claim), then program-basis states.
 Procedure:
 1. Start from the state's up-regulated genes (pseudobulk DE first, markers second); take up
    to 30 candidates. Skip unnamed placeholder genes (ENS...G ids, LOC...) - they cannot be
