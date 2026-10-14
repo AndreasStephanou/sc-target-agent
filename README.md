@@ -35,6 +35,18 @@ naive script?*
   cell type (`shared_with_reference`: cell-type marker or pan-condition gene), or whether it is
   disease-wide rather than state-specific. The scorer penalises the first two and the critic
   raises them as flags.
+* **Ambient-RNA check.** When one disease population dominates the disease samples, its
+  transcripts sit as background in every nucleus from those samples, so any "disease vs
+  reference" comparison inside a shared cluster finds that population's program in immune,
+  stromal and other epithelial cells alike. Every gene claim gets an *ambient ratio*: its level in
+  the cells of interest vs the least-related lineage in the same disease samples. A gene is
+  `ambient_like` when that ratio is < 3 **and** the control lineage is itself raised in disease vs
+  reference samples (background must show up there too; a gene flat in the control lineage cannot
+  be ambient). The test is symmetric - a TME target in macrophages is checked against epithelium -
+  and never privileges the tumour compartment. `disease_programs` uses the same ratio to strip
+  programs down to `clean_program_genes` and marks mostly-ambient programs `ambient_suspect`.
+  Exercised by `make_synthetic --ambient 0.15`. Upstream decontamination (CellBender / SoupX /
+  decontX) remains the principled fix; this is the safeguard for uncorrected data.
 * **Two routes to a disease state.** *Composition*: a cluster enriched in disease samples
   (`differential_abundance`, with subclustering / re-clustering fallbacks). *Expression*:
   a cell type present in every condition that runs a disease-specific program
@@ -134,7 +146,7 @@ scripts/               make_synthetic, run_pipeline, run_baseline, run_eval
 config/                default.yaml, synthetic.yaml, caa_template.yaml
 data/ground_truth/     synthetic.yaml, caa_template.yaml
 data/fixtures/         mini_hallmark.gmt (test stand-in), knowledge_fixtures.json (offline DB stand-in)
-tests/                 32 tests: tools, privacy, registry, loop error handling, end-to-end + eval
+tests/                 34 tests: tools, privacy, registry, loop error handling, end-to-end + eval
 ```
 
 Each run directory contains `report.md/.html`, `run.jsonl`, `state.json`, `config_used.json`,

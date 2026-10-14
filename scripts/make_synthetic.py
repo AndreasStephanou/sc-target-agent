@@ -60,12 +60,14 @@ def _gene_universe() -> list[str]:
     return out
 
 
-def make_synthetic(out_dir: Path, cells_per_sample: int = 400, seed: int = 0, mode: str = "state") -> Path:
+def make_synthetic(out_dir: Path, cells_per_sample: int = 400, seed: int = 0, mode: str = "state", ambient: float = 0.0) -> Path:
     """mode='state'  : a rare CAA-specific keratinocyte sub-state (composition shift)  [default]
     mode='program': NO new state - every CAA keratinocyte runs a moderate (~2.5x) disease program
                     on the same genes, so composition is flat and only the expression route works.
                     The shipped leiden clustering is computed WITHOUT the program genes so it does
-                    not separate CAA keratinocytes (mimicking an atlas clustered on shared biology)."""
+                    not separate CAA keratinocytes (mimicking an atlas clustered on shared biology).
+    ambient       : >0 adds background counts of the disease-state genes to EVERY cell of CAA samples
+                    (ambient RNA from the dominant tumour population), e.g. 0.3 = 30% of a state cell's level."""
     rng = np.random.default_rng(seed)
     genes = _gene_universe()
     gidx = {g: i for i, g in enumerate(genes)}
@@ -116,6 +118,10 @@ def make_synthetic(out_dir: Path, cells_per_sample: int = 400, seed: int = 0, mo
                     for g in NEURO_STATE_GENES:
                         mu[:, gidx[g]] *= rng.uniform(2.0, 3.0)
                     state[:] = "program_keratinocyte"
+                # ambient RNA: disease-state transcripts as background in all cells of disease samples
+                if ambient > 0 and cond == "CAA":
+                    for g in NEURO_STATE_GENES:
+                        mu[:, gidx[g]] += ambient * base_mu[gidx[g]] * 12.0 * batch[gidx[g]]
                 # library size variation + NB sampling
                 libsize = np.exp(rng.normal(0, 0.35, size=n_ct))[:, None]
                 mu = mu * libsize
@@ -146,7 +152,7 @@ def make_synthetic(out_dir: Path, cells_per_sample: int = 400, seed: int = 0, mo
     sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30, random_state=seed)
     sc.tl.leiden(adata, resolution=1.0, key_added="leiden", random_state=seed, flavor="igraph", n_iterations=2, directed=False)
     sc.tl.umap(adata, random_state=seed)
-    adata.uns["synthetic"] = {"seed": seed, "cells_per_sample": cells_per_sample, "mode": mode}
+    adata.uns["synthetic"] = {"seed": seed, "cells_per_sample": cells_per_sample, "mode": mode, "ambient": ambient}
 
     out_dir.mkdir(parents=True, exist_ok=True)
     h5 = out_dir / "synthetic.h5ad"
@@ -174,8 +180,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--cells-per-sample", type=int, default=400)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--mode", choices=["state", "program"], default="state")
+    ap.add_argument("--ambient", type=float, default=0.0)
     args = ap.parse_args(argv)
-    path = make_synthetic(Path(args.out), args.cells_per_sample, args.seed, args.mode)
+    path = make_synthetic(Path(args.out), args.cells_per_sample, args.seed, args.mode, args.ambient)
     print(f"wrote {path}")
 
 

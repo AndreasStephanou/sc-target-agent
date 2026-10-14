@@ -86,7 +86,7 @@ def _effect_size(session: AnalysisSession, gene: str, cluster: str, basis: str =
     no_known_compounds, inconsistent_across_samples, missing_evidence). Call the evidence
     tools first; missing evidence scores 0 and is flagged. Flags also penalise the score
     (low_specificity x0.6, shared_across_conditions x0.6, inconsistent_across_samples x0.8,
-    reference_driven x0.2, shared_with_reference / weak x0.5; disease_wide is informational). Run
+    reference_driven / ambient_like x0.2, shared_with_reference / weak x0.5; disease_wide is informational). Run
     condition_attribution on the candidates first or they are flagged missing_evidence:attribution.""",
     input_schema={
         "properties": {
@@ -152,7 +152,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
         attr = session.facts.get("condition_attribution", {}).get(str(cluster), {}).get(g)
         if attr is None:
             flags.append("missing_evidence:attribution")
-        elif attr in ("reference_driven", "shared_with_reference", "disease_wide", "weak"):
+        elif attr in ("reference_driven", "ambient_like", "shared_with_reference", "disease_wide", "weak"):
             flags.append(attr)
 
         d = drug_rows.get(hs) or drug_rows.get(g)
@@ -188,8 +188,8 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
             penalty *= 0.6
         if "inconsistent_across_samples" in flags:
             penalty *= 0.8
-        if "reference_driven" in flags:
-            penalty *= 0.2  # the signal is in the wrong condition's cells: a false positive
+        if "reference_driven" in flags or "ambient_like" in flags:
+            penalty *= 0.2  # wrong condition's cells, or sample background: not a cell-intrinsic disease signal
         if "shared_with_reference" in flags or "weak" in flags:
             penalty *= 0.5
         # disease_wide is informational only: a disease-wide gene is still a legitimate target

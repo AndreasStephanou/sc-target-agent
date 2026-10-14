@@ -270,11 +270,12 @@ class ScriptedModel:
             pb = f.get("pseudobulk_de", {}).get(f"{cl}:{contrast}", {})
             from ..tools.targets import excluded_gene
 
-            genes = [r["gene"] for r in pb.get("top_up", []) if not excluded_gene(r["gene"])][:25] or st.get("genes", [])[:25]
-            # add the cell-level markers too (a naive analyst's first pick)
+            pb_genes = [r["gene"] for r in pb.get("top_up", []) if not excluded_gene(r["gene"])][:20] or st.get("genes", [])[:20]
+            # cell-level markers are kept as well: for a pure state they often carry the biology
+            # the pseudobulk list misses (e.g. receptors expressed in 70% of cells at modest counts)
             mk_key = next((k for k in f.get("markers", {}) if k.startswith(f"{cl}_vs_")), None)
-            genes += [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:15]
-            genes = list(dict.fromkeys(genes))[:30]
+            mk_genes = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:15]
+            genes = list(dict.fromkeys(pb_genes + mk_genes))  # <= 35, markers never truncated away
             steps.append(ToolUse("gene_specificity", {"genes": genes, "cluster": cl}))
             steps.append(ToolUse("condition_attribution", {"genes": genes, "cluster": cl}))
             if species not in ("homo_sapiens", "human"):
@@ -304,7 +305,7 @@ class ScriptedModel:
         for r in ranked[:5]:
             if r["druggability_score"] == 0 and r["known_compound_score"] == 0:
                 continue
-            if r["score"] < 0.3 or r.get("attribution") == "reference_driven":
+            if r["score"] < 0.3 or r.get("attribution") in ("reference_driven", "ambient_like"):
                 continue  # weak, heavily penalised, or a wrong-condition artefact: not worth a nomination
             steps.append(
                 ToolUse(
@@ -361,12 +362,17 @@ class ScriptedModel:
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: inconsistent across disease samples", "detail": f"Detected in >=10% of state cells in only {rec['sample_consistency']} of disease samples.", "cluster": cl, "genes": [g], "severity": "major"}))
             if rec.get("attribution") == "reference_driven":
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: expression sits in the reference-condition cells of cluster {cl}", "detail": f"condition_attribution classifies {g} as reference_driven: within cluster {cl} it is expressed mainly by {', '.join(self.session.reference)} cells, so its cluster-vs-sibling fold change is an artefact of mixed-condition cells in the cluster, not a disease signal.", "cluster": cl, "genes": [g], "severity": "blocking"}))
+            elif rec.get("attribution") == "ambient_like":
+                steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: ambient RNA, not cell-intrinsic", "detail": f"Within the disease samples, {g} is no more than ~3x higher in cluster {cl} cells than in the least-related lineage of the same samples - the level expected from sample background, not from expression by these cells.", "cluster": cl, "genes": [g], "severity": "blocking"}))
             elif rec.get("attribution") == "shared_with_reference":
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: shared with reference-condition cells, not disease-specific", "detail": f"{g} is expressed at comparable levels in reference-condition cells of the same cell type (a cell-type marker or a pan-condition gene).", "cluster": cl, "genes": [g], "severity": "major"}))
             elif rec.get("attribution") == "disease_wide":
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: disease-wide rather than state-specific", "detail": f"{g} is also high in disease cells of sibling clusters. Fine as a disease target; do not describe it as defining this state.", "cluster": cl, "genes": [g], "severity": "minor"}))
             if rec["effect_size_source"] == "find_markers":
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: effect size lacks replicate-aware support", "detail": "Only the cell-level Wilcoxon result is available; pseudobulk DE did not confirm it (or was not run).", "cluster": cl, "genes": [g], "severity": "minor"}))
+        amb = f.get("disease_programs", {})
+        if amb.get("ambient_note"):
+            steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": "Ambient RNA from the dominant disease population", "detail": amb["ambient_note"] + f" Clusters affected: {', '.join(amb.get('ambient_suspect_clusters', []))}. Any 'disease-wide' label on state genes should be read with this in mind.", "severity": "major"}))
         n_flags = len([s for s in steps if isinstance(s, ToolUse)])
         steps.append(ToolUse("record_finding", {"kind": "summary", "title": "Critic summary", "detail": f"Raised {n_flags} flag(s). Candidates without flags are supported by replicate-aware DE, cluster specificity and consistency across disease samples; treat all nominations as hypotheses for IHC / pharmacologic validation.", "confidence": "medium"}))
         steps.append("Critic review complete.")

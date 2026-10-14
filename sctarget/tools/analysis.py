@@ -819,6 +819,9 @@ def _run_pseudobulk(
     significantly up-regulated genes is flagged 'disease_altered' - the same cell type is present
     in all conditions but runs a different program in disease. Returns per-cluster counts and the
     top genes; results are stored so pseudobulk_de/gene_specificity/score_targets can use them.
+    Includes an ambient-RNA check: programs that are mostly the dominant disease state's
+    signature, or that recur across unrelated cell types, are marked ambient_suspect instead of
+    disease_altered, and a clean_program_genes list (program minus suspect genes) is reported.
     Use after differential_abundance finds nothing, or alongside it to catch program shifts.""",
     input_schema={
         "properties": {
@@ -855,8 +858,11 @@ def disease_programs(
     sizes = a.obs[key].astype(str).value_counts()
     # clusters already enriched in disease are composition states: "disease vs reference cells
     # within" them is disease cells vs spill-over, not a program test - skip and say so
-    enriched = set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", [])))
+    enriched = sorted(set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", []))))
     skipped = [c for c in sizes.index if c in enriched]
+    _ensure_lognorm(session)
+    labels_all = a.obs[key].astype(str).to_numpy()
+    Xlog = a.X
     clusters = [c for c, n in sizes.items() if n >= min_cells and c not in enriched][:max_clusters]
     ck = session.celltype_key
     dom = {}
@@ -886,6 +892,7 @@ def disease_programs(
         )
         programs[cl] = {"n_sig_up_strong": int(len(strong)), "top_up": strong.head(50).reset_index().to_dict(orient="records")}
     df = pd.DataFrame(rows).set_index("cluster")
+    ambient_note = None
     if "n_sig_up_strong" in df:
         # relative criterion: a modest program that clearly stands out from every other cluster
         counts_ = df["n_sig_up_strong"].fillna(0)
@@ -893,18 +900,169 @@ def disease_programs(
             others = counts_.drop(cl)
             if counts_[cl] >= small_program_min and counts_[cl] >= 3 * (others.max() if len(others) else 0):
                 df.loc[cl, "disease_altered"] = True
+
+        # ---- ambient-RNA check -------------------------------------------------------------
+        # When a disease-enriched population dominates the disease samples, its transcripts sit as
+        # background in EVERY nucleus of those samples, so "disease vs reference within cluster"
+        # finds that population's program in immune, stromal and other epithelial clusters alike.
+        # A gene is suspect if it (a) is a top gene of a composition-enriched state, or (b) recurs
+        # in the programs of clusters belonging to >= 2 other broad cell types.
+        strong_sets = {cl: set(r["gene"] for r in programs[cl]["top_up"]) if cl in programs else set() for cl in df.index}
+        dom_signature: set[str] = set()
+        for e in enriched:
+            m = labels_all == e
+            if m.sum() >= 50:
+                mean_e = np.asarray(Xlog[m].mean(axis=0)).ravel()
+                dom_signature |= set(a.var_names[np.argsort(-mean_e)[:300]])
+        celltype_of = {cl: dom.get(cl, f"cluster_{cl}") for cl in df.index}
+        gene_celltypes: dict[str, set[str]] = {}
+        for cl, gs in strong_sets.items():
+            for g in gs:
+                gene_celltypes.setdefault(g, set()).add(celltype_of[cl])
+        clean_programs: dict[str, list[str]] = {}
+        n_susp, frac_susp, clean_cols, n_clean, amb_flag = {}, {}, {}, {}, {}
+        for cl in df.index:
+            gs = strong_sets[cl]
+            amb_flag[cl] = False
+            if not gs:
+                continue
+            # primary criterion: within-sample lineage control (ambient ratio) on the strong genes;
+            # secondary: dominant-state signature / recurrence across unrelated cell types
+            glist = sorted(gs)[:200]
+            idx = [list(a.var_names).index(g) for g in glist]
+            Xs = Xlog[:, idx]
+            Xs = Xs.toarray() if sp.issparse(Xs) else np.asarray(Xs)
+            ratios = _ambient_ratios(session, np.expm1(Xs), Xs > 0, glist, labels_all == cl, disease_only=True, min_cells=min_cells_per_pseudobulk)
+            amb_like = {g for g in glist if _is_ambient_like(ratios.loc[g])}
+            suspect = amb_like | {g for g in gs if g in dom_signature or len(gene_celltypes.get(g, set()) - {celltype_of[cl]}) >= 2}
+            frac = len(suspect) / len(gs)
+            clean = [r["gene"] for r in programs[cl]["top_up"] if r["gene"] not in suspect]
+            clean_programs[cl] = clean
+            n_susp[cl], frac_susp[cl], clean_cols[cl], n_clean[cl] = len(suspect), round(frac, 3), ", ".join(clean[:12]), len(clean)
+            # suspect whenever a non-trivial program is mostly shared/dominant-signature genes,
+            # independent of whether it passed the size criteria - the recurrence itself is the evidence
+            if len(gs) >= small_program_min and frac >= 0.5:
+                amb_flag[cl] = True
+                df.loc[cl, "disease_altered"] = False
+            elif bool(df.loc[cl, "disease_altered"]) and len(clean) < small_program_min:
+                df.loc[cl, "disease_altered"] = False
+                amb_flag[cl] = True
+        df["n_strong_suspect_ambient"] = pd.Series(n_susp)
+        df["frac_suspect_ambient"] = pd.Series(frac_susp)
+        df["n_clean_program_genes"] = pd.Series(n_clean)
+        df["clean_program_genes"] = pd.Series(clean_cols)
+        df["ambient_suspect"] = pd.Series(amb_flag).astype(bool)
+        if True:
+            n_amb = int(df["ambient_suspect"].sum())
+            amb_types = {celltype_of[c] for c in df.index[df["ambient_suspect"]]}
+            if n_amb >= 2 and len(amb_types) >= 2:
+                ambient_note = (
+                    f"{n_amb} cluster(s) carry a 'disease program' that is mostly the dominant disease state's signature and/or recurs across unrelated cell types - "
+                    "this is the fingerprint of ambient RNA from the disease-enriched population(s) in disease samples, not cell-intrinsic biology. "
+                    "Only the clean_program_genes (program minus suspect genes) should be interpreted for those clusters."
+                )
         df = df.sort_values("n_sig_up_strong", ascending=False)
     session.save_table(f"disease_programs_{key}", df)
     altered = [c for c in df.index if bool(df.loc[c, "disease_altered"])]
-    session.facts["disease_programs"] = {"cluster_key": key, "disease_altered_clusters": altered, "table": df.reset_index().to_dict(orient="records")}
+    suspects = [c for c in df.index if "ambient_suspect" in df and bool(df.loc[c, "ambient_suspect"])]
+    # for altered clusters, downstream nomination should use the clean program
+    for cl in altered:
+        if cl in clean_programs and f"{cl}:disease_vs_reference_within_cluster" in session.facts.get("pseudobulk_de", {}):
+            pb = session.facts["pseudobulk_de"][f"{cl}:disease_vs_reference_within_cluster"]
+            pb["top_up"] = [r for r in pb["top_up"] if r["gene"] in set(clean_programs[cl])] or pb["top_up"]
+    session.facts["disease_programs"] = {"cluster_key": key, "disease_altered_clusters": altered, "ambient_suspect_clusters": suspects, "table": df.reset_index().to_dict(orient="records"), "ambient_note": ambient_note}
     return {
         "cluster_key": key,
         "contrast": "disease_vs_reference_within_cluster (pseudobulk per sample)",
         "skipped_composition_enriched_clusters": skipped,
         "disease_altered_clusters": altered,
+        "ambient_suspect_clusters": suspects,
+        "ambient_warning": ambient_note,
         "table": df,
-        "note": "disease_altered = same cell type in all conditions but >= min_sig_genes genes up (padj<thr, log2FC>=min_log2fc) in disease samples. Characterise these with gene_specificity and nominate from their top_up genes; specificity should be judged by the within-cluster disease fold change, not cluster-vs-cluster.",
+        "note": "disease_altered = same cell type in all conditions but >= min_sig_genes genes up (padj<thr, log2FC>=min_log2fc) in disease samples AND the program is not mostly ambient-suspect. Characterise these with gene_specificity and nominate from their clean_program_genes; specificity should be judged by the within-cluster disease fold change, not cluster-vs-cluster.",
     }
+
+
+def _ambient_ratios(
+    session: AnalysisSession,
+    X_lin: np.ndarray,
+    expr: np.ndarray,
+    gene_names: list[str],
+    interest: np.ndarray,
+    disease_only: bool = True,
+    min_cells: int = 20,
+) -> pd.DataFrame:
+    """Within-sample lineage control for ambient RNA.
+
+    For each gene: per disease sample, mean expression in the cells of interest vs in every other
+    broad lineage; the control lineage is the one with the lowest median expression (least related
+    to the gene). ambient_ratio = median over samples of interest/control. Ambient RNA reads the
+    same background in both (ratio ~1); a cell-intrinsic program is several-fold higher.
+    """
+    a = session.require_adata()
+    conds = a.obs[session.condition_key].astype(str).to_numpy()
+    samples = a.obs[session.sample_key].astype(str).to_numpy()
+    ck = session.celltype_key
+    if ck and ck in a.obs:
+        lineage = a.obs[ck].astype(str).to_numpy()
+    else:  # no broad annotation: use clusters as lineages
+        lineage = a.obs[session.cluster_key].astype(str).to_numpy() if session.cluster_key else np.array(["all"] * a.n_obs)
+    scope = (conds == session.disease) if disease_only else np.ones(a.n_obs, dtype=bool)
+    ref_scope = np.isin(conds, session.reference)
+    dom = pd.Series(lineage[interest]).value_counts().idxmax() if interest.any() else None
+    others = [l for l in np.unique(lineage[scope]) if l != dom]
+    smps = np.unique(samples[scope & interest])
+    ref_smps = np.unique(samples[ref_scope])
+    eps = 1e-3
+    out = []
+    for j, g in enumerate(gene_names):
+        ratios, pct_i, pct_c, ctrl_name = [], [], [], None
+        # pick the control lineage for this gene: lowest median mean-expression across samples
+        med = {}
+        for l in others:
+            vals = []
+            for smp in smps:
+                m = scope & (lineage == l) & (samples == smp)
+                if m.sum() >= min_cells:
+                    vals.append(float(X_lin[m, j].mean()))
+            if len(vals) >= max(2, len(smps) // 2):
+                med[l] = float(np.median(vals))
+        if not med:
+            out.append({"gene": g, "ambient_ratio": None, "control_lineage": None, "pct_interest": None, "pct_control": None, "control_disease_vs_reference": None})
+            continue
+        ctrl_name = min(med, key=med.get)
+        # is the control lineage itself elevated in disease samples vs reference samples? Ambient
+        # background must raise it; a gene that is flat in the control lineage cannot be ambient.
+        ctrl_ref = [float(X_lin[ref_scope & (lineage == ctrl_name) & (samples == smp), j].mean()) for smp in ref_smps if (ref_scope & (lineage == ctrl_name) & (samples == smp)).sum() >= min_cells]
+        ctrl_dvr = ((med[ctrl_name] + eps) / (float(np.median(ctrl_ref)) + eps)) if ctrl_ref else None
+        for smp in smps:
+            mi = scope & interest & (samples == smp)
+            mc = scope & (lineage == ctrl_name) & (samples == smp)
+            if mi.sum() >= min_cells and mc.sum() >= min_cells:
+                ratios.append((float(X_lin[mi, j].mean()) + eps) / (float(X_lin[mc, j].mean()) + eps))
+                pct_i.append(float(expr[mi, j].mean()))
+                pct_c.append(float(expr[mc, j].mean()))
+        out.append(
+            {
+                "gene": g,
+                "ambient_ratio": round(float(np.median(ratios)), 2) if ratios else None,
+                "control_lineage": ctrl_name,
+                "pct_interest": round(float(np.median(pct_i)), 3) if pct_i else None,
+                "pct_control": round(float(np.median(pct_c)), 3) if pct_c else None,
+                "control_disease_vs_reference": None if ctrl_dvr is None else round(ctrl_dvr, 2),
+                "n_samples_evaluated": len(ratios),
+            }
+        )
+    return pd.DataFrame(out).set_index("gene")
+
+
+def _is_ambient_like(row: pd.Series, ratio_threshold: float = 3.0, control_elevation: float = 1.5) -> bool:
+    r, c = row.get("ambient_ratio"), row.get("control_disease_vs_reference")
+    if r is None or pd.isna(r):
+        return False
+    if c is None or pd.isna(c):
+        return bool(r < ratio_threshold)  # no reference samples for the control lineage: fall back to the ratio alone
+    return bool(r < ratio_threshold and c >= control_elevation)
 
 
 @tool(
@@ -922,21 +1080,29 @@ def disease_programs(
                         sibling clusters): a cell-type marker or a pan-condition (e.g. pan-tumour) gene
       reference_driven  the signal comes from the REFERENCE-condition cells inside this cluster
                         (spill-over / misassigned cells) - a false positive of cluster-vs-cluster DE
+      ambient_like      within the disease samples the gene is no more than ~3x higher in these cells
+                        than in the least-related lineage (immune / stromal / epithelial) of the SAME
+                        samples, AND that control lineage is itself raised in disease vs reference
+                        samples: the signal is sample background (ambient RNA), not cell-intrinsic
       weak              expressed in <10% of the cluster's disease cells
-    Run this on every candidate before nomination; score_targets penalises reference_driven and
-    shared_with_reference genes.""",
+    The ambient_ratio column (interest / control lineage, median over disease samples) and the
+    control lineage are reported for every gene so the judgement is auditable. Works symmetrically
+    for tumour-cell and TME (immune, stromal) targets: the control is whichever lineage is least
+    related to the gene. Run this on every candidate before nomination; score_targets penalises
+    reference_driven, ambient_like and shared_with_reference genes.""",
     input_schema={
         "properties": {
             "genes": {"type": "array", "items": {"type": "string"}},
             "cluster": {"type": "string"},
             "cluster_key": {"type": ["string", "null"]},
             "min_cells": {"type": "integer", "default": 20, "description": "a condition subset smaller than this is reported as not evaluable"},
+            "ambient_ratio_threshold": {"type": "number", "default": 3.0, "description": "below this interest/control-lineage ratio a gene is classed ambient_like"},
         },
         "required": ["genes", "cluster"],
     },
     roles=ALL,
 )
-def condition_attribution(session: AnalysisSession, genes: list[str], cluster: str, cluster_key: str | None = None, min_cells: int = 20) -> dict[str, Any]:
+def condition_attribution(session: AnalysisSession, genes: list[str], cluster: str, cluster_key: str | None = None, min_cells: int = 20, ambient_ratio_threshold: float = 3.0) -> dict[str, Any]:
     a = session.require_adata()
     _ensure_lognorm(session)
     cluster = str(cluster)
@@ -979,6 +1145,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
             return float(expr[mask, j].mean()), float(X[mask, j].mean()), int(mask.sum())
         return float(np.median(pcts)), float(np.median(means)), int(mask.sum())
 
+    amb = _ambient_ratios(session, X, expr, present, in_c, disease_only=True, min_cells=min_cells)
     rows = []
     for j, g in enumerate(present):
         a_pct, a_mean, n_a = per_sample_median(in_c & is_d, j)       # disease cells, this cluster
@@ -989,10 +1156,12 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
         eps = 1e-3
         if a_pct is None or a_mean is None:
             cls = "not_evaluable"
+        elif b_mean is not None and b_pct is not None and b_pct > 0.2 and b_mean >= 2 * (a_mean + eps):
+            cls = "reference_driven"  # checked before 'weak': weak-in-disease but strong-in-reference IS the artefact
         elif a_pct < 0.10:
             cls = "weak"
-        elif b_mean is not None and b_mean >= 2 * a_mean and b_pct is not None and b_pct > 0.2:
-            cls = "reference_driven"
+        elif _is_ambient_like(amb.loc[g], ambient_ratio_threshold):
+            cls = "ambient_like"
         elif (r_mean is not None and r_mean >= 0.5 * (a_mean + eps)) or (b_mean is not None and b_mean >= 0.5 * (a_mean + eps)):
             cls = "shared_with_reference"
         elif d_mean is not None and d_mean >= 0.5 * (a_mean + eps):
@@ -1009,6 +1178,10 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
                 "pct_reference_in_siblings": None if r_pct is None else round(r_pct, 3),
                 "mean_disease_in_cluster": None if a_mean is None else round(a_mean, 3),
                 "mean_reference_in_cluster": None if b_mean is None else round(b_mean, 3),
+                "ambient_ratio": amb.loc[g, "ambient_ratio"],
+                "ambient_control_lineage": amb.loc[g, "control_lineage"],
+                "pct_in_control_lineage": amb.loc[g, "pct_control"],
+                "control_lineage_disease_vs_reference": amb.loc[g, "control_disease_vs_reference"],
                 "n_cells": {"disease_in_cluster": n_a, "reference_in_cluster": n_b, "disease_in_siblings": n_d, "reference_in_siblings": n_r},
             }
         )
@@ -1023,7 +1196,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
         "class_counts": counts,
         "table": df,
         "missing_genes": missing,
-        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in siblings >= 0.5x. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster.",
+        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in siblings >= 0.5x; ambient_like = within disease samples the gene is < threshold-fold higher in these cells than in the least-related lineage of the same samples AND that control lineage is itself elevated (>=1.5x) in disease vs reference samples - the two signatures of sample background rather than cell-intrinsic expression. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster.",
     }
 
 

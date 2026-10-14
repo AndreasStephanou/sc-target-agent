@@ -58,7 +58,10 @@ within each cluster, disease samples vs reference samples (pseudobulk). A cluste
 disease-driven genes is a disease-altered program in a shared cell type. Record it with
 `record_finding(kind='disease_state', basis='program', ...)` using the within-cluster top genes.
 Running `disease_programs` is also worthwhile when composition DID change, to catch program
-shifts in cell types that are not enriched. If both routes find nothing, record a summary
+shifts in cell types that are not enriched - but read its ambient_warning: when a disease-enriched
+population dominates the disease samples, its transcripts appear as background in every other
+nucleus from those samples, and clusters marked ambient_suspect are NOT disease states. Use
+clean_program_genes for anything you do record. If both routes find nothing, record a summary
 finding explaining this.""",
     "target": PREAMBLE
     + """
@@ -74,7 +77,10 @@ Procedure:
    point there, and `score_targets` switches its specificity component automatically.
 2b. `condition_attribution` on the same genes. Drop `reference_driven` genes outright: their
    expression sits in the reference-condition cells that were assigned to this cluster, so the
-   cluster-vs-sibling fold change is an artefact (mixed-condition clusters do this). Treat
+   cluster-vs-sibling fold change is an artefact (mixed-condition clusters do this). Drop
+   `ambient_like` genes too: their level in these cells is no higher than in unrelated lineages
+   of the same disease samples, i.e. sample background rather than expression by these cells
+   (check the ambient_ratio and control lineage columns). Treat
    `shared_with_reference` (cell-type marker or pan-condition gene) as not disease-specific. `disease_wide` genes are legitimate disease
    targets but must not be described as defining the state.
 3. If the species is not human, `map_orthologs` and use the human symbols for lookups.
@@ -99,6 +105,8 @@ them. For every disease state and candidate target recorded:
 - Run `condition_attribution` on every nominated gene. A `reference_driven` gene is a blocking
   flag: the signal comes from reference-condition cells inside the cluster. Check the dot
   plots the same way - is the gene's expression in the disease rows of the cluster?
+- If `disease_programs` reported an ambient_warning, say so: 'disease_wide' labels and any
+  program-basis state in an unrelated cell type may be ambient RNA from the dominant state.
 - Are the druggability values from the live databases or from the bundled fixture
   (source=fixture means unverified)?
 Record every concern as `record_finding(kind='critic_flag', severity=blocking|major|minor)`.
