@@ -140,7 +140,11 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
     cond_of_sample = a.obs.drop_duplicates(session.sample_key).set_index(session.sample_key)[session.condition_key]
     cond_of_sample.index = session.pseudo.map_index(cond_of_sample.index)
 
-    existing_clusterings = [c for c in a.obs.columns if c.lower() in ("leiden", "louvain", "clusters", "cluster", "seurat_clusters")]
+    existing_clusterings = [c for c in a.obs.columns if c.lower().startswith(("leiden", "louvain")) or c.lower() in ("clusters", "cluster", "seurat_clusters")]
+    existing_clusterings = [c for c in existing_clusterings if c.lower() not in session.policy.forbidden_obs_columns]
+    preferred = ds.get("reuse_clustering")
+    if preferred and preferred in a.obs:
+        existing_clusterings = [preferred] + [c for c in existing_clusterings if c != preferred]
     celltypes: dict[str, int] = {}
     ck = session.celltype_key
     if ck and ck in a.obs:
@@ -160,6 +164,8 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
         "celltype_key": ck if celltypes else None,
         "celltype_counts": {str(k): int(v) for k, v in celltypes.items()},
         "existing_clusterings": existing_clusterings,
+        "preferred_clustering": preferred if preferred and preferred in a.obs else None,
+        "condition_descriptions": ds.get("condition_descriptions") or {},
         "embeddings": list(a.obsm.keys()),
         "layers": list(a.layers.keys()),
         "x_looks_like_raw_counts": _looks_like_counts(a.X),

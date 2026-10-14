@@ -101,6 +101,10 @@ def stage_prompt(role: str, facts: dict[str, Any], cfg: dict[str, Any]) -> str:
         f"reference={ds.get('reference')}, sample_key={ds.get('sample_key')}, condition_key={ds.get('condition_key')}, "
         f"celltype_key={ds.get('celltype_key')}, already_processed={ds.get('already_processed')}.\n"
     )
+    if ds.get("condition_descriptions"):
+        header += "Condition labels: " + "; ".join(f"{k} = {v}" for k, v in ds["condition_descriptions"].items()) + ".\n"
+    if ds.get("reuse_clustering"):
+        header += f"Preferred existing clustering to reuse: {ds['reuse_clustering']}.\n"
     if role == "planner":
         return header + "Load the dataset and record an analysis plan."
     if role == "analyst":

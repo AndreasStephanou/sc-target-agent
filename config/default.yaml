@@ -11,6 +11,8 @@ dataset:
   counts_layer: counts                      # layer holding raw counts (or null if adata.X is raw)
   human_symbol_var: null                    # optional var column with human ortholog symbols (made once with biomaRt); Ensembl is used for genes it does not cover
   already_processed: true                   # skip QC + integration if true (just reuse existing embeddings/clusters)
+  reuse_clustering: null                    # obs column to reuse first (e.g. leiden_1.0); otherwise the first leiden*/louvain* column
+  condition_descriptions: {}                # optional: label -> plain-language meaning, shown to the model (e.g. HGIN: healthy gingiva)
 
 analysis:
   qc:

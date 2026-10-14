@@ -1,0 +1,43 @@
+# CAA snRNA-seq (Stephanou et al.): disease = CAA; reference = canine OSCC + healthy gingiva (HGIN).
+# Save as config/caa.yaml
+dataset:
+  path: data/caa_processed.h5ad
+  species: canis_lupus_familiaris
+  sample_key: donor                     # biological replicate = the dog (19 libraries from 17 donors)
+  condition_key: condition              # copy of tumor_status
+  celltype_key: Broad_anno              # Epithelial / Endothelial / Immune / Mesenchymal -> defines "sibling clusters"
+  disease: CAA
+  reference: [OSCC, HGIN]
+  condition_descriptions:
+    CAA: canine acanthomatous ameloblastoma (odontogenic tumour; the disease of interest)
+    OSCC: canine oral squamous cell carcinoma (a different oral tumour; reference)
+    HGIN: healthy gingiva (normal tissue; reference)
+  counts_layer: counts
+  human_symbol_var: human_symbol        # same-name mapping; see var.human_symbol_source
+  already_processed: true
+  reuse_clustering: leiden_1.0          # 14 clusters; the agent subclusters from here if needed
+
+analysis:
+  integration:
+    use_harmony: true                   # only used if the agent decides to recompute clustering
+    resolution: 1.0
+  differential_abundance:
+    min_cells_per_sample: 20
+    enrichment_log2fc: 1.0
+  enrichment:
+    gene_sets: data/h.all.v2024.1.Hs.symbols.gmt   # MSigDB Hallmark, human symbols (download from gsea-msigdb.org)
+
+targets:
+  top_k_report: 15
+
+agent:
+  model: claude-sonnet-4-5
+  max_turns_per_role: 30
+
+privacy:
+  pseudonymize_samples: true
+  # never listed or summarised to the model:
+  #  - refined_anno encodes the paper's own cell-state conclusions (would leak the answer)
+  #  - sample_names / donor carry pet names; the rest is per-animal metadata the agent does not need
+  forbidden_obs_columns: [refined_anno, sample_names, sample_tube_number, breed_status, Sex, Age,
+                          Tumor_Location, BRAF_status, bc1_wind, bc2_wind, bc3_wind, bc1_well, bc2_well, bc3_well]
