@@ -58,6 +58,7 @@ def test_nothing_per_cell_reached_the_model(agent_run):
 def test_evaluation_passes_and_recovers_planted_answer(agent_run, ground_truth_path):
     res = evaluate_run(agent_run.run_dir, ground_truth_path)
     assert res.state_recovery["neuro_keratinocyte"]["found"]
+    assert res.state_recovery["neuro_keratinocyte"]["found_strict"]  # scripted model records the genes
     assert res.target_rank["ERBB4"] == 1
     assert res.drug_recall == 1.0
     assert not res.decoys_nominated_unflagged

@@ -3,6 +3,9 @@
 Metrics
   state_recovery      For each expected state: was a recorded disease_state found whose
                       top genes overlap the expected markers by >= min_marker_overlap?
+                      Lenient: recorded genes + the cluster's DE/marker tables (the tools reached
+                      the right place). Strict (found_strict): only genes the agent wrote into the
+                      finding count (the agent noticed). The gap between them is a result.
                       (Optionally, with per_cell_truth: best-matching cluster's F1.)
   target_rank         Rank of each expected target in the ranking (None if absent).
   target_recall_at_k  Fraction of expected targets within the top k (k = targets.top_k_report
@@ -102,7 +105,15 @@ def _state_recovery(gt: dict[str, Any], facts: dict[str, Any], run_dir: Path) ->
             if best is None or len(ov) > best["overlap"]:
                 best = {"cluster": cl, "overlap": len(ov), "overlap_genes": sorted(ov)}
         found = bool(best and best["overlap"] >= need)
-        entry: dict[str, Any] = {"found": found, "required_overlap": need, "best_match": best}
+        # strict variant: only genes the agent itself wrote into the disease_state finding count.
+        # lenient says "the tools reached the right place"; strict says "the agent noticed".
+        strict_best = None
+        for rec in recorded:
+            ov = want & set(rec.get("genes") or [])
+            if strict_best is None or len(ov) > strict_best["overlap"]:
+                strict_best = {"cluster": str(rec.get("cluster")), "overlap": len(ov), "overlap_genes": sorted(ov), "n_recorded_genes": len(rec.get("genes") or [])}
+        found_strict = bool(strict_best and strict_best["overlap"] >= need)
+        entry: dict[str, Any] = {"found": found, "found_strict": found_strict, "required_overlap": need, "best_match": best, "best_match_strict": strict_best}
         matched_basis = next((r.get("basis") for r in recorded if best and str(r.get("cluster")) == best["cluster"]), "composition")
         if truth_df is not None and best and matched_basis != "program" and (run_dir / "cluster_assignments.csv").exists():
             # optional: compute F1 of the matched cluster vs the true state label
@@ -203,6 +214,8 @@ def format_eval(res: EvalResult) -> str:
     for name, v in res.state_recovery.items():
         bm = v.get("best_match") or {}
         lines.append(f"state '{name}': {'FOUND' if v['found'] else 'missed'}  (cluster {bm.get('cluster')}, marker overlap {bm.get('overlap')}/{v['required_overlap']} needed: {', '.join(bm.get('overlap_genes', []))})")
+        sb = v.get("best_match_strict") or {}
+        lines.append(f"    strict (agent-recorded genes only): {'FOUND' if v.get('found_strict') else 'missed'}  (cluster {sb.get('cluster')}, overlap {sb.get('overlap')}/{v['required_overlap']}, {sb.get('n_recorded_genes', 0)} genes recorded)")
         if "cell_level" in v:
             lines.append(f"    cell-level P/R/F1: {v['cell_level']['precision']}/{v['cell_level']['recall']}/{v['cell_level']['f1']}")
     lines.append(f"target ranks: {res.target_rank}   recall@{res.k}: {res.target_recall_at_k}")

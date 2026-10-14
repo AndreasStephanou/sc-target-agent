@@ -49,7 +49,8 @@ python scripts/run_eval.py --ground-truth data/ground_truth/caa.yaml runs/baseli
 
 | metric | what it answers |
 |---|---|
-| state recovery (found / marker overlap / cell-level F1) | did it find the right cell state? |
+| state recovery, lenient (found / marker overlap / cell-level F1) | did the analysis reach the right cell state? (counts the cluster's DE and marker tables) |
+| state recovery, strict (found_strict) | did the agent record the state's genes itself? the lenient-strict gap measures signal the tools produced but the agent dropped |
 | rank of ERBB4; recall@5 | is the right target near the top? |
 | decoys above target / novel candidates above target | known-wrong genes above the answer (the error metric) vs genes absent from the answer key (new hypotheses - report, do not penalise) |
 | nominated precision; decoys nominated **unflagged** | did the critic catch the decoys that were nominated? |
