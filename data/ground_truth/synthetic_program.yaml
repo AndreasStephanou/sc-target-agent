@@ -12,7 +12,7 @@ expected_states:
     min_marker_overlap: 4         # how many of these must be in the discovered state's top markers
 
 expected_targets: [ERBB4]         # must appear in the top-k
-acceptable_targets: [PEG3]        # fine if nominated (marker, not druggable) - not counted as false lead
+acceptable_targets: [PEG3, SYP, SNAP25, STMN2, GAP43, NEFL, SYT1, RAB3A, DLG4]   # every planted program gene is legitimate signal
 expected_drugs: [neratinib, afatinib, lapatinib]
 
 # Planted decoys: druggable but NOT disease-specific. Each one above the first

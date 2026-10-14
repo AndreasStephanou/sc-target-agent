@@ -85,7 +85,9 @@ def _effect_size(session: AnalysisSession, gene: str, cluster: str, basis: str =
     ranked table with per-component scores and flags (low_specificity, not_druggable,
     no_known_compounds, inconsistent_across_samples, missing_evidence). Call the evidence
     tools first; missing evidence scores 0 and is flagged. Flags also penalise the score
-    (low_specificity x0.6, shared_across_conditions x0.6, inconsistent_across_samples x0.8).""",
+    (low_specificity x0.6, shared_across_conditions x0.6, inconsistent_across_samples x0.8,
+    reference_driven x0.2, shared_with_reference / weak x0.5; disease_wide is informational). Run
+    condition_attribution on the candidates first or they are flagged missing_evidence:attribution.""",
     input_schema={
         "properties": {
             "genes": {"type": "array", "items": {"type": "string"}},
@@ -147,6 +149,12 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
         if cons is not None and cons < 0.67:
             flags.append("inconsistent_across_samples")
 
+        attr = session.facts.get("condition_attribution", {}).get(str(cluster), {}).get(g)
+        if attr is None:
+            flags.append("missing_evidence:attribution")
+        elif attr in ("reference_driven", "shared_with_reference", "disease_wide", "weak"):
+            flags.append(attr)
+
         d = drug_rows.get(hs) or drug_rows.get(g)
         if d is None:
             flags.append("missing_evidence:druggability")
@@ -180,6 +188,11 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
             penalty *= 0.6
         if "inconsistent_across_samples" in flags:
             penalty *= 0.8
+        if "reference_driven" in flags:
+            penalty *= 0.2  # the signal is in the wrong condition's cells: a false positive
+        if "shared_with_reference" in flags or "weak" in flags:
+            penalty *= 0.5
+        # disease_wide is informational only: a disease-wide gene is still a legitimate target
         score *= penalty
         rows.append(
             {
@@ -195,6 +208,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
                 "druggability_score": s_drug,
                 "known_compound_score": round(s_cmp, 3),
                 "top_inhibitors": (d or {}).get("top_inhibitors", []),
+                "attribution": attr,
                 "flag_penalty": round(penalty, 2),
                 "flags": flags,
             }

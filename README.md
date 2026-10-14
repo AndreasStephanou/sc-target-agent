@@ -14,7 +14,7 @@ naive script?*
                (plan)      (states)    (druggable genes)    (flags)    + run.jsonl audit log
                   │            │              │                │
                   └────────────┴──────────────┴────────────────┘
-                         16 deterministic tools (scanpy, PyDESeq2, DGIdb, Open Targets …)
+                         18 deterministic tools (scanpy, PyDESeq2, DGIdb, Open Targets …)
                          only aggregated results ever reach the model
 ```
 
@@ -28,6 +28,13 @@ naive script?*
   abundance; state genes by pseudobulk DESeq2 against *sibling clusters of the same cell
   type* (so you get state markers, not cell-type markers). A `gene_specificity` tool and a
   critic role exist specifically to catch pan-tumour and cell-type decoys.
+* **Where does the signal sit?** `condition_attribution` asks, for every candidate gene, whether
+  its expression in a cluster comes from the disease-condition cells or from reference-condition
+  cells that landed in the same cluster (`reference_driven`: a false positive of cluster-vs-cluster
+  DE that mixed-condition clusters produce), whether it is shared with reference cells of the same
+  cell type (`shared_with_reference`: cell-type marker or pan-condition gene), or whether it is
+  disease-wide rather than state-specific. The scorer penalises the first two and the critic
+  raises them as flags.
 * **Two routes to a disease state.** *Composition*: a cluster enriched in disease samples
   (`differential_abundance`, with subclustering / re-clustering fallbacks). *Expression*:
   a cell type present in every condition that runs a disease-specific program
@@ -110,7 +117,7 @@ sctarget/
     registry.py        @tool decorator -> JSON schema, role permissions, arg validation
     analysis.py        load_dataset, run_qc, integrate_and_cluster, subcluster, cluster_composition,
                        differential_abundance, disease_programs, find_markers, pseudobulk_de,
-                       gene_specificity, enrichment, plot_genes
+                       gene_specificity, condition_attribution, enrichment, plot_genes
     knowledge.py       map_orthologs (Ensembl), druggability_lookup (DGIdb + Open Targets),
                        literature_count (PubMed) – disk-cached, offline fixture fallback
     targets.py         score_targets (deterministic, weighted, explainable), record_finding
@@ -127,7 +134,7 @@ scripts/               make_synthetic, run_pipeline, run_baseline, run_eval
 config/                default.yaml, synthetic.yaml, caa_template.yaml
 data/ground_truth/     synthetic.yaml, caa_template.yaml
 data/fixtures/         mini_hallmark.gmt (test stand-in), knowledge_fixtures.json (offline DB stand-in)
-tests/                 30 tests: tools, privacy, registry, loop error handling, end-to-end + eval
+tests/                 32 tests: tools, privacy, registry, loop error handling, end-to-end + eval
 ```
 
 Each run directory contains `report.md/.html`, `run.jsonl`, `state.json`, `config_used.json`,

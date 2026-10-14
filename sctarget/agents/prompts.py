@@ -72,6 +72,11 @@ Procedure:
    reason to keep them. For program-basis states (shared cell type), judge by
    log2_disease_vs_reference_within_cluster instead - cluster-vs-cluster specificity is not the
    point there, and `score_targets` switches its specificity component automatically.
+2b. `condition_attribution` on the same genes. Drop `reference_driven` genes outright: their
+   expression sits in the reference-condition cells that were assigned to this cluster, so the
+   cluster-vs-sibling fold change is an artefact (mixed-condition clusters do this). Treat
+   `shared_with_reference` (cell-type marker or pan-condition gene) as not disease-specific. `disease_wide` genes are legitimate disease
+   targets but must not be described as defining the state.
 3. If the species is not human, `map_orthologs` and use the human symbols for lookups.
 4. `druggability_lookup` on the human symbols; `literature_count` on the top ~10 with the
    disease name(s) as terms.
@@ -91,6 +96,9 @@ them. For every disease state and candidate target recorded:
 - Is each candidate gene specific to the state (`gene_specificity`), or is it a cell-type /
   pan-condition marker? Is it consistent across disease samples?
 - Does the effect size rest only on a cell-level test (effect_size_source = find_markers)?
+- Run `condition_attribution` on every nominated gene. A `reference_driven` gene is a blocking
+  flag: the signal comes from reference-condition cells inside the cluster. Check the dot
+  plots the same way - is the gene's expression in the disease rows of the cluster?
 - Are the druggability values from the live databases or from the bundled fixture
   (source=fixture means unverified)?
 Record every concern as `record_finding(kind='critic_flag', severity=blocking|major|minor)`.

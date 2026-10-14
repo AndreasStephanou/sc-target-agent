@@ -853,7 +853,11 @@ def disease_programs(
     if not key or key not in a.obs:
         raise ValueError("no cluster key available; run integrate_and_cluster first")
     sizes = a.obs[key].astype(str).value_counts()
-    clusters = [c for c, n in sizes.items() if n >= min_cells][:max_clusters]
+    # clusters already enriched in disease are composition states: "disease vs reference cells
+    # within" them is disease cells vs spill-over, not a program test - skip and say so
+    enriched = set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", [])))
+    skipped = [c for c in sizes.index if c in enriched]
+    clusters = [c for c, n in sizes.items() if n >= min_cells and c not in enriched][:max_clusters]
     ck = session.celltype_key
     dom = {}
     if ck and ck in a.obs:
@@ -896,6 +900,7 @@ def disease_programs(
     return {
         "cluster_key": key,
         "contrast": "disease_vs_reference_within_cluster (pseudobulk per sample)",
+        "skipped_composition_enriched_clusters": skipped,
         "disease_altered_clusters": altered,
         "table": df,
         "note": "disease_altered = same cell type in all conditions but >= min_sig_genes genes up (padj<thr, log2FC>=min_log2fc) in disease samples. Characterise these with gene_specificity and nominate from their top_up genes; specificity should be judged by the within-cluster disease fold change, not cluster-vs-cluster.",
@@ -903,11 +908,132 @@ def disease_programs(
 
 
 @tool(
+    name="condition_attribution",
+    description="""
+    For candidate genes in one cluster, ask WHERE the expression actually sits. Within the
+    cluster, compares disease-condition cells with reference-condition cells (per-sample medians
+    of % expressing and mean expression); then compares with disease and reference cells in the
+    sibling clusters of the same cell type. Classifies each gene:
+      state_specific    high in disease cells of this cluster, low in reference cells here, low in
+                        disease cells of sibling clusters
+      disease_wide      also high in disease cells of sibling clusters (a disease marker, not a
+                        state marker - still a legitimate target)
+      shared_with_reference  also high in reference-condition cells of the same cell type (here or in
+                        sibling clusters): a cell-type marker or a pan-condition (e.g. pan-tumour) gene
+      reference_driven  the signal comes from the REFERENCE-condition cells inside this cluster
+                        (spill-over / misassigned cells) - a false positive of cluster-vs-cluster DE
+      weak              expressed in <10% of the cluster's disease cells
+    Run this on every candidate before nomination; score_targets penalises reference_driven and
+    shared_with_reference genes.""",
+    input_schema={
+        "properties": {
+            "genes": {"type": "array", "items": {"type": "string"}},
+            "cluster": {"type": "string"},
+            "cluster_key": {"type": ["string", "null"]},
+            "min_cells": {"type": "integer", "default": 20, "description": "a condition subset smaller than this is reported as not evaluable"},
+        },
+        "required": ["genes", "cluster"],
+    },
+    roles=ALL,
+)
+def condition_attribution(session: AnalysisSession, genes: list[str], cluster: str, cluster_key: str | None = None, min_cells: int = 20) -> dict[str, Any]:
+    a = session.require_adata()
+    _ensure_lognorm(session)
+    cluster = str(cluster)
+    key = _resolve_key(session, cluster, cluster_key)
+    labels = a.obs[key].astype(str).to_numpy()
+    conds = a.obs[session.condition_key].astype(str).to_numpy()
+    samples = a.obs[session.sample_key].astype(str).to_numpy()
+    is_d = conds == session.disease
+    is_r = np.isin(conds, session.reference)
+    in_c = labels == cluster
+    ck = session.celltype_key
+    if ck and ck in a.obs:
+        ct = a.obs[ck].astype(str).to_numpy()
+        dom = pd.Series(ct[in_c]).value_counts().idxmax()
+        sib = (~in_c) & (ct == dom)
+        sib_desc = f"other clusters of {dom}"
+    else:
+        sib = ~in_c
+        sib_desc = "all other clusters"
+    present = [g for g in genes if g in a.var_names]
+    missing = [g for g in genes if g not in a.var_names]
+    if not present:
+        return {"error": "none of the genes are in the dataset", "missing": missing}
+    X = a[:, present].X
+    X = X.toarray() if sp.issparse(X) else np.asarray(X)
+    expr = X > 0
+    X = np.expm1(X)  # linear-scale means so that ratios between subsets are meaningful
+
+    def per_sample_median(mask: np.ndarray, j: int) -> tuple[float | None, float | None, int]:
+        """median over samples of (% expressing, mean normalised expr), requiring >= min_cells per sample."""
+        if mask.sum() < min_cells:
+            return None, None, int(mask.sum())
+        pcts, means = [], []
+        for smp in np.unique(samples[mask]):
+            m = mask & (samples == smp)
+            if m.sum() >= min_cells:
+                pcts.append(float(expr[m, j].mean()))
+                means.append(float(X[m, j].mean()))
+        if not pcts:  # subset is big enough overall but spread thinly across samples: pool
+            return float(expr[mask, j].mean()), float(X[mask, j].mean()), int(mask.sum())
+        return float(np.median(pcts)), float(np.median(means)), int(mask.sum())
+
+    rows = []
+    for j, g in enumerate(present):
+        a_pct, a_mean, n_a = per_sample_median(in_c & is_d, j)       # disease cells, this cluster
+        b_pct, b_mean, n_b = per_sample_median(in_c & is_r, j)       # reference cells, this cluster
+        d_pct, d_mean, n_d = per_sample_median(sib & is_d, j)        # disease cells, sibling clusters
+        r_pct, r_mean, n_r = per_sample_median(sib & is_r, j)        # reference cells, sibling clusters
+        # classify on mean expression ratios (detection % alone saturates for broadly expressed genes)
+        eps = 1e-3
+        if a_pct is None or a_mean is None:
+            cls = "not_evaluable"
+        elif a_pct < 0.10:
+            cls = "weak"
+        elif b_mean is not None and b_mean >= 2 * a_mean and b_pct is not None and b_pct > 0.2:
+            cls = "reference_driven"
+        elif (r_mean is not None and r_mean >= 0.5 * (a_mean + eps)) or (b_mean is not None and b_mean >= 0.5 * (a_mean + eps)):
+            cls = "shared_with_reference"
+        elif d_mean is not None and d_mean >= 0.5 * (a_mean + eps):
+            cls = "disease_wide"
+        else:
+            cls = "state_specific"
+        rows.append(
+            {
+                "gene": g,
+                "class": cls,
+                "pct_disease_in_cluster": None if a_pct is None else round(a_pct, 3),
+                "pct_reference_in_cluster": None if b_pct is None else round(b_pct, 3),
+                "pct_disease_in_siblings": None if d_pct is None else round(d_pct, 3),
+                "pct_reference_in_siblings": None if r_pct is None else round(r_pct, 3),
+                "mean_disease_in_cluster": None if a_mean is None else round(a_mean, 3),
+                "mean_reference_in_cluster": None if b_mean is None else round(b_mean, 3),
+                "n_cells": {"disease_in_cluster": n_a, "reference_in_cluster": n_b, "disease_in_siblings": n_d, "reference_in_siblings": n_r},
+            }
+        )
+    df = pd.DataFrame(rows).set_index("gene")
+    session.save_table(f"condition_attribution_{key}_{cluster}", df.drop(columns=["n_cells"]))
+    session.facts.setdefault("condition_attribution", {}).setdefault(cluster, {}).update({r["gene"]: r["class"] for r in rows})
+    counts = df["class"].value_counts().to_dict()
+    return {
+        "cluster": cluster,
+        "cluster_key": key,
+        "siblings": sib_desc,
+        "class_counts": counts,
+        "table": df,
+        "missing_genes": missing,
+        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in siblings >= 0.5x. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster.",
+    }
+
+
+@tool(
     name="gene_specificity",
     description="""
     For a list of candidate genes, quantify how specific their expression is to one cluster:
-    mean expression in the target cluster vs the maximum mean in any other cluster
-    (log2 specificity ratio), % of target cells expressing, expression in disease vs
+    mean expression in the target cluster vs the maximum mean in any other NON-disease cluster
+    (log2 specificity ratio; other disease states are excluded so a gene shared by two disease
+    states is not penalised - the all-clusters value is also reported), % of target cells expressing, expression in disease vs
     reference cells of the target cluster, and sample consistency (fraction of disease
     samples in which the gene is detected in >=10% of the cluster's cells). Also reports
     whether the gene is up in other condition-shared clusters (a pan-tumour or cell-type
@@ -940,14 +1066,21 @@ def gene_specificity(session: AnalysisSession, genes: list[str], cluster: str, c
     clusters = sorted(set(labels))
     t_mask = labels == cluster
     means = {cl: expm[labels == cl].mean(axis=0) for cl in clusters}
+    # other disease states (composition-enriched or program-altered) are not "other clusters" for
+    # the purpose of disease specificity: a gene shared by two disease states is still disease-specific
+    disease_clusters = set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", []))) | set(map(str, session.facts.get("disease_programs", {}).get("disease_altered_clusters", [])))
+    disease_clusters.discard(cluster)
     rows = []
     dis_samples = sorted(set(samples[conds == session.disease]))
     for j, g in enumerate(present):
         tm = float(means[cluster][j])
-        others = {cl: float(means[cl][j]) for cl in clusters if cl != cluster}
+        others_all = {cl: float(means[cl][j]) for cl in clusters if cl != cluster}
+        others = {cl: v for cl, v in others_all.items() if cl not in disease_clusters} or others_all
         max_other_cl = max(others, key=others.get) if others else None
         max_other = others[max_other_cl] if others else 0.0
         spec = float(np.log2((tm + 0.01) / (max_other + 0.01)))
+        max_all_cl = max(others_all, key=others_all.get) if others_all else None
+        spec_all = float(np.log2((tm + 0.01) / ((others_all[max_all_cl] if max_all_cl else 0.0) + 0.01)))
         pct_in = float((X[t_mask, j] > 0).mean())
         d_in = expm[t_mask & (conds == session.disease), j]
         r_in = expm[t_mask & np.isin(conds, session.reference), j]
@@ -965,6 +1098,8 @@ def gene_specificity(session: AnalysisSession, genes: list[str], cluster: str, c
                 "max_mean_other_cluster": round(max_other, 3),
                 "max_other_cluster": max_other_cl,
                 "log2_specificity": round(spec, 3),
+                "log2_specificity_incl_other_disease_states": round(spec_all, 3),
+                "max_other_cluster_incl_disease_states": max_all_cl,
                 "pct_expressing_in_cluster": round(pct_in, 3),
                 "log2_disease_vs_reference_within_cluster": None if dvr is None else round(dvr, 3),
                 "disease_sample_consistency": None if consistency is None else round(consistency, 3),
