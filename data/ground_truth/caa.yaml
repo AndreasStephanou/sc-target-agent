@@ -1,0 +1,41 @@
+# Frozen answer key for the CAA snRNA-seq blind run.
+# Source: Stephanou et al., "Neuroepithelial reprogramming and ERBB vulnerability in canine
+# acanthomatous ameloblastoma", Mol Ther Oncol 34 (2026) 201300 - Figures 2E, 3A, 4A, 5B-C.
+# Written BEFORE the first agent run on this dataset. Do not edit afterwards.
+name: caa_snrnaseq
+disease: CAA
+reference: [OSCC, HGIN]
+
+# The paper reports two CAA-exclusive epithelial states (CAA-specific junctional KCs and
+# CAA-specific basal KCs) that share one 240-gene "CAA-specific KC signature" (pairwise DGEA vs
+# all other epithelial types + TME; padj<0.01, log2FC>1). The top 20 of that signature
+# (Fig. 3A) is the marker list below; the two states are not separable by distinct published
+# marker sets, so recovery is scored once against the shared signature.
+expected_states:
+  - name: CAA_specific_keratinocytes
+    parent_cell_type: Epithelial Cells          # Broad_anno label
+    marker_genes: [BNC2, RBFOX1, NFIA, MCTP2, PEG3, FAM13A, SLIT2, NAALADL2, CACNB2, MAGI2,
+                   FHIT, CASK, COL8A1, SESN3, ROR2, GABRB1, ERBB4, CPA6, NEO1, BCL2]
+    min_marker_overlap: 5
+
+# Fig. 4A ranked candidates: PEG3, GABRB1, CACNB2, ERBB4, MAGI2, NEO1, CASK, MCTP2.
+# Fig. 5: kinome screen (KiR) independently identified ERBB4; neratinib (1 uM) strongly reduced
+# viability, lapatinib less so.
+expected_targets: [ERBB4]
+
+# Nominating these is defensible from the data and is NOT counted as a false lead:
+#  - PEG3: the paper's top diagnostic marker (IHC-validated), not druggable
+#  - GABRB1, CACNB2, BCL2: in the top-20 signature and druggable in principle (channel subunits; venetoclax)
+#  - AURKA, AURKB, MAPK8, MAPK9, ARAF, TNK2: kinome-screen dependencies (Aurora, JNK, ARAF, ACK1)
+acceptable_targets: [PEG3, GABRB1, CACNB2, BCL2, MAGI2, NEO1, CASK, MCTP2, AURKA, AURKB, MAPK8, MAPK9, ARAF, TNK2]
+
+expected_drugs: [neratinib, lapatinib, afatinib, dacomitinib]   # neratinib = paper result; others = accepted pan-ERBB inhibitors
+
+# Druggable but clearly wrong answers. Ranked above ERBB4 = false lead; nominated and not flagged = critic failure.
+#  - MKI67, TOP2A, CDK1, AURKA excluded: proliferation marks COSCC's "Prolif Basal KCs" (Fig. 2E), not CAA
+#  - EGFR: not reported as CAA-specific; broad epithelial expression
+#  - FGFR1, FGFR2, MET: paper's negative controls - tepotinib/infigratinib showed minimal response (Fig. 5C)
+#  - PDGFRB, PDGFRA, KDR, FLT1, CSF1R: stromal / endothelial / macrophage markers (Fig. 2B-D), TME not tumour
+decoy_targets: [MKI67, TOP2A, CDK1, EGFR, FGFR1, FGFR2, MET, PDGFRB, PDGFRA, KDR, FLT1, CSF1R]
+
+per_cell_truth: null
