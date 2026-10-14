@@ -18,6 +18,16 @@ from .registry import tool
 ALL = {"planner", "analyst", "target", "critic"}
 
 
+DEFAULT_EXCLUDE_PATTERNS = [r"^ENS[A-Z]*G\d+", r"^LOC\d+", r"^U\d+-\d+", r"^MT-", r"^RP[LS]\d", r"^SNOR", r"^MIR\d", r"^LINC\d", r"^[A-Z0-9]+\.\d+$"]
+
+
+def excluded_gene(name: str, patterns: list[str] | None = None) -> bool:
+    """Unnamed / placeholder / housekeeping-RNA genes that can never be nominated as targets."""
+    import re
+
+    return any(re.match(p, str(name)) for p in (patterns or DEFAULT_EXCLUDE_PATTERNS))
+
+
 def _clip01(x: float | None, scale: float) -> float:
     if x is None or (isinstance(x, float) and np.isnan(x)):
         return 0.0
@@ -88,8 +98,12 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
         if v.get("human_symbol") and g not in human_symbols:
             human_symbols[g] = v["human_symbol"]
 
+    patterns = session.cfg.targets.get("exclude_gene_patterns") or None
+    excluded = [g for g in dict.fromkeys(genes) if excluded_gene(g, patterns)]
     rows = []
     for g in dict.fromkeys(genes):
+        if g in excluded:
+            continue
         hs = human_symbols.get(g, g)
         flags: list[str] = []
         eff, eff_src = _effect_size(session, g, str(cluster))
@@ -156,7 +170,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
     df["rank"] = np.arange(1, len(df) + 1)
     session.save_table(f"ranked_targets_{cluster}", df)
     session.facts.setdefault("ranked_targets", {})[str(cluster)] = df.reset_index().to_dict(orient="records")
-    return {"cluster": str(cluster), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "ranking": df}
+    return {"cluster": str(cluster), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
 
 
 @tool(

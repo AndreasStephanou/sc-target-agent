@@ -180,10 +180,12 @@ class ScriptedModel:
     def _analyst_enrich(self, cl: str) -> list[ToolUse | str]:
         f = self._facts()
         pb = f.get("pseudobulk_de", {}).get(f"{cl}:cluster_vs_reference_clusters", {})
-        up = [r["gene"] for r in pb.get("top_up", [])][:40]
+        from ..tools.targets import excluded_gene
+
+        up = [r["gene"] for r in pb.get("top_up", []) if not excluded_gene(r["gene"])][:40]
         if not up:
             mk_key = next((k for k in f.get("markers", {}) if k.startswith(f"{cl}_vs_")), None)
-            up = [r["gene"] for r in f.get("markers", {}).get(mk_key, [])][:40]
+            up = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:40]
         da_rows = {r["cluster"]: r for r in f.get("differential_abundance", {}).get("table", [])}
         row = da_rows.get(cl, {})
         comp = {r["cluster"]: r for r in f.get("cluster_composition", [])}
@@ -215,10 +217,12 @@ class ScriptedModel:
         for st in states[:2]:
             cl = st["cluster"]
             pb = f.get("pseudobulk_de", {}).get(f"{cl}:cluster_vs_reference_clusters", {})
-            genes = [r["gene"] for r in pb.get("top_up", [])][:25] or st.get("genes", [])[:25]
-            # add decoy-prone genes that a naive analyst might pick: top markers vs rest
+            from ..tools.targets import excluded_gene
+
+            genes = [r["gene"] for r in pb.get("top_up", []) if not excluded_gene(r["gene"])][:25] or st.get("genes", [])[:25]
+            # add the cell-level markers too (a naive analyst's first pick)
             mk_key = next((k for k in f.get("markers", {}) if k.startswith(f"{cl}_vs_")), None)
-            genes += [r["gene"] for r in f.get("markers", {}).get(mk_key, [])][:15]
+            genes += [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:15]
             genes = list(dict.fromkeys(genes))[:30]
             steps.append(ToolUse("gene_specificity", {"genes": genes, "cluster": cl}))
             if species not in ("homo_sapiens", "human"):
@@ -261,7 +265,11 @@ class ScriptedModel:
                     },
                 )
             )
-        steps.append(f"Nominated {len(steps)} candidate targets for cluster {cl}.")
+        # a plain string ends the role, so only say "done" after the LAST state has been processed
+        states = [st["cluster"] for st in f.get("findings", {}).get("disease_state", [])][:2]
+        if cl == states[-1]:
+            n_total = len(f.get("findings", {}).get("candidate_target", [])) + len([s for s in steps if isinstance(s, ToolUse)])
+            steps.append(f"Nominated {n_total} candidate targets across clusters {', '.join(states)}.")
         return steps
 
     def _critic_dynamic(self) -> list[ToolUse | str]:

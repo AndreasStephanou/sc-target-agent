@@ -59,7 +59,8 @@ explaining this.""",
 Role: TARGET NOMINATOR. For each recorded disease state, nominate druggable target genes.
 Procedure:
 1. Start from the state's up-regulated genes (pseudobulk DE first, markers second); take up
-   to 30 candidates.
+   to 30 candidates. Skip unnamed placeholder genes (ENS...G ids, LOC...) - they cannot be
+   targets and score_targets drops them anyway.
 2. `gene_specificity` for those genes in that cluster. Drop genes that are equally high in
    another cluster (log2_specificity < 1) unless there is a specific reason to keep them.
 3. If the species is not human, `map_orthologs` and use the human symbols for lookups.

@@ -99,3 +99,11 @@ def test_map_orthologs_prefers_var_column(cfg, tmp_path):
     assert out["n_from_var_column"] == 2  # ERBB4, KRT14 (the empty entry counts as no_ortholog, not a mapping)
     s.cfg.raw["dataset"]["human_symbol_var"] = None
     s.cfg.raw["dataset"]["species"] = "homo_sapiens"
+
+
+def test_excluded_gene_patterns():
+    from sctarget.tools.targets import excluded_gene
+
+    assert excluded_gene("ENSCAFG00000047853") and excluded_gene("LOC102154") and excluded_gene("MT-CO1")
+    assert excluded_gene("RPL13A") and excluded_gene("U6-968") and excluded_gene("ENSG00000178568")
+    assert not excluded_gene("ERBB4") and not excluded_gene("PEG3") and not excluded_gene("C1H18orf54") and not excluded_gene("HLA-DQB1")

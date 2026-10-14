@@ -627,8 +627,9 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
         (default: all other clusters). Finds state-specific genes with sample-level replication.
       - 'disease_vs_reference_within_cluster': within `cluster`, disease samples vs reference
         samples. Finds disease-driven changes inside one cell type/state.
-    Returns top up-regulated genes (log2FC, padj, baseMean) and the number of pseudobulk
-    replicates per side. Requires >=2 replicates per side.""",
+    Returns top up-regulated genes ranked by test statistic among genes with
+    baseMean >= min_base_mean (so rare, barely-expressed genes do not dominate), plus the number
+    of pseudobulk replicates per side. Requires >=2 replicates per side.""",
     input_schema={
         "properties": {
             "cluster": {"type": "string"},
@@ -638,6 +639,7 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
             "min_cells_per_pseudobulk": {"type": "integer", "default": 10},
             "n_top": {"type": "integer", "default": 40},
             "padj_threshold": {"type": "number", "default": 0.05},
+            "min_base_mean": {"type": "number", "default": 10.0, "description": "genes with lower mean pseudobulk counts are excluded from the ranked lists (noise guard)"},
         },
         "required": ["cluster"],
     },
@@ -652,6 +654,7 @@ def pseudobulk_de(
     min_cells_per_pseudobulk: int = 10,
     n_top: int = 40,
     padj_threshold: float = 0.05,
+    min_base_mean: float = 10.0,
 ) -> dict[str, Any]:
     a = session.require_adata()
     key = cluster_key or session.cluster_key
@@ -713,7 +716,7 @@ def pseudobulk_de(
         st = DeseqStats(dds, contrast=["label", "target", "reference"], quiet=True)
         st.summary()
         res = st.results_df.rename(columns={"log2FoldChange": "log2fc"})
-        res = res[["baseMean", "log2fc", "pvalue", "padj"]]
+        res = res[["baseMean", "log2fc", "stat", "pvalue", "padj"]]
     except Exception as e:  # fallback
         method = f"wilcoxon_logcpm (pydeseq2 unavailable: {type(e).__name__})"
         cpm = counts_df.div(counts_df.sum(axis=1), axis=0) * 1e6
@@ -721,13 +724,18 @@ def pseudobulk_de(
         t = lcpm[meta["label"] == "target"]
         r = lcpm[meta["label"] == "reference"]
         pv = np.array([stats.mannwhitneyu(t[g], r[g], alternative="two-sided").pvalue if t[g].std() + r[g].std() > 0 else 1.0 for g in lcpm.columns])
-        res = pd.DataFrame({"baseMean": counts_df.mean(axis=0), "log2fc": (t.mean() - r.mean()), "pvalue": pv, "padj": _bh(pv)}, index=lcpm.columns)
+        lfc = t.mean() - r.mean()
+        res = pd.DataFrame({"baseMean": counts_df.mean(axis=0), "log2fc": lfc, "stat": lfc * -np.log10(np.clip(pv, 1e-300, 1)), "pvalue": pv, "padj": _bh(pv)}, index=lcpm.columns)
 
     res.index.name = "gene"
     res = res.sort_values("padj")
     table_path = session.save_table(f"pseudobulk_de_{key}_{cluster}_{contrast}", res)
-    sig_up = res[(res["padj"] < padj_threshold) & (res["log2fc"] > 0)].sort_values("log2fc", ascending=False)
-    sig_down = res[(res["padj"] < padj_threshold) & (res["log2fc"] < 0)]
+    # rank by the test statistic (effect size weighted by evidence), not raw log2FC, and require
+    # a minimum mean expression so a handful of counts in a few nuclei cannot top the list
+    sig = res[(res["padj"] < padj_threshold) & (res["baseMean"] >= min_base_mean)]
+    sig_up = sig[sig["log2fc"] > 0].sort_values("stat", ascending=False)
+    sig_down = sig[sig["log2fc"] < 0]
+    n_low_expr_dropped = int(((res["padj"] < padj_threshold) & (res["log2fc"] > 0) & (res["baseMean"] < min_base_mean)).sum())
     session.facts.setdefault("pseudobulk_de", {})[f"{cluster}:{contrast}"] = {
         "method": method,
         "table_path": str(table_path),
@@ -743,6 +751,8 @@ def pseudobulk_de(
         "replicates": {"target": n_t, "reference": n_r, "pseudobulk_cells": {str(session.pseudo.to_pseudo(s)) + "|" + l: int(n) for s, l, n in zip(meta["sample"], meta["label"], meta["n_cells"])}},
         "n_sig_up": int(len(sig_up)),
         "n_sig_down": int(len(sig_down)),
+        "n_low_expression_excluded": n_low_expr_dropped,
+        "ranking": f"top_up is sorted by test statistic among genes with baseMean >= {min_base_mean}",
         "top_up": sig_up.head(n_top),
     }
 

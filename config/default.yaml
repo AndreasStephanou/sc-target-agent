@@ -42,6 +42,7 @@ targets:
   druggable_classes: [KINASE, DRUGGABLE GENOME, CLINICALLY ACTIONABLE, CELL SURFACE, TRANSPORTER, ION CHANNEL, G PROTEIN COUPLED RECEPTOR]
   min_specificity_log2fc: 1.0               # disease-state vs all other states
   top_k_report: 15
+  exclude_gene_patterns: null               # regexes for genes never nominated (default: ENS*G ids, LOC*, MT-, RPL/RPS, snoRNA/miRNA/lincRNA)
   weights:                                  # scoring weights, sum ~1
     effect_size: 0.25
     specificity: 0.25
