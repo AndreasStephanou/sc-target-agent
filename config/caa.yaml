@@ -3,7 +3,7 @@
 dataset:
   path: data/caa_processed.h5ad
   species: canis_lupus_familiaris
-  sample_key: donor                     # biological replicate = the dog (19 libraries from 17 donors)
+  sample_key: sample                    # each library is a replicate (some dogs have tumour + matched gingiva)
   condition_key: condition              # copy of tumor_status
   celltype_key: Broad_anno              # Epithelial / Endothelial / Immune / Mesenchymal -> defines "sibling clusters"
   disease: CAA
