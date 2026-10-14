@@ -113,8 +113,9 @@ class KnowledgeClient:
         self.calls: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------ cache
-    def _key(self, kind: str, payload: Any, params: Any) -> Path:
-        h = hashlib.sha1(json.dumps([kind, payload, params], sort_keys=True).encode()).hexdigest()[:20]
+    def _key(self, kind: str, url: str, payload: Any, params: Any) -> Path:
+        # the URL is part of the key: for Ensembl GETs the gene symbol lives in the path
+        h = hashlib.sha1(json.dumps([kind, url, payload, params], sort_keys=True).encode()).hexdigest()[:20]
         return self.cache / f"{kind}_{h}.json"
 
     def _request(self, kind: str, method: str, url: str, payload: Any, params: dict[str, Any] | None = None, timeout: float | None = None) -> tuple[Any | None, str]:
@@ -123,7 +124,7 @@ class KnowledgeClient:
         Retries on timeouts / 5xx with backoff. HTTP 4xx errors are not retried, and the
         response body (which carries GraphQL validation messages) is kept in ``calls``.
         """
-        p = self._key(kind, payload, params)
+        p = self._key(kind, url, payload, params)
         if p.exists():
             with open(p) as fh:
                 return json.load(fh), "cache"
@@ -240,19 +241,11 @@ class KnowledgeClient:
     OT_SEARCH = """
     query($q: String!) { search(queryString: $q, entityNames: ["target"], page: {index: 0, size: 1}) { hits { id name } } }"""
     # progressively simpler queries: if the first is rejected (schema drift), the next is tried
+    # Open Targets removed `knownDrugs` from Target (confirmed 2026-10-14); compounds come from
+    # DGIdb. Progressive fallback is kept so future schema drift degrades gracefully.
     OT_TARGET_QUERIES = [
-        ("full", """
-        query($id: String!) {
-          target(ensemblId: $id) {
-            approvedSymbol
-            tractability { label modality value }
-            knownDrugs(size: 50) { count rows { drug { name } phase mechanismOfAction } }
-          }
-        }"""),
         ("tractability_only", """
         query($id: String!) { target(ensemblId: $id) { approvedSymbol tractability { label modality value } } }"""),
-        ("drugs_only", """
-        query($id: String!) { target(ensemblId: $id) { approvedSymbol knownDrugs { count rows { drug { name } phase } } } }"""),
         ("symbol_only", """
         query($id: String!) { target(ensemblId: $id) { approvedSymbol } }"""),
     ]
@@ -287,8 +280,8 @@ class KnowledgeClient:
                     merged["known_drugs_count"] = kd.get("count", 0)
                     merged["max_clinical_phase"] = max(phases) if phases else None
                     merged["known_drugs"] = sorted({normalize_drug_name(r["drug"]["name"]) for r in kd.get("rows", []) if r.get("drug")})[:25]
-                if name == "full" or (name == "drugs_only" and "tractability_only" in merged["query_variants_used"]):
-                    break  # we have everything
+                if name == "tractability_only":
+                    break  # we have everything the current schema offers
             if got_any:
                 out[g] = merged
             else:

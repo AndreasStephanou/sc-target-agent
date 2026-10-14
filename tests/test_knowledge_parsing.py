@@ -68,3 +68,12 @@ def test_offline_mode_uses_fixtures(tmp_path, monkeypatch):
     assert c.dgidb(["ERBB4"])["ERBB4"]["source"] == "fixture"
     assert c.open_targets(["ERBB4"])["ERBB4"]["source"] == "fixture"
     assert c.orthologs(["ERBB4"], "canis_lupus_familiaris")["ERBB4"]["source"] == "fixture"
+
+
+def test_cache_key_includes_url(tmp_path, monkeypatch):
+    """Regression: two GETs that differ only in the URL path must not share a cache entry."""
+    monkeypatch.setenv("SCTARGET_CACHE_DIR", str(tmp_path))
+    c = KnowledgeClient(offline=True)
+    k1 = c._key("ensembl_homology", "https://rest.ensembl.org/homology/symbol/dog/PEG3", None, {"a": 1})
+    k2 = c._key("ensembl_homology", "https://rest.ensembl.org/homology/symbol/dog/KRT14", None, {"a": 1})
+    assert k1 != k2
