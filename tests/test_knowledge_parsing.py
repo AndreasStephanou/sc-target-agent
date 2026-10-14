@@ -77,3 +77,25 @@ def test_cache_key_includes_url(tmp_path, monkeypatch):
     k1 = c._key("ensembl_homology", "https://rest.ensembl.org/homology/symbol/dog/PEG3", None, {"a": 1})
     k2 = c._key("ensembl_homology", "https://rest.ensembl.org/homology/symbol/dog/KRT14", None, {"a": 1})
     assert k1 != k2
+
+
+def test_map_orthologs_prefers_var_column(cfg, tmp_path):
+    import pandas as pd
+    from sctarget.session import AnalysisSession
+    from sctarget.tools import analysis as A, knowledge as K
+
+    s = AnalysisSession.create(cfg, tmp_path / "orth")
+    A.load_dataset(s)
+    s.cfg.raw["dataset"]["human_symbol_var"] = "human_symbol"
+    s.cfg.raw["dataset"]["species"] = "canis_lupus_familiaris"
+    s.adata.var["human_symbol"] = pd.Series(index=s.adata.var_names, dtype=object)
+    s.adata.var.loc["ERBB4", "human_symbol"] = "ERBB4"
+    s.adata.var.loc["KRT14", "human_symbol"] = "KRT14"
+    s.adata.var.loc["GENE0001", "human_symbol"] = ""          # no ortholog
+    out = K.map_orthologs(s, genes=["ERBB4", "KRT14", "GENE0001", "NOTINDATA1"])
+    assert out["mapping"]["ERBB4"]["type"] == "var_column"
+    assert out["mapping"]["GENE0001"]["human_symbol"] is None and "GENE0001" in out["unmapped"]
+    assert out["mapping"]["NOTINDATA1"]["source"] in ("fixture", "none")  # not in var -> fell through to the client (offline in tests)
+    assert out["n_from_var_column"] == 2  # ERBB4, KRT14 (the empty entry counts as no_ortholog, not a mapping)
+    s.cfg.raw["dataset"]["human_symbol_var"] = None
+    s.cfg.raw["dataset"]["species"] = "homo_sapiens"

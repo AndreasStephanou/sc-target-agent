@@ -66,7 +66,7 @@ def test_knowledge_offline_fixture_and_orthologs(session):
     m = K.map_orthologs(session, genes=["ERBB4", "LOC_FAKE_DOG_GENE", "NOVELGENE1"], from_species="canis_lupus_familiaris")
     assert m["mapping"]["ERBB4"]["human_symbol"] == "ERBB4"
     assert "LOC_FAKE_DOG_GENE" in m["unmapped"]
-    assert "NOVELGENE1" in m["assumed_same_symbol"]
+    assert "NOVELGENE1" in m["assumed_or_unverified"]
     d = K.druggability_lookup(session, genes=["ERBB4", "ZZZ_NOT_A_GENE"])["table"]
     assert d.loc["ERBB4", "n_approved_inhibitors"] >= 1 and d.loc["ERBB4", "source_dgidb"] == "fixture"
     assert d.loc["ZZZ_NOT_A_GENE", "source_dgidb"] == "none" and d.loc["ZZZ_NOT_A_GENE", "n_interactions"] == 0

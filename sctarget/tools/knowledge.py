@@ -153,7 +153,7 @@ class KnowledgeClient:
             except Exception as e:  # timeouts, connection errors, 5xx
                 last_err = last_err or f"{type(e).__name__}: {e}"
                 if attempt < self.retries:
-                    time.sleep(1.5 * (attempt + 1))
+                    time.sleep(2.0 * (attempt + 1) ** 2)  # 2 s, 8 s
                     last_err = ""
                     continue
         self.calls.append({"kind": kind, "url": url, "ok": False, "error": last_err, "s": round(time.time() - t0, 2)})
@@ -181,7 +181,13 @@ class KnowledgeClient:
                     ids = sorted({h["id"] for h in hs})
                     look, _ = self._request("ensembl_lookup", "POST", "https://rest.ensembl.org/lookup/id", {"ids": ids}, timeout=60)
                     symbols = sorted({(look or {}).get(i, {}).get("display_name") for i in ids} - {None}) if look else []
-                    out[g] = {"human_symbol": symbols[0] if symbols else None, "all_human_symbols": symbols, "type": hs[0].get("type"), "source": src}
+                    if symbols:
+                        # prefer the human symbol identical to the query when one-to-many
+                        best = g if g in symbols else symbols[0]
+                        out[g] = {"human_symbol": best, "all_human_symbols": symbols, "human_ensembl_ids": ids, "type": hs[0].get("type"), "source": src}
+                    else:
+                        # ortholog exists but the symbol lookup failed: keep the query symbol, flag it
+                        out[g] = {"human_symbol": g, "all_human_symbols": [], "human_ensembl_ids": ids, "type": hs[0].get("type"), "symbol_unverified": True, "source": "partial"}
                 else:
                     out[g] = {"human_symbol": None, "type": "no_ortholog", "source": src}
             elif self.offline and g in fx:
@@ -326,11 +332,29 @@ def _client(session: AnalysisSession) -> KnowledgeClient:
 )
 def map_orthologs(session: AnalysisSession, genes: list[str], from_species: str | None = None) -> dict[str, Any]:
     sp = from_species or session.cfg.dataset.get("species", "homo_sapiens")
-    res = _client(session).orthologs(genes, sp)
+    res: dict[str, dict[str, Any]] = {}
+    remaining = list(genes)
+    # 1) a precomputed mapping shipped inside the AnnData (dataset.human_symbol_var) wins:
+    #    it is offline, reproducible, and under the analyst's control (e.g. made once with biomaRt)
+    col = session.cfg.dataset.get("human_symbol_var")
+    if col and session.adata is not None and col in session.adata.var:
+        var = session.adata.var[col]
+        for g in genes:
+            if g in var.index:
+                hs = var.loc[g]
+                if isinstance(hs, str) and hs and hs.lower() not in ("nan", "none", ""):
+                    res[g] = {"human_symbol": hs, "type": "var_column", "source": f"var[{col}]"}
+                else:
+                    res[g] = {"human_symbol": None, "type": "no_ortholog", "source": f"var[{col}]"}
+        remaining = [g for g in genes if g not in res]
+    # 2) everything else goes to Ensembl (cached)
+    if remaining:
+        res.update(_client(session).orthologs(remaining, sp))
+    res = {g: res[g] for g in genes if g in res}
     session.facts.setdefault("orthologs", {}).update(res)
     unmapped = [g for g, v in res.items() if not v.get("human_symbol")]
-    assumed = [g for g, v in res.items() if v.get("type") == "assumed_same_symbol"]
-    return {"from_species": sp, "mapping": res, "unmapped": unmapped, "assumed_same_symbol": assumed}
+    assumed = [g for g, v in res.items() if v.get("type") == "assumed_same_symbol" or v.get("symbol_unverified")]
+    return {"from_species": sp, "mapping": res, "unmapped": unmapped, "assumed_or_unverified": assumed, "n_from_var_column": sum(1 for v in res.values() if v.get("type") == "var_column")}
 
 
 @tool(

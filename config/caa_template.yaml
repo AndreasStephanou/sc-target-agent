@@ -8,6 +8,7 @@ dataset:
   disease: CAA
   reference: [COSCC, GINGIVA]
   counts_layer: counts                   # layer with raw UMI counts (needed for pseudobulk DESeq2)
+  human_symbol_var: null                 # optional var column with human ortholog symbols (made once with biomaRt); Ensembl is used for genes it does not cover
   already_processed: true                # true = reuse your embeddings/clusters; false = recompute
 
 analysis:
