@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" font-family="Helvetica,Arial,sans-serif" font-size="13">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#333"/></marker></defs>
+<rect width="900" height="420" fill="#fff"/>
+<text x="20" y="28" font-size="17" font-weight="bold">sc-target-agent: data flow</text>
+<rect x="20" y="60" width="120" height="60" rx="8" fill="#e8f0fe" stroke="#3b6fd1"/><text x="80" y="86" text-anchor="middle">processed .h5ad</text><text x="80" y="104" text-anchor="middle" fill="#555">+ config.yaml</text>
+<g stroke="#333" fill="#fdf5e6">
+<rect x="190" y="60" width="130" height="60" rx="8"/><rect x="350" y="60" width="130" height="60" rx="8"/><rect x="510" y="60" width="150" height="60" rx="8"/><rect x="690" y="60" width="130" height="60" rx="8"/></g>
+<text x="255" y="85" text-anchor="middle" font-weight="bold">planner</text><text x="255" y="104" text-anchor="middle" fill="#555">design, plan</text>
+<text x="415" y="85" text-anchor="middle" font-weight="bold">analyst</text><text x="415" y="104" text-anchor="middle" fill="#555">disease states</text>
+<text x="585" y="85" text-anchor="middle" font-weight="bold">target nominator</text><text x="585" y="104" text-anchor="middle" fill="#555">druggable genes</text>
+<text x="755" y="85" text-anchor="middle" font-weight="bold">critic</text><text x="755" y="104" text-anchor="middle" fill="#555">flags, caveats</text>
+<g stroke="#333" stroke-width="1.5" marker-end="url(#a)" fill="none"><path d="M140,90 L188,90"/><path d="M320,90 L348,90"/><path d="M480,90 L508,90"/><path d="M660,90 L688,90"/></g>
+<text x="505" y="45" text-anchor="middle" fill="#555">one fresh conversation per role · state flows via structured findings</text>
+<rect x="190" y="170" width="630" height="110" rx="8" fill="#eef7ee" stroke="#2e7d32"/>
+<text x="505" y="192" text-anchor="middle" font-weight="bold">tool registry (15 deterministic tools)</text>
+<text x="505" y="214" text-anchor="middle">load · qc · integrate_and_cluster · subcluster · cluster_composition · differential_abundance</text>
+<text x="505" y="232" text-anchor="middle">find_markers · pseudobulk_de · gene_specificity · enrichment · plot_genes</text>
+<text x="505" y="250" text-anchor="middle">map_orthologs · druggability_lookup · literature_count · score_targets · record_finding</text>
+<text x="505" y="270" text-anchor="middle" fill="#555">scanpy · PyDESeq2 · harmony · Ensembl · DGIdb · Open Targets · PubMed (cached)</text>
+<g stroke="#2e7d32" stroke-dasharray="4 3" fill="none"><path d="M255,120 L255,170"/><path d="M415,120 L415,170"/><path d="M585,120 L585,170"/><path d="M755,120 L755,170"/></g>
+<rect x="190" y="300" width="300" height="50" rx="8" fill="#fde8e8" stroke="#b00020"/>
+<text x="340" y="321" text-anchor="middle" font-weight="bold">privacy guard</text><text x="340" y="339" text-anchor="middle" fill="#555">truncate · reject per-cell · pseudonymize samples</text>
+<rect x="520" y="300" width="300" height="50" rx="8" fill="#f3f3f3" stroke="#333"/>
+<text x="670" y="321" text-anchor="middle" font-weight="bold">run.jsonl audit log</text><text x="670" y="339" text-anchor="middle" fill="#555">every model call · every tool call · exact payload sent</text>
+<g stroke="#333" stroke-width="1.5" marker-end="url(#a)" fill="none"><path d="M340,280 L340,298"/><path d="M670,280 L670,298"/></g>
+<rect x="20" y="370" width="860" height="36" rx="8" fill="#e8f0fe" stroke="#3b6fd1"/>
+<text x="450" y="393" text-anchor="middle">outputs: report.md / report.html · state.json · tables/ · figures/  →  run_eval.py vs ground_truth.yaml (state recovery, target rank, false leads, decoys, drug recall, stability) vs baseline</text>
+</svg>

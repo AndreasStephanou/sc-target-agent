@@ -1,0 +1,25 @@
+name: sctarget
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - pyyaml
+  - requests
+  - leidenalg
+  - python-igraph
+  - pytest
+  - pip:
+      - anndata>=0.10
+      - scanpy>=1.10
+      - anthropic>=0.40
+      - pydeseq2>=0.4
+      - harmonypy>=0.0.9
+      - gseapy>=1.1
+      - markdown>=3.5
+      - -e .

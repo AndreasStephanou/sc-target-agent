@@ -1,0 +1,1558 @@
+{
+  "cluster_key": "leiden",
+  "tables": {
+    "cluster_composition_leiden": "tables/001_cluster_composition_leiden.csv",
+    "differential_abundance_leiden": "tables/002_differential_abundance_leiden.csv",
+    "markers_leiden_2_vs_rest": "tables/003_markers_leiden_2_vs_rest.csv",
+    "druggability": "tables/004_druggability.csv"
+  },
+  "figures": [
+    {
+      "path": "figures/01_umap_leiden.png",
+      "caption": "UMAP coloured by cluster (leiden) and by condition."
+    },
+    {
+      "path": "figures/02_differential_abundance_leiden.png",
+      "caption": "Per-sample cluster proportions, disease (red) vs reference (dark)."
+    }
+  ],
+  "facts": {
+    "dataset": {
+      "n_cells": 3600,
+      "n_genes": 1467,
+      "species": "homo_sapiens",
+      "disease": "CAA",
+      "reference_conditions": [
+        "COSCC",
+        "GINGIVA"
+      ],
+      "obs_columns": [
+        "sample",
+        "condition",
+        "cell_type",
+        "leiden"
+      ],
+      "condition_counts": {
+        "CAA": 1200,
+        "COSCC": 1200,
+        "GINGIVA": 1200
+      },
+      "samples_per_condition": {
+        "CAA": 3,
+        "COSCC": 3,
+        "GINGIVA": 3
+      },
+      "sample_condition": {
+        "S01": "CAA",
+        "S02": "CAA",
+        "S03": "CAA",
+        "S04": "COSCC",
+        "S05": "COSCC",
+        "S06": "COSCC",
+        "S07": "GINGIVA",
+        "S08": "GINGIVA",
+        "S09": "GINGIVA"
+      },
+      "cells_per_sample": {
+        "S01": 400,
+        "S02": 400,
+        "S03": 400,
+        "S04": 400,
+        "S05": 400,
+        "S06": 400,
+        "S07": 400,
+        "S08": 400,
+        "S09": 400
+      },
+      "celltype_key": "cell_type",
+      "celltype_counts": {
+        "keratinocyte": 1419,
+        "fibroblast": 883,
+        "macrophage": 524,
+        "T_cell": 412,
+        "endothelial": 362
+      },
+      "existing_clusterings": [
+        "leiden"
+      ],
+      "embeddings": [
+        "X_pca",
+        "X_umap"
+      ],
+      "layers": [
+        "counts",
+        null
+      ],
+      "x_looks_like_raw_counts": false,
+      "already_processed_flag": true,
+      "n_mt_genes": 6
+    },
+    "clustering": {
+      "cluster_key": "leiden",
+      "method": "reused existing 'leiden'",
+      "harmony_used": false,
+      "n_clusters": 7,
+      "cluster_sizes": {
+        "4": 875,
+        "0": 785,
+        "6": 521,
+        "1": 479,
+        "5": 420,
+        "3": 370,
+        "2": 150
+      },
+      "params": {
+        "n_pcs": 30,
+        "n_neighbors": 15,
+        "resolution": 1.0,
+        "n_top_genes": 2000
+      },
+      "figure": "figures/01_umap_leiden.png"
+    },
+    "cluster_composition": [
+      {
+        "cluster": "0",
+        "frac_CAA": 0.346,
+        "frac_COSCC": 0.564,
+        "frac_GINGIVA": 0.089,
+        "n_cells": 785,
+        "n_samples_contributing": 9,
+        "dominant_celltype": "keratinocyte",
+        "dominant_celltype_frac": 1.0
+      },
+      {
+        "cluster": "1",
+        "frac_CAA": 0.084,
+        "frac_COSCC": 0.109,
+        "frac_GINGIVA": 0.808,
+        "n_cells": 479,
+        "n_samples_contributing": 9,
+        "dominant_celltype": "keratinocyte",
+        "dominant_celltype_frac": 0.985
+      },
+      {
+        "cluster": "2",
+        "frac_CAA": 0.913,
+        "frac_COSCC": 0.08,
+        "frac_GINGIVA": 0.007,
+        "n_cells": 150,
+        "n_samples_contributing": 3,
+        "dominant_celltype": "keratinocyte",
+        "dominant_celltype_frac": 1.0
+      },
+      {
+        "cluster": "3",
+        "frac_CAA": 0.3,
+        "frac_COSCC": 0.295,
+        "frac_GINGIVA": 0.405,
+        "n_cells": 370,
+        "n_samples_contributing": 9,
+        "dominant_celltype": "endothelial",
+        "dominant_celltype_frac": 0.957
+      },
+      {
+        "cluster": "4",
+        "frac_CAA": 0.361,
+        "frac_COSCC": 0.338,
+        "frac_GINGIVA": 0.301,
+        "n_cells": 875,
+        "n_samples_contributing": 9,
+        "dominant_celltype": "fibroblast",
+        "dominant_celltype_frac": 0.977
+      },
+      {
+        "cluster": "5",
+        "frac_CAA": 0.331,
+        "frac_COSCC": 0.283,
+        "frac_GINGIVA": 0.386,
+        "n_cells": 420,
+        "n_samples_contributing": 9,
+        "dominant_celltype": "T_cell",
+        "dominant_celltype_frac": 0.96
+      },
+      {
+        "cluster": "6",
+        "frac_CAA": 0.355,
+        "frac_COSCC": 0.324,
+        "frac_GINGIVA": 0.321,
+        "n_cells": 521,
+        "n_samples_contributing": 9,
+        "dominant_celltype": "macrophage",
+        "dominant_celltype_frac": 0.983
+      }
+    ],
+    "differential_abundance": {
+      "cluster_key": "leiden",
+      "within_celltype": false,
+      "disease_enriched_clusters": [
+        "2"
+      ],
+      "table": [
+        {
+          "cluster": "2",
+          "n_cells": 150,
+          "mean_prop_disease": 0.1142,
+          "mean_prop_reference": 0.0054,
+          "log2_ratio": 4.166,
+          "mannwhitney_p": 0.02753189387562954,
+          "n_disease_samples_present": 3,
+          "n_disease_samples_total": 3,
+          "frac_cells_from_disease": 0.913,
+          "disease_enriched": true
+        },
+        {
+          "cluster": "4",
+          "n_cells": 875,
+          "mean_prop_disease": 0.2633,
+          "mean_prop_reference": 0.2329,
+          "log2_ratio": 0.176,
+          "mannwhitney_p": 0.29967715920559657,
+          "n_disease_samples_present": 3,
+          "n_disease_samples_total": 3,
+          "frac_cells_from_disease": 0.361,
+          "disease_enriched": false
+        },
+        {
+          "cluster": "6",
+          "n_cells": 521,
+          "mean_prop_disease": 0.1542,
+          "mean_prop_reference": 0.14,
+          "log2_ratio": 0.138,
+          "mannwhitney_p": 0.5476190476190476,
+          "n_disease_samples_present": 3,
+          "n_disease_samples_total": 3,
+          "frac_cells_from_disease": 0.355,
+          "disease_enriched": false
+        },
+        {
+          "cluster": "0",
+          "n_cells": 785,
+          "mean_prop_disease": 0.2267,
+          "mean_prop_reference": 0.2137,
+          "log2_ratio": 0.084,
+          "mannwhitney_p": 1.0,
+          "n_disease_samples_present": 3,
+          "n_disease_samples_total": 3,
+          "frac_cells_from_disease": 0.346,
+          "disease_enriched": false
+        },
+        {
+          "cluster": "5",
+          "n_cells": 420,
+          "mean_prop_disease": 0.1158,
+          "mean_prop_reference": 0.1171,
+          "log2_ratio": -0.015,
+          "mannwhitney_p": 1.0,
+          "n_disease_samples_present": 3,
+          "n_disease_samples_total": 3,
+          "frac_cells_from_disease": 0.331,
+          "disease_enriched": false
+        },
+        {
+          "cluster": "3",
+          "n_cells": 370,
+          "mean_prop_disease": 0.0925,
+          "mean_prop_reference": 0.1079,
+          "log2_ratio": -0.22,
+          "mannwhitney_p": 0.7954180604830267,
+          "n_disease_samples_present": 3,
+          "n_disease_samples_total": 3,
+          "frac_cells_from_disease": 0.3,
+          "disease_enriched": false
+        },
+        {
+          "cluster": "1",
+          "n_cells": 479,
+          "mean_prop_disease": 0.0333,
+          "mean_prop_reference": 0.1829,
+          "log2_ratio": -2.421,
+          "mannwhitney_p": 0.047619047619047616,
+          "n_disease_samples_present": 3,
+          "n_disease_samples_total": 3,
+          "frac_cells_from_disease": 0.084,
+          "disease_enriched": false
+        }
+      ]
+    },
+    "markers": {
+      "2_vs_rest": [
+        {
+          "gene": "NEFL",
+          "log2fc": 4.272566318511963,
+          "padj": 2.4706112170462903e-69,
+          "pct_in": 1.0,
+          "pct_out": 0.5124637681159421,
+          "scores": 18.008066177368164
+        },
+        {
+          "gene": "GAP43",
+          "log2fc": 3.9768316745758057,
+          "padj": 3.4682887837514653e-65,
+          "pct_in": 0.9933333333333333,
+          "pct_out": 0.5857971014492753,
+          "scores": 17.43185806274414
+        },
+        {
+          "gene": "SYT1",
+          "log2fc": 4.158431053161621,
+          "padj": 4.565590561094103e-53,
+          "pct_in": 0.9133333333333333,
+          "pct_out": 0.36666666666666664,
+          "scores": 15.726548194885254
+        },
+        {
+          "gene": "SNAP25",
+          "log2fc": 3.5748298168182373,
+          "padj": 4.565590561094103e-53,
+          "pct_in": 0.9533333333333334,
+          "pct_out": 0.5443478260869565,
+          "scores": 15.712345123291016
+        },
+        {
+          "gene": "PEG3",
+          "log2fc": 4.746066570281982,
+          "padj": 2.1697879237794636e-48,
+          "pct_in": 0.8066666666666666,
+          "pct_out": 0.1826086956521739,
+          "scores": 14.999519348144531
+        },
+        {
+          "gene": "SYP",
+          "log2fc": 4.035285472869873,
+          "padj": 1.4737249743972535e-47,
+          "pct_in": 0.88,
+          "pct_out": 0.34202898550724636,
+          "scores": 14.859609603881836
+        },
+        {
+          "gene": "RAB3A",
+          "log2fc": 4.206489086151123,
+          "padj": 1.8757318841029323e-43,
+          "pct_in": 0.8066666666666666,
+          "pct_out": 0.24115942028985507,
+          "scores": 14.201632499694824
+        },
+        {
+          "gene": "ERBB4",
+          "log2fc": 4.755041122436523,
+          "padj": 4.080824786927296e-36,
+          "pct_in": 0.6933333333333334,
+          "pct_out": 0.10869565217391304,
+          "scores": 12.954166412353516
+        },
+        {
+          "gene": "MKI67",
+          "log2fc": 2.6044352054595947,
+          "padj": 8.132976087106476e-36,
+          "pct_in": 0.98,
+          "pct_out": 0.7385507246376811,
+          "scores": 12.892056465148926
+        },
+        {
+          "gene": "PKP1",
+          "log2fc": 3.181079387664795,
+          "padj": 3.1227852605204878e-34,
+          "pct_in": 0.9666666666666667,
+          "pct_out": 0.6040579710144928,
+          "scores": 12.599358558654785
+        },
+        {
+          "gene": "TOP2A",
+          "log2fc": 2.5003397464752197,
+          "padj": 1.7469753724371845e-31,
+          "pct_in": 0.96,
+          "pct_out": 0.7336231884057971,
+          "scores": 12.0777587890625
+        },
+        {
+          "gene": "KRAS",
+          "log2fc": 2.7317488193511963,
+          "padj": 1.7469753724371845e-31,
+          "pct_in": 0.94,
+          "pct_out": 0.6069565217391304,
+          "scores": 12.075150489807129
+        },
+        {
+          "gene": "KRT17",
+          "log2fc": 3.028247594833374,
+          "padj": 9.054005813955978e-29,
+          "pct_in": 0.9533333333333334,
+          "pct_out": 0.5333333333333333,
+          "scores": 11.542838096618652
+        },
+        {
+          "gene": "DSP",
+          "log2fc": 2.6362545490264893,
+          "padj": 8.217664071652378e-25,
+          "pct_in": 0.9533333333333334,
+          "pct_out": 0.667536231884058,
+          "scores": 10.724127769470215
+        },
+        {
+          "gene": "KRT15",
+          "log2fc": 2.8017518520355225,
+          "padj": 4.0797781926726364e-24,
+          "pct_in": 0.82,
+          "pct_out": 0.4336231884057971,
+          "scores": 10.568490028381348
+        },
+        {
+          "gene": "EGFR",
+          "log2fc": 2.1470601558685303,
+          "padj": 4.913255871008534e-22,
+          "pct_in": 0.8866666666666667,
+          "pct_out": 0.6431884057971015,
+          "scores": 10.102982521057129
+        },
+        {
+          "gene": "DLG4",
+          "log2fc": 3.3116250038146973,
+          "padj": 8.082922315715366e-19,
+          "pct_in": 0.5733333333333334,
+          "pct_out": 0.15217391304347827,
+          "scores": 9.342971801757812
+        },
+        {
+          "gene": "SFN",
+          "log2fc": 2.4586586952209473,
+          "padj": 2.9919191473565584e-18,
+          "pct_in": 0.82,
+          "pct_out": 0.4727536231884058,
+          "scores": 9.197285652160645
+        },
+        {
+          "gene": "KRT5",
+          "log2fc": 2.3358919620513916,
+          "padj": 4.823125579798235e-16,
+          "pct_in": 0.7933333333333333,
+          "pct_out": 0.4330434782608696,
+          "scores": 8.627939224243164
+        },
+        {
+          "gene": "CCND1",
+          "log2fc": 2.345749855041504,
+          "padj": 8.106955503583119e-16,
+          "pct_in": 0.7266666666666667,
+          "pct_out": 0.35333333333333333,
+          "scores": 8.562417984008789
+        },
+        {
+          "gene": "KRT14",
+          "log2fc": 2.328092098236084,
+          "padj": 7.859147275616328e-15,
+          "pct_in": 0.7533333333333333,
+          "pct_out": 0.38782608695652177,
+          "scores": 8.290785789489746
+        },
+        {
+          "gene": "STMN2",
+          "log2fc": 3.9758141040802,
+          "padj": 5.122738548521163e-14,
+          "pct_in": 0.44,
+          "pct_out": 0.059420289855072465,
+          "scores": 8.059155464172363
+        },
+        {
+          "gene": "TP63",
+          "log2fc": 2.087348461151123,
+          "padj": 1.3101568008991393e-10,
+          "pct_in": 0.62,
+          "pct_out": 0.3020289855072464,
+          "scores": 7.030761241912842
+        },
+        {
+          "gene": "GENE0681",
+          "log2fc": 0.8446415066719055,
+          "padj": 0.24950994529187107,
+          "pct_in": 0.49333333333333335,
+          "pct_out": 0.343768115942029,
+          "scores": 2.7304534912109375
+        },
+        {
+          "gene": "GENE1100",
+          "log2fc": 0.7213672995567322,
+          "padj": 0.5212400184016278,
+          "pct_in": 0.4666666666666667,
+          "pct_out": 0.34579710144927533,
+          "scores": 2.3797781467437744
+        },
+        {
+          "gene": "GENE1267",
+          "log2fc": 1.0310174226760864,
+          "padj": 0.5730354245458896,
+          "pct_in": 0.26666666666666666,
+          "pct_out": 0.1492753623188406,
+          "scores": 2.2791895866394043
+        },
+        {
+          "gene": "GENE0050",
+          "log2fc": 0.6824866533279419,
+          "padj": 0.669213813733416,
+          "pct_in": 0.48,
+          "pct_out": 0.35594202898550725,
+          "scores": 2.1568143367767334
+        },
+        {
+          "gene": "GENE0753",
+          "log2fc": 0.5383377075195312,
+          "padj": 0.8425652687727264,
+          "pct_in": 0.5866666666666667,
+          "pct_out": 0.4930434782608696,
+          "scores": 2.0011770725250244
+        },
+        {
+          "gene": "GENE0057",
+          "log2fc": 0.8140652775764465,
+          "padj": 0.853019307075694,
+          "pct_in": 0.2866666666666667,
+          "pct_out": 0.18492753623188407,
+          "scores": 1.9906647205352783
+        },
+        {
+          "gene": "GENE1092",
+          "log2fc": 0.6913774609565735,
+          "padj": 0.8666782386468705,
+          "pct_in": 0.36666666666666664,
+          "pct_out": 0.26231884057971017,
+          "scores": 1.978667974472046
+        }
+      ]
+    },
+    "druggability": {
+      "NEFL": {
+        "gene": "NEFL",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "none"
+      },
+      "GAP43": {
+        "gene": "GAP43",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "none"
+      },
+      "SYT1": {
+        "gene": "SYT1",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "none"
+      },
+      "SNAP25": {
+        "gene": "SNAP25",
+        "druggable_categories": [
+          "DRUGGABLE GENOME"
+        ],
+        "is_druggable_class": true,
+        "n_interactions": 1,
+        "n_inhibitors": 1,
+        "n_approved_inhibitors": 1,
+        "top_inhibitors": [
+          "BOTULINUM TOXIN TYPE A"
+        ],
+        "ot_sm_tractability": "Approved Drug",
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 3,
+        "ot_max_phase": 4,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "PEG3": {
+        "gene": "PEG3",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "SYP": {
+        "gene": "SYP",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "RAB3A": {
+        "gene": "RAB3A",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "none"
+      },
+      "ERBB4": {
+        "gene": "ERBB4",
+        "druggable_categories": [
+          "CELL SURFACE",
+          "CLINICALLY ACTIONABLE",
+          "DRUGGABLE GENOME",
+          "KINASE"
+        ],
+        "is_druggable_class": true,
+        "n_interactions": 5,
+        "n_inhibitors": 5,
+        "n_approved_inhibitors": 5,
+        "top_inhibitors": [
+          "NERATINIB",
+          "AFATINIB",
+          "LAPATINIB",
+          "DACOMITINIB",
+          "IBRUTINIB"
+        ],
+        "ot_sm_tractability": "Approved Drug",
+        "ot_ab_tractability": "Clinical Precedence",
+        "ot_known_drugs": 18,
+        "ot_max_phase": 4,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "MKI67": {
+        "gene": "MKI67",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "PKP1": {
+        "gene": "PKP1",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "TOP2A": {
+        "gene": "TOP2A",
+        "druggable_categories": [
+          "CLINICALLY ACTIONABLE",
+          "DRUGGABLE GENOME"
+        ],
+        "is_druggable_class": true,
+        "n_interactions": 2,
+        "n_inhibitors": 2,
+        "n_approved_inhibitors": 2,
+        "top_inhibitors": [
+          "DOXORUBICIN",
+          "ETOPOSIDE"
+        ],
+        "ot_sm_tractability": "Approved Drug",
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 30,
+        "ot_max_phase": 4,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "KRAS": {
+        "gene": "KRAS",
+        "druggable_categories": [
+          "CLINICALLY ACTIONABLE",
+          "DRUGGABLE GENOME"
+        ],
+        "is_druggable_class": true,
+        "n_interactions": 2,
+        "n_inhibitors": 2,
+        "n_approved_inhibitors": 2,
+        "top_inhibitors": [
+          "SOTORASIB",
+          "ADAGRASIB"
+        ],
+        "ot_sm_tractability": "Approved Drug",
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 10,
+        "ot_max_phase": 4,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "KRT17": {
+        "gene": "KRT17",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "DSP": {
+        "gene": "DSP",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "KRT15": {
+        "gene": "KRT15",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "EGFR": {
+        "gene": "EGFR",
+        "druggable_categories": [
+          "CELL SURFACE",
+          "CLINICALLY ACTIONABLE",
+          "DRUGGABLE GENOME",
+          "KINASE"
+        ],
+        "is_druggable_class": true,
+        "n_interactions": 6,
+        "n_inhibitors": 6,
+        "n_approved_inhibitors": 6,
+        "top_inhibitors": [
+          "ERLOTINIB",
+          "GEFITINIB",
+          "OSIMERTINIB",
+          "CETUXIMAB",
+          "AFATINIB",
+          "NERATINIB"
+        ],
+        "ot_sm_tractability": "Approved Drug",
+        "ot_ab_tractability": "Approved Drug",
+        "ot_known_drugs": 120,
+        "ot_max_phase": 4,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "DLG4": {
+        "gene": "DLG4",
+        "druggable_categories": [
+          "DRUGGABLE GENOME"
+        ],
+        "is_druggable_class": true,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "none"
+      },
+      "SFN": {
+        "gene": "SFN",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "KRT5": {
+        "gene": "KRT5",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "CCND1": {
+        "gene": "CCND1",
+        "druggable_categories": [
+          "CLINICALLY ACTIONABLE",
+          "DRUGGABLE GENOME"
+        ],
+        "is_druggable_class": true,
+        "n_interactions": 1,
+        "n_inhibitors": 1,
+        "n_approved_inhibitors": 1,
+        "top_inhibitors": [
+          "PALBOCICLIB"
+        ],
+        "ot_sm_tractability": "Discovery Precedence",
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "fixture"
+      },
+      "KRT14": {
+        "gene": "KRT14",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "STMN2": {
+        "gene": "STMN2",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "fixture",
+        "source_opentargets": "none"
+      },
+      "TP63": {
+        "gene": "TP63",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "GENE0681": {
+        "gene": "GENE0681",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "GENE1100": {
+        "gene": "GENE1100",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "GENE1267": {
+        "gene": "GENE1267",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "GENE0050": {
+        "gene": "GENE0050",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "GENE0753": {
+        "gene": "GENE0753",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "GENE0057": {
+        "gene": "GENE0057",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      },
+      "GENE1092": {
+        "gene": "GENE1092",
+        "druggable_categories": [],
+        "is_druggable_class": false,
+        "n_interactions": 0,
+        "n_inhibitors": 0,
+        "n_approved_inhibitors": 0,
+        "top_inhibitors": [],
+        "ot_sm_tractability": null,
+        "ot_ab_tractability": null,
+        "ot_known_drugs": 0,
+        "ot_max_phase": null,
+        "source_dgidb": "none",
+        "source_opentargets": "none"
+      }
+    },
+    "ranked_targets": {
+      "2": [
+        {
+          "gene": "ERBB4",
+          "human_symbol": "ERBB4",
+          "score": 4.755,
+          "effect_size_log2fc": 4.755,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 1.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [
+            "NERATINIB",
+            "AFATINIB",
+            "LAPATINIB",
+            "DACOMITINIB",
+            "IBRUTINIB"
+          ],
+          "flags": [],
+          "rank": 1
+        },
+        {
+          "gene": "SNAP25",
+          "human_symbol": "SNAP25",
+          "score": 3.5748,
+          "effect_size_log2fc": 3.575,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 1.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [
+            "BOTULINUM TOXIN TYPE A"
+          ],
+          "flags": [],
+          "rank": 2
+        },
+        {
+          "gene": "DLG4",
+          "human_symbol": "DLG4",
+          "score": 3.3116,
+          "effect_size_log2fc": 3.312,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 1.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 3
+        },
+        {
+          "gene": "KRAS",
+          "human_symbol": "KRAS",
+          "score": 2.7317,
+          "effect_size_log2fc": 2.732,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 1.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [
+            "SOTORASIB",
+            "ADAGRASIB"
+          ],
+          "flags": [],
+          "rank": 4
+        },
+        {
+          "gene": "TOP2A",
+          "human_symbol": "TOP2A",
+          "score": 2.5003,
+          "effect_size_log2fc": 2.5,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 1.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [
+            "DOXORUBICIN",
+            "ETOPOSIDE"
+          ],
+          "flags": [],
+          "rank": 5
+        },
+        {
+          "gene": "CCND1",
+          "human_symbol": "CCND1",
+          "score": 2.3457,
+          "effect_size_log2fc": 2.346,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 1.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [
+            "PALBOCICLIB"
+          ],
+          "flags": [],
+          "rank": 6
+        },
+        {
+          "gene": "EGFR",
+          "human_symbol": "EGFR",
+          "score": 2.1471,
+          "effect_size_log2fc": 2.147,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 1.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [
+            "ERLOTINIB",
+            "GEFITINIB",
+            "OSIMERTINIB",
+            "CETUXIMAB",
+            "AFATINIB",
+            "NERATINIB"
+          ],
+          "flags": [],
+          "rank": 7
+        },
+        {
+          "gene": "PEG3",
+          "human_symbol": "PEG3",
+          "score": 0.9492,
+          "effect_size_log2fc": 4.746,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 8
+        },
+        {
+          "gene": "NEFL",
+          "human_symbol": "NEFL",
+          "score": 0.8545,
+          "effect_size_log2fc": 4.273,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 9
+        },
+        {
+          "gene": "RAB3A",
+          "human_symbol": "RAB3A",
+          "score": 0.8413,
+          "effect_size_log2fc": 4.206,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 10
+        },
+        {
+          "gene": "SYT1",
+          "human_symbol": "SYT1",
+          "score": 0.8317,
+          "effect_size_log2fc": 4.158,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 11
+        },
+        {
+          "gene": "SYP",
+          "human_symbol": "SYP",
+          "score": 0.8071,
+          "effect_size_log2fc": 4.035,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 12
+        },
+        {
+          "gene": "GAP43",
+          "human_symbol": "GAP43",
+          "score": 0.7954,
+          "effect_size_log2fc": 3.977,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 13
+        },
+        {
+          "gene": "STMN2",
+          "human_symbol": "STMN2",
+          "score": 0.7952,
+          "effect_size_log2fc": 3.976,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 14
+        },
+        {
+          "gene": "PKP1",
+          "human_symbol": "PKP1",
+          "score": 0.6362,
+          "effect_size_log2fc": 3.181,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 15
+        },
+        {
+          "gene": "KRT17",
+          "human_symbol": "KRT17",
+          "score": 0.6056,
+          "effect_size_log2fc": 3.028,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 16
+        },
+        {
+          "gene": "KRT15",
+          "human_symbol": "KRT15",
+          "score": 0.5604,
+          "effect_size_log2fc": 2.802,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 17
+        },
+        {
+          "gene": "DSP",
+          "human_symbol": "DSP",
+          "score": 0.5273,
+          "effect_size_log2fc": 2.636,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 18
+        },
+        {
+          "gene": "MKI67",
+          "human_symbol": "MKI67",
+          "score": 0.5209,
+          "effect_size_log2fc": 2.604,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 19
+        },
+        {
+          "gene": "SFN",
+          "human_symbol": "SFN",
+          "score": 0.4917,
+          "effect_size_log2fc": 2.459,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 20
+        },
+        {
+          "gene": "KRT5",
+          "human_symbol": "KRT5",
+          "score": 0.4672,
+          "effect_size_log2fc": 2.336,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 21
+        },
+        {
+          "gene": "KRT14",
+          "human_symbol": "KRT14",
+          "score": 0.4656,
+          "effect_size_log2fc": 2.328,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 22
+        },
+        {
+          "gene": "TP63",
+          "human_symbol": "TP63",
+          "score": 0.4175,
+          "effect_size_log2fc": 2.087,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 23
+        },
+        {
+          "gene": "GENE1267",
+          "human_symbol": "GENE1267",
+          "score": 0.2062,
+          "effect_size_log2fc": 1.031,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 24
+        },
+        {
+          "gene": "GENE0681",
+          "human_symbol": "GENE0681",
+          "score": 0.1689,
+          "effect_size_log2fc": 0.845,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 25
+        },
+        {
+          "gene": "GENE0057",
+          "human_symbol": "GENE0057",
+          "score": 0.1628,
+          "effect_size_log2fc": 0.814,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 26
+        },
+        {
+          "gene": "GENE1100",
+          "human_symbol": "GENE1100",
+          "score": 0.1443,
+          "effect_size_log2fc": 0.721,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 27
+        },
+        {
+          "gene": "GENE1092",
+          "human_symbol": "GENE1092",
+          "score": 0.1383,
+          "effect_size_log2fc": 0.691,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 28
+        },
+        {
+          "gene": "GENE0050",
+          "human_symbol": "GENE0050",
+          "score": 0.1365,
+          "effect_size_log2fc": 0.682,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 29
+        },
+        {
+          "gene": "GENE0753",
+          "human_symbol": "GENE0753",
+          "score": 0.1077,
+          "effect_size_log2fc": 0.538,
+          "effect_size_source": "find_markers",
+          "log2_specificity": null,
+          "sample_consistency": null,
+          "druggability_score": 0.0,
+          "known_compound_score": 0.0,
+          "top_inhibitors": [],
+          "flags": [],
+          "rank": 30
+        }
+      ]
+    },
+    "findings": {
+      "disease_state": [
+        {
+          "title": "Cluster 2 (baseline)",
+          "detail": "most disease-enriched cluster by log2 ratio",
+          "cluster": "2",
+          "genes": [
+            "NEFL",
+            "GAP43",
+            "SYT1",
+            "SNAP25",
+            "PEG3",
+            "SYP",
+            "RAB3A",
+            "ERBB4",
+            "MKI67",
+            "PKP1",
+            "TOP2A",
+            "KRAS",
+            "KRT17",
+            "DSP",
+            "KRT15"
+          ],
+          "confidence": null,
+          "severity": null
+        }
+      ],
+      "candidate_target": [
+        {
+          "title": "ERBB4 (baseline rank 1)",
+          "detail": "baseline: log2FC x druggable",
+          "cluster": "2",
+          "genes": [
+            "ERBB4"
+          ],
+          "confidence": null,
+          "severity": null
+        },
+        {
+          "title": "SNAP25 (baseline rank 2)",
+          "detail": "baseline: log2FC x druggable",
+          "cluster": "2",
+          "genes": [
+            "SNAP25"
+          ],
+          "confidence": null,
+          "severity": null
+        },
+        {
+          "title": "DLG4 (baseline rank 3)",
+          "detail": "baseline: log2FC x druggable",
+          "cluster": "2",
+          "genes": [
+            "DLG4"
+          ],
+          "confidence": null,
+          "severity": null
+        },
+        {
+          "title": "KRAS (baseline rank 4)",
+          "detail": "baseline: log2FC x druggable",
+          "cluster": "2",
+          "genes": [
+            "KRAS"
+          ],
+          "confidence": null,
+          "severity": null
+        },
+        {
+          "title": "TOP2A (baseline rank 5)",
+          "detail": "baseline: log2FC x druggable",
+          "cluster": "2",
+          "genes": [
+            "TOP2A"
+          ],
+          "confidence": null,
+          "severity": null
+        }
+      ]
+    }
+  },
+  "sample_pseudonyms": {
+    "CAA_S1": "S01",
+    "CAA_S2": "S02",
+    "CAA_S3": "S03",
+    "COSCC_S4": "S04",
+    "COSCC_S5": "S05",
+    "COSCC_S6": "S06",
+    "GINGIVA_S7": "S07",
+    "GINGIVA_S8": "S08",
+    "GINGIVA_S9": "S09"
+  }
+}

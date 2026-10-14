@@ -1,0 +1,193 @@
+"""Target scoring and structured findings.
+
+``score_targets`` is deterministic and explainable: it combines evidence already gathered
+by other tools (pseudobulk effect size, cluster specificity, druggability, known
+compounds, cross-sample consistency) with the weights in ``targets.weights``. The agent
+decides *which* genes to score and writes the narrative; the numbers come from here.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+from ..session import AnalysisSession
+from .registry import tool
+
+ALL = {"planner", "analyst", "target", "critic"}
+
+
+def _clip01(x: float | None, scale: float) -> float:
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return 0.0
+    return float(np.clip(x / scale, 0.0, 1.0))
+
+
+def _effect_size(session: AnalysisSession, gene: str, cluster: str) -> tuple[float | None, str]:
+    pb = session.facts.get("pseudobulk_de", {})
+    for key, val in pb.items():
+        cl, contrast = key.split(":", 1)
+        if cl == cluster and contrast == "cluster_vs_reference_clusters":
+            for row in val.get("top_up", []):
+                if row.get("gene") == gene:
+                    return float(row["log2fc"]), "pseudobulk_de"
+            # not among the significant hits: read the full table from disk
+            path = val.get("table_path")
+            if path:
+                try:
+                    full = pd.read_csv(path, index_col=0)
+                    if gene in full.index:
+                        padj = full.loc[gene, "padj"]
+                        lfc = float(full.loc[gene, "log2fc"])
+                        # down-weight weak evidence instead of discarding it outright
+                        if pd.isna(padj) or padj >= 0.25:
+                            return 0.0, "pseudobulk_de"
+                        return (lfc if padj < 0.05 else 0.5 * lfc), "pseudobulk_de"
+                except Exception:
+                    pass
+    for key, rows in session.facts.get("markers", {}).items():
+        if key.startswith(f"{cluster}_vs_"):
+            for row in rows:
+                if row.get("gene") == gene:
+                    return float(row["log2fc"]), "find_markers"
+    return None, "missing"
+
+
+@tool(
+    name="score_targets",
+    description="""
+    Deterministically score and rank candidate target genes for one disease-specific
+    cluster using evidence already collected: effect size (pseudobulk_de or find_markers),
+    specificity and sample consistency (gene_specificity), druggability and known
+    compounds (druggability_lookup). Weights come from config targets.weights. Returns the
+    ranked table with per-component scores and flags (low_specificity, not_druggable,
+    no_known_compounds, inconsistent_across_samples, missing_evidence). Call the evidence
+    tools first; missing evidence scores 0 and is flagged.""",
+    input_schema={
+        "properties": {
+            "genes": {"type": "array", "items": {"type": "string"}},
+            "cluster": {"type": "string"},
+            "human_symbols": {"type": ["object", "null"], "description": "optional mapping dataset symbol -> human symbol used for druggability lookups"},
+        },
+        "required": ["genes", "cluster"],
+    },
+    roles=ALL,
+)
+def score_targets(session: AnalysisSession, genes: list[str], cluster: str, human_symbols: dict[str, str] | None = None) -> dict[str, Any]:
+    w = session.cfg.targets.get("weights", {})
+    w_eff = float(w.get("effect_size", 0.25))
+    w_spec = float(w.get("specificity", 0.25))
+    w_drug = float(w.get("druggability", 0.25))
+    w_cmp = float(w.get("known_compounds", 0.15))
+    w_cons = float(w.get("consistency_across_samples", 0.10))
+    spec_rows = {r["gene"]: r for r in session.facts.get("gene_specificity", {}).get(str(cluster), [])}
+    drug_rows = session.facts.get("druggability", {})
+    human_symbols = human_symbols or {}
+    for g, v in session.facts.get("orthologs", {}).items():
+        if v.get("human_symbol") and g not in human_symbols:
+            human_symbols[g] = v["human_symbol"]
+
+    rows = []
+    for g in dict.fromkeys(genes):
+        hs = human_symbols.get(g, g)
+        flags: list[str] = []
+        eff, eff_src = _effect_size(session, g, str(cluster))
+        if eff is None:
+            flags.append("missing_evidence:effect_size")
+        s_eff = _clip01(eff, 4.0)
+
+        sp = spec_rows.get(g)
+        if sp is None:
+            flags.append("missing_evidence:specificity")
+            s_spec, cons = 0.0, None
+        else:
+            s_spec = _clip01(sp.get("log2_specificity"), 4.0)
+            cons = sp.get("disease_sample_consistency")
+            if (sp.get("log2_specificity") or 0) < 1.0:
+                flags.append("low_specificity")
+            dvr = sp.get("log2_disease_vs_reference_within_cluster")
+            if dvr is not None and dvr < 0.5 and (sp.get("log2_specificity") or 0) < 1.0:
+                flags.append("shared_across_conditions")
+        s_cons = 0.5 if cons is None else float(cons)
+        if cons is not None and cons < 0.67:
+            flags.append("inconsistent_across_samples")
+
+        d = drug_rows.get(hs) or drug_rows.get(g)
+        if d is None:
+            flags.append("missing_evidence:druggability")
+            s_drug, s_cmp = 0.0, 0.0
+        else:
+            tract = [t for t in (d.get("ot_sm_tractability"), d.get("ot_ab_tractability")) if t]
+            if d.get("is_druggable_class") and any("Approved" in t or "Clinical" in t for t in tract):
+                s_drug = 1.0
+            elif d.get("is_druggable_class"):
+                s_drug = 0.6
+            elif tract:
+                s_drug = 0.3
+            else:
+                s_drug = 0.0
+                flags.append("not_druggable")
+            n_appr = int(d.get("n_approved_inhibitors") or 0)
+            n_inh = int(d.get("n_inhibitors") or 0)
+            s_cmp = float(min(1.0, n_appr / 3.0 + (0.1 if n_inh > n_appr else 0.0)))
+            if n_inh == 0:
+                flags.append("no_known_compounds")
+
+        score = w_eff * s_eff + w_spec * s_spec + w_drug * s_drug + w_cmp * s_cmp + w_cons * s_cons
+        rows.append(
+            {
+                "gene": g,
+                "human_symbol": hs,
+                "score": round(float(score), 4),
+                "effect_size_log2fc": None if eff is None else round(eff, 3),
+                "effect_size_source": eff_src,
+                "log2_specificity": None if sp is None else sp.get("log2_specificity"),
+                "sample_consistency": cons,
+                "druggability_score": s_drug,
+                "known_compound_score": round(s_cmp, 3),
+                "top_inhibitors": (d or {}).get("top_inhibitors", []),
+                "flags": flags,
+            }
+        )
+    df = pd.DataFrame(rows).set_index("gene").sort_values("score", ascending=False)
+    df["rank"] = np.arange(1, len(df) + 1)
+    session.save_table(f"ranked_targets_{cluster}", df)
+    session.facts.setdefault("ranked_targets", {})[str(cluster)] = df.reset_index().to_dict(orient="records")
+    return {"cluster": str(cluster), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "ranking": df}
+
+
+@tool(
+    name="record_finding",
+    description="""
+    Record a structured conclusion so it appears in the report and can be evaluated.
+    kinds: 'disease_state' (a cluster you conclude is disease-specific), 'candidate_target'
+    (a gene you nominate), 'critic_flag' (a concern about a claim), 'summary' (free-text
+    conclusion for the report). Always include the evidence you relied on.""",
+    input_schema={
+        "properties": {
+            "kind": {"type": "string", "enum": ["disease_state", "candidate_target", "critic_flag", "summary"]},
+            "title": {"type": "string"},
+            "detail": {"type": "string", "description": "2-5 sentences of justification citing tool results"},
+            "cluster": {"type": ["string", "null"]},
+            "genes": {"type": ["array", "null"], "items": {"type": "string"}},
+            "confidence": {"type": ["string", "null"], "enum": ["high", "medium", "low", None]},
+            "severity": {"type": ["string", "null"], "enum": ["blocking", "major", "minor", None], "description": "critic_flag only"},
+        },
+        "required": ["kind", "title", "detail"],
+    },
+    roles=ALL,
+)
+def record_finding(
+    session: AnalysisSession,
+    kind: str,
+    title: str,
+    detail: str,
+    cluster: str | None = None,
+    genes: list[str] | None = None,
+    confidence: str | None = None,
+    severity: str | None = None,
+) -> dict[str, Any]:
+    entry = {"title": title, "detail": detail, "cluster": cluster, "genes": genes or [], "confidence": confidence, "severity": severity}
+    session.facts.setdefault("findings", {}).setdefault(kind, []).append(entry)
+    return {"recorded": kind, "n_total_of_kind": len(session.facts["findings"][kind])}

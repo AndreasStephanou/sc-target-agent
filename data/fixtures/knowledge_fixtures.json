@@ -1,0 +1,116 @@
+{
+  "_comment": "Offline stand-in for DGIdb / Open Targets / Ensembl / PubMed. Used when SCTARGET_OFFLINE=1 or when a live call fails and no cache exists. Values are illustrative and were written by hand for testing; verify against the live databases before citing.",
+  "orthologs": {
+    "canis_lupus_familiaris": {
+      "ERBB4": {"human_symbol": "ERBB4", "type": "ortholog_one2one"},
+      "PEG3": {"human_symbol": "PEG3", "type": "ortholog_one2one"},
+      "EGFR": {"human_symbol": "EGFR", "type": "ortholog_one2one"},
+      "KRAS": {"human_symbol": "KRAS", "type": "ortholog_one2one"},
+      "MKI67": {"human_symbol": "MKI67", "type": "ortholog_one2one"},
+      "TOP2A": {"human_symbol": "TOP2A", "type": "ortholog_one2one"},
+      "SYP": {"human_symbol": "SYP", "type": "ortholog_one2one"},
+      "SNAP25": {"human_symbol": "SNAP25", "type": "ortholog_one2one"},
+      "LOC_FAKE_DOG_GENE": {"human_symbol": null, "type": "no_ortholog"}
+    }
+  },
+  "dgidb": {
+    "ERBB4": {
+      "categories": ["KINASE", "DRUGGABLE GENOME", "CLINICALLY ACTIONABLE", "CELL SURFACE", "TYROSINE KINASE"],
+      "interactions": [
+        {"drug": "NERATINIB", "approved": true, "types": ["inhibitor"], "score": 4.2, "sources": ["ChemblInteractions", "TdgClinicalTrial", "CIViC"]},
+        {"drug": "AFATINIB", "approved": true, "types": ["inhibitor"], "score": 3.9, "sources": ["ChemblInteractions", "TdgClinicalTrial"]},
+        {"drug": "LAPATINIB", "approved": true, "types": ["inhibitor"], "score": 3.1, "sources": ["ChemblInteractions", "DTC"]},
+        {"drug": "DACOMITINIB", "approved": true, "types": ["inhibitor"], "score": 2.8, "sources": ["ChemblInteractions"]},
+        {"drug": "IBRUTINIB", "approved": true, "types": ["inhibitor"], "score": 1.1, "sources": ["DTC"]}
+      ]
+    },
+    "EGFR": {
+      "categories": ["KINASE", "DRUGGABLE GENOME", "CLINICALLY ACTIONABLE", "CELL SURFACE", "TYROSINE KINASE"],
+      "interactions": [
+        {"drug": "ERLOTINIB", "approved": true, "types": ["inhibitor"], "score": 6.0, "sources": ["ChemblInteractions", "FDA", "CIViC"]},
+        {"drug": "GEFITINIB", "approved": true, "types": ["inhibitor"], "score": 5.8, "sources": ["ChemblInteractions", "FDA"]},
+        {"drug": "OSIMERTINIB", "approved": true, "types": ["inhibitor"], "score": 5.5, "sources": ["ChemblInteractions", "FDA"]},
+        {"drug": "CETUXIMAB", "approved": true, "types": ["antibody", "inhibitor"], "score": 5.2, "sources": ["ChemblInteractions", "FDA"]},
+        {"drug": "AFATINIB", "approved": true, "types": ["inhibitor"], "score": 5.0, "sources": ["ChemblInteractions", "FDA"]},
+        {"drug": "NERATINIB", "approved": true, "types": ["inhibitor"], "score": 3.0, "sources": ["ChemblInteractions"]}
+      ]
+    },
+    "KRAS": {
+      "categories": ["DRUGGABLE GENOME", "CLINICALLY ACTIONABLE"],
+      "interactions": [
+        {"drug": "SOTORASIB", "approved": true, "types": ["inhibitor"], "score": 3.5, "sources": ["ChemblInteractions", "FDA"]},
+        {"drug": "ADAGRASIB", "approved": true, "types": ["inhibitor"], "score": 3.2, "sources": ["ChemblInteractions", "FDA"]}
+      ]
+    },
+    "TOP2A": {
+      "categories": ["DRUGGABLE GENOME", "CLINICALLY ACTIONABLE"],
+      "interactions": [
+        {"drug": "DOXORUBICIN", "approved": true, "types": ["inhibitor"], "score": 4.8, "sources": ["ChemblInteractions", "FDA"]},
+        {"drug": "ETOPOSIDE", "approved": true, "types": ["inhibitor"], "score": 4.5, "sources": ["ChemblInteractions", "FDA"]}
+      ]
+    },
+    "MKI67": {"categories": [], "interactions": []},
+    "CCND1": {
+      "categories": ["DRUGGABLE GENOME", "CLINICALLY ACTIONABLE"],
+      "interactions": [
+        {"drug": "PALBOCICLIB", "approved": true, "types": ["inhibitor"], "score": 1.2, "sources": ["ChemblInteractions"]}
+      ]
+    },
+    "PDGFRB": {
+      "categories": ["KINASE", "DRUGGABLE GENOME", "CLINICALLY ACTIONABLE", "CELL SURFACE", "TYROSINE KINASE"],
+      "interactions": [
+        {"drug": "IMATINIB", "approved": true, "types": ["inhibitor"], "score": 4.1, "sources": ["ChemblInteractions", "FDA"]},
+        {"drug": "SUNITINIB", "approved": true, "types": ["inhibitor"], "score": 3.8, "sources": ["ChemblInteractions", "FDA"]}
+      ]
+    },
+    "KDR": {
+      "categories": ["KINASE", "DRUGGABLE GENOME", "CLINICALLY ACTIONABLE", "CELL SURFACE", "TYROSINE KINASE"],
+      "interactions": [
+        {"drug": "SUNITINIB", "approved": true, "types": ["inhibitor"], "score": 4.5, "sources": ["ChemblInteractions", "FDA"]},
+        {"drug": "SORAFENIB", "approved": true, "types": ["inhibitor"], "score": 4.3, "sources": ["ChemblInteractions", "FDA"]}
+      ]
+    },
+    "FLT1": {
+      "categories": ["KINASE", "DRUGGABLE GENOME", "CELL SURFACE", "TYROSINE KINASE"],
+      "interactions": [
+        {"drug": "SUNITINIB", "approved": true, "types": ["inhibitor"], "score": 2.9, "sources": ["ChemblInteractions"]}
+      ]
+    },
+    "KIT": {
+      "categories": ["KINASE", "DRUGGABLE GENOME", "CLINICALLY ACTIONABLE", "CELL SURFACE", "TYROSINE KINASE"],
+      "interactions": [
+        {"drug": "IMATINIB", "approved": true, "types": ["inhibitor"], "score": 5.0, "sources": ["ChemblInteractions", "FDA"]}
+      ]
+    },
+    "PEG3": {"categories": [], "interactions": []},
+    "SYP": {"categories": [], "interactions": []},
+    "SNAP25": {"categories": ["DRUGGABLE GENOME"], "interactions": [{"drug": "BOTULINUM TOXIN TYPE A", "approved": true, "types": ["inhibitor"], "score": 2.0, "sources": ["ChemblInteractions"]}]},
+    "STMN2": {"categories": [], "interactions": []},
+    "GAP43": {"categories": [], "interactions": []},
+    "NEFL": {"categories": [], "interactions": []},
+    "SYT1": {"categories": [], "interactions": []},
+    "RAB3A": {"categories": [], "interactions": []},
+    "DLG4": {"categories": ["DRUGGABLE GENOME"], "interactions": []}
+  },
+  "open_targets": {
+    "ERBB4": {"ensembl_id": "ENSG00000178568", "tractability": {"small_molecule": "Approved Drug", "antibody": "Clinical Precedence"}, "known_drugs_count": 18, "max_clinical_phase": 4},
+    "EGFR": {"ensembl_id": "ENSG00000146648", "tractability": {"small_molecule": "Approved Drug", "antibody": "Approved Drug"}, "known_drugs_count": 120, "max_clinical_phase": 4},
+    "KRAS": {"ensembl_id": "ENSG00000133703", "tractability": {"small_molecule": "Approved Drug", "antibody": null}, "known_drugs_count": 10, "max_clinical_phase": 4},
+    "TOP2A": {"ensembl_id": "ENSG00000131747", "tractability": {"small_molecule": "Approved Drug", "antibody": null}, "known_drugs_count": 30, "max_clinical_phase": 4},
+    "MKI67": {"ensembl_id": "ENSG00000148773", "tractability": {"small_molecule": null, "antibody": null}, "known_drugs_count": 0, "max_clinical_phase": null},
+    "CCND1": {"ensembl_id": "ENSG00000110092", "tractability": {"small_molecule": "Discovery Precedence", "antibody": null}, "known_drugs_count": 0, "max_clinical_phase": null},
+    "PDGFRB": {"ensembl_id": "ENSG00000113721", "tractability": {"small_molecule": "Approved Drug", "antibody": "Clinical Precedence"}, "known_drugs_count": 25, "max_clinical_phase": 4},
+    "KDR": {"ensembl_id": "ENSG00000128052", "tractability": {"small_molecule": "Approved Drug", "antibody": "Approved Drug"}, "known_drugs_count": 40, "max_clinical_phase": 4},
+    "FLT1": {"ensembl_id": "ENSG00000102755", "tractability": {"small_molecule": "Approved Drug", "antibody": null}, "known_drugs_count": 12, "max_clinical_phase": 4},
+    "KIT": {"ensembl_id": "ENSG00000157404", "tractability": {"small_molecule": "Approved Drug", "antibody": "Clinical Precedence"}, "known_drugs_count": 35, "max_clinical_phase": 4},
+    "PEG3": {"ensembl_id": "ENSG00000198300", "tractability": {"small_molecule": null, "antibody": null}, "known_drugs_count": 0, "max_clinical_phase": null},
+    "SYP": {"ensembl_id": "ENSG00000102003", "tractability": {"small_molecule": null, "antibody": null}, "known_drugs_count": 0, "max_clinical_phase": null},
+    "SNAP25": {"ensembl_id": "ENSG00000132639", "tractability": {"small_molecule": "Approved Drug", "antibody": null}, "known_drugs_count": 3, "max_clinical_phase": 4}
+  },
+  "pubmed": {
+    "ERBB4 ameloblastoma": {"count": 3, "pmids": ["00000001", "00000002", "00000003"]},
+    "PEG3 ameloblastoma": {"count": 1, "pmids": ["00000004"]},
+    "EGFR ameloblastoma": {"count": 25, "pmids": ["00000005", "00000006", "00000007"]},
+    "KRAS ameloblastoma": {"count": 40, "pmids": ["00000008", "00000009", "00000010"]}
+  }
+}

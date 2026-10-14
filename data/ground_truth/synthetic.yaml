@@ -1,0 +1,21 @@
+# Ground truth for the synthetic CAA-like dataset (data/synthetic/synthetic.h5ad).
+# Used only by the evaluation harness; never shown to the agent.
+name: synthetic_caa_like
+disease: CAA
+reference: [COSCC, GINGIVA]
+
+expected_states:
+  - name: neuro_keratinocyte
+    parent_cell_type: keratinocyte
+    marker_genes: [ERBB4, PEG3, SYP, SNAP25, STMN2, GAP43, NEFL, SYT1]
+    min_marker_overlap: 4         # how many of these must be in the discovered state's top markers
+
+expected_targets: [ERBB4]         # must appear in the top-k
+acceptable_targets: [PEG3]        # fine if nominated (marker, not druggable) - not counted as false lead
+expected_drugs: [neratinib, afatinib, lapatinib]
+
+# Planted decoys: druggable but NOT disease-specific. Each one above the first
+# expected target in the ranking counts as a false lead.
+decoy_targets: [EGFR, MKI67, TOP2A, KRAS, CCND1, PDGFRB, KDR, FLT1]
+
+per_cell_truth: data/synthetic/true_state.csv   # optional: for state-recovery scoring

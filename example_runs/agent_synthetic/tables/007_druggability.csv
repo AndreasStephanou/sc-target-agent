@@ -1,0 +1,16 @@
+gene,druggable_categories,is_druggable_class,n_interactions,n_inhibitors,n_approved_inhibitors,top_inhibitors,ot_sm_tractability,ot_ab_tractability,ot_known_drugs,ot_max_phase,source_dgidb,source_opentargets
+ERBB4,"['CELL SURFACE', 'CLINICALLY ACTIONABLE', 'DRUGGABLE GENOME', 'KINASE']",True,5,5,5,"['NERATINIB', 'AFATINIB', 'LAPATINIB', 'DACOMITINIB', 'IBRUTINIB']",Approved Drug,Clinical Precedence,18,4.0,fixture,fixture
+PEG3,[],False,0,0,0,[],,,0,,fixture,fixture
+RAB3A,[],False,0,0,0,[],,,0,,fixture,none
+STMN2,[],False,0,0,0,[],,,0,,fixture,none
+SYT1,[],False,0,0,0,[],,,0,,fixture,none
+SYP,[],False,0,0,0,[],,,0,,fixture,fixture
+NEFL,[],False,0,0,0,[],,,0,,fixture,none
+GAP43,[],False,0,0,0,[],,,0,,fixture,none
+DLG4,['DRUGGABLE GENOME'],True,0,0,0,[],,,0,,fixture,none
+SNAP25,['DRUGGABLE GENOME'],True,1,1,1,['BOTULINUM TOXIN TYPE A'],Approved Drug,,3,4.0,fixture,fixture
+KRAS,"['CLINICALLY ACTIONABLE', 'DRUGGABLE GENOME']",True,2,2,2,"['SOTORASIB', 'ADAGRASIB']",Approved Drug,,10,4.0,fixture,fixture
+TOP2A,"['CLINICALLY ACTIONABLE', 'DRUGGABLE GENOME']",True,2,2,2,"['DOXORUBICIN', 'ETOPOSIDE']",Approved Drug,,30,4.0,fixture,fixture
+MKI67,[],False,0,0,0,[],,,0,,fixture,fixture
+CCND1,"['CLINICALLY ACTIONABLE', 'DRUGGABLE GENOME']",True,1,1,1,['PALBOCICLIB'],Discovery Precedence,,0,,fixture,fixture
+EGFR,"['CELL SURFACE', 'CLINICALLY ACTIONABLE', 'DRUGGABLE GENOME', 'KINASE']",True,6,6,6,"['ERLOTINIB', 'GEFITINIB', 'OSIMERTINIB', 'CETUXIMAB', 'AFATINIB', 'NERATINIB']",Approved Drug,Approved Drug,120,4.0,fixture,fixture

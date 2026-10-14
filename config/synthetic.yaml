@@ -1,0 +1,16 @@
+# Config for the bundled synthetic CAA-like dataset (python scripts/make_synthetic.py).
+dataset:
+  path: data/synthetic/synthetic.h5ad
+  species: homo_sapiens
+  sample_key: sample
+  condition_key: condition
+  celltype_key: cell_type
+  disease: CAA
+  reference: [COSCC, GINGIVA]
+  counts_layer: counts
+  already_processed: true
+
+analysis:
+  integration:
+    use_harmony: false        # synthetic batch effects are mild; keeps the test fast
+    resolution: 1.0

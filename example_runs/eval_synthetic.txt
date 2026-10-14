@@ -1,0 +1,24 @@
+Evaluation of runs/agent_synthetic vs synthetic.yaml
+========================================================================
+state 'neuro_keratinocyte': FOUND  (cluster 2, marker overlap 8/4 needed: ERBB4, GAP43, NEFL, PEG3, SNAP25, STMN2, SYP, SYT1)
+    cell-level P/R/F1: 0.913/0.951/0.932
+target ranks: {'ERBB4': 1}   recall@5: 1.0
+false leads above first true target: none  (decoys: none)
+nominated: ['ERBB4', 'SNAP25', 'DLG4']  precision: 0.3333333333333333
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 1.0  found: ['afatinib', 'lapatinib', 'neratinib']
+tool calls: 20 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: True
+
+Evaluation of runs/baseline_synthetic vs synthetic.yaml
+========================================================================
+state 'neuro_keratinocyte': FOUND  (cluster 2, marker overlap 8/4 needed: ERBB4, GAP43, NEFL, PEG3, SNAP25, STMN2, SYP, SYT1)
+    cell-level P/R/F1: 0.913/0.951/0.932
+target ranks: {'ERBB4': 1}   recall@5: 1.0
+false leads above first true target: none  (decoys: none)
+nominated: ['ERBB4', 'SNAP25', 'DLG4', 'KRAS', 'TOP2A']  precision: 0.2
+decoys nominated - flagged by critic: none; UNFLAGGED: ['KRAS', 'TOP2A']
+drug recall: 1.0  found: ['afatinib', 'lapatinib', 'neratinib']
+tool calls: 0 (0 errors)   tokens: n/a
+PASS: False
+

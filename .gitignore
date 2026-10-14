@@ -1,0 +1,12 @@
+.env
+cache/
+runs/*/
+!runs/.gitkeep
+data/*.h5ad
+data/synthetic/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/

@@ -1,0 +1,24 @@
+# Template for the real CAA snRNA-seq object. Copy to config/caa.yaml and edit.
+dataset:
+  path: data/caa_processed.h5ad          # your processed AnnData
+  species: canis_lupus_familiaris        # enables dog -> human ortholog mapping for drug lookups
+  sample_key: sample                     # obs column with one value per animal/library
+  condition_key: condition               # obs column with values like CAA / COSCC / GINGIVA
+  celltype_key: cell_type                # your annotation column (or null)
+  disease: CAA
+  reference: [COSCC, GINGIVA]
+  counts_layer: counts                   # layer with raw UMI counts (needed for pseudobulk DESeq2)
+  already_processed: true                # true = reuse your embeddings/clusters; false = recompute
+
+analysis:
+  integration:
+    use_harmony: true
+    resolution: 1.0
+  enrichment:
+    gene_sets: data/h.all.v2024.1.Hs.symbols.gmt   # download MSigDB Hallmark and point here
+
+targets:
+  top_k_report: 15
+
+agent:
+  model: claude-sonnet-4-5

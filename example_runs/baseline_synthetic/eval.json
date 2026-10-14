@@ -1,0 +1,59 @@
+{
+  "run_dir": "runs/baseline_synthetic",
+  "ground_truth": "data/ground_truth/synthetic.yaml",
+  "state_recovery": {
+    "neuro_keratinocyte": {
+      "found": true,
+      "required_overlap": 4,
+      "best_match": {
+        "cluster": "2",
+        "overlap": 8,
+        "overlap_genes": [
+          "ERBB4",
+          "GAP43",
+          "NEFL",
+          "PEG3",
+          "SNAP25",
+          "STMN2",
+          "SYP",
+          "SYT1"
+        ]
+      },
+      "cell_level": {
+        "precision": 0.913,
+        "recall": 0.951,
+        "f1": 0.932
+      }
+    }
+  },
+  "target_rank": {
+    "ERBB4": 1
+  },
+  "target_recall_at_k": 1.0,
+  "k": 5,
+  "drug_recall": 1.0,
+  "drugs_found": [
+    "afatinib",
+    "lapatinib",
+    "neratinib"
+  ],
+  "false_leads": [],
+  "decoys_above_target": [],
+  "nominated": [
+    "ERBB4",
+    "SNAP25",
+    "DLG4",
+    "KRAS",
+    "TOP2A"
+  ],
+  "nominated_precision": 0.2,
+  "decoys_nominated_unflagged": [
+    "KRAS",
+    "TOP2A"
+  ],
+  "decoys_nominated_flagged": [],
+  "n_tool_calls": 0,
+  "n_tool_errors": 0,
+  "tokens": {},
+  "passed": false
+}

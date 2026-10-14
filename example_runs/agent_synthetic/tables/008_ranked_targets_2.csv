@@ -1,0 +1,16 @@
+gene,human_symbol,score,effect_size_log2fc,effect_size_source,log2_specificity,sample_consistency,druggability_score,known_compound_score,top_inhibitors,flags,rank
+ERBB4,ERBB4,0.9763,4.06,pseudobulk_de,3.621,1.0,1.0,1.0,"['NERATINIB', 'AFATINIB', 'LAPATINIB', 'DACOMITINIB', 'IBRUTINIB']",[],1
+SNAP25,SNAP25,0.7185,2.703,pseudobulk_de,2.393,1.0,1.0,0.333,['BOTULINUM TOXIN TYPE A'],[],2
+DLG4,DLG4,0.5831,2.929,pseudobulk_de,2.401,1.0,0.6,0.0,[],['no_known_compounds'],3
+PEG3,PEG3,0.5417,3.684,pseudobulk_de,3.384,1.0,0.0,0.0,[],"['not_druggable', 'no_known_compounds']",4
+STMN2,STMN2,0.5042,3.444,pseudobulk_de,3.023,1.0,0.0,0.0,[],"['not_druggable', 'no_known_compounds']",5
+EGFR,EGFR,0.5,0.0,pseudobulk_de,-0.22,1.0,1.0,1.0,"['ERLOTINIB', 'GEFITINIB', 'OSIMERTINIB', 'CETUXIMAB', 'AFATINIB', 'NERATINIB']","['low_specificity', 'shared_across_conditions']",6
+RAB3A,RAB3A,0.4964,3.27,pseudobulk_de,3.073,1.0,0.0,0.0,[],"['not_druggable', 'no_known_compounds']",7
+SYT1,SYT1,0.4887,3.224,pseudobulk_de,2.995,1.0,0.0,0.0,[],"['not_druggable', 'no_known_compounds']",8
+NEFL,NEFL,0.4857,3.387,pseudobulk_de,2.784,1.0,0.0,0.0,[],"['not_druggable', 'no_known_compounds']",9
+SYP,SYP,0.4743,3.141,pseudobulk_de,2.849,1.0,0.0,0.0,[],"['not_druggable', 'no_known_compounds']",10
+GAP43,GAP43,0.4665,3.085,pseudobulk_de,2.78,1.0,0.0,0.0,[],"['not_druggable', 'no_known_compounds']",11
+KRAS,KRAS,0.4595,0.0,pseudobulk_de,0.152,1.0,1.0,0.667,"['SOTORASIB', 'ADAGRASIB']",['low_specificity'],12
+TOP2A,TOP2A,0.4565,0.0,pseudobulk_de,0.104,1.0,1.0,0.667,"['DOXORUBICIN', 'ETOPOSIDE']","['low_specificity', 'shared_across_conditions']",13
+CCND1,CCND1,0.3,0.0,pseudobulk_de,-0.085,1.0,0.6,0.333,['PALBOCICLIB'],['low_specificity'],14
+MKI67,MKI67,0.1015,0.0,pseudobulk_de,0.024,1.0,0.0,0.0,[],"['low_specificity', 'shared_across_conditions', 'not_druggable', 'no_known_compounds']",15

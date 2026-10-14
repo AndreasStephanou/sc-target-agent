@@ -1,0 +1,87 @@
+{
+  "dataset": {
+    "path": "data/synthetic/synthetic.h5ad",
+    "species": "homo_sapiens",
+    "sample_key": "sample",
+    "condition_key": "condition",
+    "celltype_key": "cell_type",
+    "disease": "CAA",
+    "reference": [
+      "COSCC",
+      "GINGIVA"
+    ],
+    "counts_layer": "counts",
+    "already_processed": true
+  },
+  "analysis": {
+    "qc": {
+      "min_genes": 200,
+      "max_genes": 8000,
+      "max_mt_pct": 10.0,
+      "min_cells_per_gene": 3
+    },
+    "integration": {
+      "batch_key": "sample",
+      "use_harmony": false,
+      "n_pcs": 30,
+      "n_neighbors": 15,
+      "resolution": 1.0
+    },
+    "differential_abundance": {
+      "min_cells_per_sample": 20,
+      "enrichment_log2fc": 1.0
+    },
+    "differential_expression": {
+      "method": "pseudobulk_deseq2",
+      "padj": 0.05,
+      "min_log2fc": 1.0,
+      "top_n": 200
+    },
+    "enrichment": {
+      "gene_sets": "data/fixtures/mini_hallmark.gmt",
+      "padj": 0.05
+    }
+  },
+  "targets": {
+    "druggable_classes": [
+      "KINASE",
+      "DRUGGABLE GENOME",
+      "CLINICALLY ACTIONABLE",
+      "CELL SURFACE",
+      "TRANSPORTER",
+      "ION CHANNEL",
+      "G PROTEIN COUPLED RECEPTOR"
+    ],
+    "min_specificity_log2fc": 1.0,
+    "top_k_report": 15,
+    "weights": {
+      "effect_size": 0.25,
+      "specificity": 0.25,
+      "druggability": 0.25,
+      "known_compounds": 0.15,
+      "consistency_across_samples": 0.1
+    }
+  },
+  "agent": {
+    "model": "claude-sonnet-4-5",
+    "max_turns_per_role": 25,
+    "temperature": 0.2,
+    "seed": 0
+  },
+  "privacy": {
+    "max_list_items": 100,
+    "max_table_rows": 60,
+    "pseudonymize_samples": true,
+    "forbidden_obs_columns": [
+      "patient_id",
+      "donor_id",
+      "mrn",
+      "name",
+      "dob",
+      "date_of_birth"
+    ]
+  },
+  "output": {
+    "run_dir": "runs"
+  }
+}

@@ -1,0 +1,26 @@
+# Template for the real CAA snRNA-seq dataset. Fill in from the published analysis
+# (Stephanou et al., Mol Ther Oncol 2026) BEFORE running the pipeline blind, then do
+# not edit it afterwards - that is what makes the evaluation honest.
+name: caa_snrnaseq
+disease: CAA
+reference: [COSCC, GINGIVA]
+
+expected_states:
+  - name: CAA_epithelial_state_1
+    parent_cell_type: keratinocyte        # or epithelial - match your celltype_key labels
+    marker_genes: [PEG3, ERBB4]           # add the neuronal/synaptic genes from the paper
+    min_marker_overlap: 2
+  - name: CAA_epithelial_state_2
+    parent_cell_type: keratinocyte
+    marker_genes: []                      # fill in
+    min_marker_overlap: 2
+
+expected_targets: [ERBB4]
+acceptable_targets: [PEG3]
+expected_drugs: [neratinib]
+
+# Genes you consider "obviously not the answer" (e.g., pan-tumour proliferation genes,
+# cell-type markers). Optional but makes the false-lead metric sharper.
+decoy_targets: [MKI67, TOP2A, EGFR]
+
+per_cell_truth: null
