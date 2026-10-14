@@ -644,7 +644,9 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
     description="""
     Replicate-aware differential expression: counts are summed per sample within each
     group (pseudobulk) and tested with DESeq2 (PyDESeq2; falls back to Wilcoxon on
-    log-CPM if unavailable). Two contrasts:
+    log-CPM if unavailable). The cluster-vs-siblings contrast is blocked by sample
+    (~ sample + label: a sample's state cells vs the same sample's sibling cells) whenever
+    >= 3 samples contribute both. Two contrasts:
       - 'cluster_vs_reference_clusters': cells of `cluster` vs cells of `reference_clusters`
         (default: all other clusters). Finds state-specific genes with sample-level replication.
       - 'disease_vs_reference_within_cluster': within `cluster`, disease samples vs reference
@@ -751,18 +753,34 @@ def _run_pseudobulk(
             "error": f"insufficient pseudobulk replicates (target={n_t}, reference={n_r}); need >=2 per side. Lower min_cells_per_pseudobulk or choose another contrast.",
             "replicates": {"target": n_t, "reference": n_r},
         }
+    # Blocked design for the sibling contrast: compare a sample's state cells with the SAME
+    # sample's sibling cells (~ sample + label). Without blocking, reference pseudobulks from
+    # disease samples (which share the disease background) and from reference samples form a
+    # bimodal group and the dispersion estimate swallows real effects. Within-cluster
+    # disease-vs-reference cannot be blocked (condition is a sample-level variable).
+    blocked = False
+    if contrast == "cluster_vs_reference_clusters":
+        paired = set(meta.loc[meta["label"] == "target", "sample"]) & set(meta.loc[meta["label"] == "reference", "sample"])
+        if len(paired) >= 3:
+            keep_rows = meta["sample"].isin(paired).to_numpy()
+            meta, mat = meta[keep_rows], mat[keep_rows]
+            n_t, n_r = int((meta["label"] == "target").sum()), int((meta["label"] == "reference").sum())
+            blocked = True
     counts_df = pd.DataFrame(np.round(mat).astype(int), index=meta.index, columns=a.var_names)
     counts_df = counts_df.loc[:, counts_df.sum(axis=0) >= 10]
 
-    method = "pydeseq2"
+    method = "pydeseq2 (~ sample + label, paired within animal)" if blocked else "pydeseq2 (~ label)"
     try:
         from pydeseq2.dds import DeseqDataSet
         from pydeseq2.ds import DeseqStats
 
+        meta_d = meta[["label", "sample"]].copy()
+        meta_d["sample"] = meta_d["sample"].astype(str).str.replace(r"[^A-Za-z0-9_]", "_", regex=True)
+        design = "~ sample + label" if blocked else "~ label"
         try:
-            dds = DeseqDataSet(counts=counts_df, metadata=meta[["label"]], design="~label", quiet=True)
+            dds = DeseqDataSet(counts=counts_df, metadata=meta_d, design=design, quiet=True)
         except TypeError:  # older pydeseq2
-            dds = DeseqDataSet(counts=counts_df, metadata=meta[["label"]], design_factors="label", quiet=True)
+            dds = DeseqDataSet(counts=counts_df, metadata=meta_d, design_factors=(["sample", "label"] if blocked else "label"), quiet=True)
         dds.deseq2()
         st = DeseqStats(dds, contrast=["label", "target", "reference"], quiet=True)
         st.summary()
@@ -800,6 +818,7 @@ def _run_pseudobulk(
         "cluster": cluster,
         "contrast": contrast,
         "method": method,
+        "blocked_by_sample": blocked,
         "replicates": {"target": n_t, "reference": n_r, "pseudobulk_cells": {str(session.pseudo.to_pseudo(s)) + "|" + l: int(n) for s, l, n in zip(meta["sample"], meta["label"], meta["n_cells"])}},
         "n_sig_up": int(len(sig_up)),
         "n_sig_down": int(len(sig_down)),
@@ -1205,8 +1224,9 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     description="""
     For a list of candidate genes, quantify how specific their expression is to one cluster:
     mean expression in the target cluster vs the maximum mean in any other NON-disease cluster
-    (log2 specificity ratio; other disease states are excluded so a gene shared by two disease
-    states is not penalised - the all-clusters value is also reported), % of target cells expressing, expression in disease vs
+    (log2 specificity ratio; clusters that are flagged disease states OR are >= 50% disease cells
+    are excluded, so a gene shared by two disease populations is not penalised - the all-clusters
+    value is also reported), % of target cells expressing, expression in disease vs
     reference cells of the target cluster, and sample consistency (fraction of disease
     samples in which the gene is detected in >=10% of the cluster's cells). Also reports
     whether the gene is up in other condition-shared clusters (a pan-tumour or cell-type
@@ -1242,6 +1262,13 @@ def gene_specificity(session: AnalysisSession, genes: list[str], cluster: str, c
     # other disease states (composition-enriched or program-altered) are not "other clusters" for
     # the purpose of disease specificity: a gene shared by two disease states is still disease-specific
     disease_clusters = set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", []))) | set(map(str, session.facts.get("disease_programs", {}).get("disease_altered_clusters", [])))
+    # ... and any cluster whose cells are mostly from the disease condition, whether or not it
+    # passed the enrichment test (a 70%-disease cluster that missed alpha is not a "normal" cluster)
+    is_dis_cell = conds == session.disease
+    for cl in clusters:
+        m = labels == cl
+        if m.sum() and float(is_dis_cell[m].mean()) >= 0.5:
+            disease_clusters.add(cl)
     disease_clusters.discard(cluster)
     rows = []
     dis_samples = sorted(set(samples[conds == session.disease]))
@@ -1270,6 +1297,7 @@ def gene_specificity(session: AnalysisSession, genes: list[str], cluster: str, c
                 "mean_in_cluster": round(tm, 3),
                 "max_mean_other_cluster": round(max_other, 3),
                 "max_other_cluster": max_other_cl,
+                "comparison_set": "clusters < 50% disease cells and not flagged as disease states",
                 "log2_specificity": round(spec, 3),
                 "log2_specificity_incl_other_disease_states": round(spec_all, 3),
                 "max_other_cluster_incl_disease_states": max_all_cl,

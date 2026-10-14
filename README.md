@@ -26,7 +26,10 @@ naive script?*
   can be traced to a tool result.
 * **Replicate-aware by default.** Disease states are found by per-*sample* differential
   abundance; state genes by pseudobulk DESeq2 against *sibling clusters of the same cell
-  type* (so you get state markers, not cell-type markers). A `gene_specificity` tool and a
+  type* (so you get state markers, not cell-type markers), **blocked by sample**
+  (`~ sample + label`: a sample's state cells vs the same sample's sibling cells), so the
+  shared background of disease samples cannot inflate the reference dispersion. Specificity is
+  judged against clusters that are mostly reference cells, not against other disease populations. A `gene_specificity` tool and a
   critic role exist specifically to catch pan-tumour and cell-type decoys.
 * **Where does the signal sit?** `condition_attribution` asks, for every candidate gene, whether
   its expression in a cluster comes from the disease-condition cells or from reference-condition
