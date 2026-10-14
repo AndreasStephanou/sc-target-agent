@@ -13,3 +13,4 @@ dist/
 .DS_Store
 ._*
 *.patch
+data/synthetic_program/

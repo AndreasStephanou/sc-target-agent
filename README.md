@@ -14,7 +14,7 @@ naive script?*
                (plan)      (states)    (druggable genes)    (flags)    + run.jsonl audit log
                   │            │              │                │
                   └────────────┴──────────────┴────────────────┘
-                         15 deterministic tools (scanpy, PyDESeq2, DGIdb, Open Targets …)
+                         16 deterministic tools (scanpy, PyDESeq2, DGIdb, Open Targets …)
                          only aggregated results ever reach the model
 ```
 
@@ -28,6 +28,13 @@ naive script?*
   abundance; state genes by pseudobulk DESeq2 against *sibling clusters of the same cell
   type* (so you get state markers, not cell-type markers). A `gene_specificity` tool and a
   critic role exist specifically to catch pan-tumour and cell-type decoys.
+* **Two routes to a disease state.** *Composition*: a cluster enriched in disease samples
+  (`differential_abundance`, with subclustering / re-clustering fallbacks). *Expression*:
+  a cell type present in every condition that runs a disease-specific program
+  (`disease_programs`: pseudobulk disease-vs-reference *within* each cluster). States carry a
+  `basis` (composition | program) and `score_targets` switches its specificity component
+  accordingly (cluster-vs-cluster for composition, within-cluster disease fold change for
+  program). Both routes are exercised by the synthetic datasets (`make_synthetic --mode state|program`).
 * **Privacy layer.** Raw counts and per-cell values never leave the machine. Tool outputs are
   truncated, sample IDs pseudonymized, and any per-cell-sized array is rejected before it can
   be sent (`sctarget/privacy.py`; tested in `tests/test_privacy.py` and the e2e test).
@@ -102,8 +109,8 @@ sctarget/
   tools/
     registry.py        @tool decorator -> JSON schema, role permissions, arg validation
     analysis.py        load_dataset, run_qc, integrate_and_cluster, subcluster, cluster_composition,
-                       differential_abundance, find_markers, pseudobulk_de, gene_specificity,
-                       enrichment, plot_genes
+                       differential_abundance, disease_programs, find_markers, pseudobulk_de,
+                       gene_specificity, enrichment, plot_genes
     knowledge.py       map_orthologs (Ensembl), druggability_lookup (DGIdb + Open Targets),
                        literature_count (PubMed) – disk-cached, offline fixture fallback
     targets.py         score_targets (deterministic, weighted, explainable), record_finding
@@ -120,7 +127,7 @@ scripts/               make_synthetic, run_pipeline, run_baseline, run_eval
 config/                default.yaml, synthetic.yaml, caa_template.yaml
 data/ground_truth/     synthetic.yaml, caa_template.yaml
 data/fixtures/         mini_hallmark.gmt (test stand-in), knowledge_fixtures.json (offline DB stand-in)
-tests/                 20 tests: tools, privacy, registry, loop error handling, end-to-end + eval
+tests/                 30 tests: tools, privacy, registry, loop error handling, end-to-end + eval
 ```
 
 Each run directory contains `report.md/.html`, `run.jsonl`, `state.json`, `config_used.json`,
@@ -140,7 +147,8 @@ Each run directory contains `report.md/.html`, `run.jsonl`, `state.json`, `confi
 
 Flags (`low_specificity`, `shared_across_conditions`, `inconsistent_across_samples`,
 `not_druggable`, `no_known_compounds`, `missing_evidence:*`) travel with each gene into the
-report and the critic's review. Change the weights in the config, not in code, so the
+report and the critic's review, and the first three also penalise the score (x0.6, x0.6, x0.8),
+so a druggable pan-condition gene cannot outrank a clean state-specific one. Change the weights in the config, not in code, so the
 choice is recorded in `config_used.json`.
 
 ## Known limitations / next steps

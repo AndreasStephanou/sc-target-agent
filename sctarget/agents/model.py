@@ -128,7 +128,7 @@ class ScriptedModel:
         f = self._facts()
         da = f.get("differential_abundance", {})
         comp = {r["cluster"]: r for r in f.get("cluster_composition", [])}
-        enriched = da.get("disease_enriched_clusters", [])[:3]
+        enriched = sorted(da.get("disease_enriched_clusters", []), key=lambda c: -next((r.get("log2_ratio") or 0) for r in da.get("table", []) if r["cluster"] == c))[:2]
         steps: list[ToolUse | str] = []
         if not enriched:
             retries = self._step.get("analyst_recluster", 0)
@@ -166,9 +166,23 @@ class ScriptedModel:
                 steps.append(ToolUse("differential_abundance", {"enrichment_log2fc": da_thr}))
                 steps.append("__analyst_characterise__")
                 return steps
-            steps.append(ToolUse("record_finding", {"kind": "summary", "title": "No disease-enriched cluster", "detail": "Differential abundance found no cluster enriched in the disease condition at the configured threshold, even after re-clustering at higher resolution. Consider within-cell-type proportions or a different disease definition.", "confidence": "medium"}))
-            steps.append("No disease-enriched clusters found.")
+            # adaptive step 4: composition is flat -> look for disease PROGRAMS inside shared clusters
+            if not self._step.get("programs_tried"):
+                self._step["programs_tried"] = True
+                steps.append(ToolUse("record_finding", {"kind": "summary", "title": "Switching to the expression route", "detail": "No cluster is enriched in the disease condition after subclustering and re-clustering. Testing whether shared cell types run a disease-specific program instead (pseudobulk disease vs reference within each cluster).", "confidence": "medium"}))
+                steps.append(ToolUse("disease_programs", {"cluster_key": str(f.get("clustering", {}).get("cluster_key", "")).split("_sub")[0] or None}))
+                steps.append("__analyst_programs__")
+                return steps
+            steps.append(ToolUse("record_finding", {"kind": "summary", "title": "No disease-specific state found", "detail": "Neither the composition route (differential abundance, subclustering, re-clustering) nor the expression route (within-cluster disease programs) found a disease-specific state at the configured thresholds.", "confidence": "medium"}))
+            steps.append("No disease-specific states found.")
             return steps
+        # composition found something; ALSO test for disease PROGRAMS in shared cell types first
+        # (on the base clustering, so subclusters do not fragment the test) - cheap, and it catches
+        # the case where the composition hits are weak and the real signal is a program shift
+        if not self._step.get("programs_tried"):
+            self._step["programs_tried"] = True
+            steps.append(ToolUse("disease_programs", {"cluster_key": str(f.get("clustering", {}).get("cluster_key", "")).split("_sub")[0] or None}))
+            steps.append("__analyst_programs__")
         for cl in enriched:
             dom = comp.get(cl, {}).get("dominant_celltype")
             siblings = [c for c, r in comp.items() if c != cl and dom and r.get("dominant_celltype") == dom] or None
@@ -207,6 +221,42 @@ class ScriptedModel:
         ]
         return steps
 
+    def _analyst_programs(self) -> list[ToolUse | str]:
+        f = self._facts()
+        dp = f.get("disease_programs", {})
+        altered = dp.get("disease_altered_clusters", [])[:2]
+        rows = {r["cluster"]: r for r in dp.get("table", [])}
+        if not altered:
+            if f.get("differential_abundance", {}).get("disease_enriched_clusters"):
+                return []  # composition states are being characterised; nothing extra to add
+            return ["__analyst_characterise__"]  # falls through to the final "nothing found" summary
+        from ..tools.targets import excluded_gene
+
+        steps: list[ToolUse | str] = []
+        for cl in altered:
+            r = rows[cl]
+            pb = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_cluster", {})
+            up = [x["gene"] for x in pb.get("top_up", []) if not excluded_gene(x["gene"])][:40]
+            steps.append(ToolUse("enrichment", {"genes": up}))
+            steps.append(ToolUse("plot_genes", {"genes": up[:4], "title": f"cluster {cl} disease program"}))
+            steps.append(
+                ToolUse(
+                    "record_finding",
+                    {
+                        "kind": "disease_state",
+                        "basis": "program",
+                        "title": f"Cluster {cl}: disease-altered {r.get('dominant_celltype') or 'cell'} program",
+                        "detail": f"Cluster {cl} is present in all conditions (no abundance shift) but disease samples show {r.get('n_sig_up_strong')} genes up (padj<0.05, log2FC>=1) vs reference samples in a replicate-aware pseudobulk test ({r.get('replicates_disease')} disease vs {r.get('replicates_reference')} reference pseudobulks). Top genes: {', '.join(up[:8])}.",
+                        "cluster": cl,
+                        "genes": up[:15],
+                        "confidence": "high" if (r.get("n_sig_up_strong") or 0) >= 100 else "medium",
+                    },
+                )
+            )
+        if not f.get("differential_abundance", {}).get("disease_enriched_clusters"):
+            steps.append("Recorded disease-altered programs.")
+        return steps
+
     def _target_dynamic(self) -> list[ToolUse | str]:
         f = self._facts()
         states = f.get("findings", {}).get("disease_state", [])
@@ -214,9 +264,10 @@ class ScriptedModel:
             return ["No disease states were recorded by the analyst; nothing to nominate."]
         steps: list[ToolUse | str] = []
         species = self.session.cfg.dataset.get("species", "homo_sapiens")
-        for st in states[:2]:
+        for st in states[:4]:
             cl = st["cluster"]
-            pb = f.get("pseudobulk_de", {}).get(f"{cl}:cluster_vs_reference_clusters", {})
+            contrast = "disease_vs_reference_within_cluster" if st.get("basis") == "program" else "cluster_vs_reference_clusters"
+            pb = f.get("pseudobulk_de", {}).get(f"{cl}:{contrast}", {})
             from ..tools.targets import excluded_gene
 
             genes = [r["gene"] for r in pb.get("top_up", []) if not excluded_gene(r["gene"])][:25] or st.get("genes", [])[:25]
@@ -252,6 +303,8 @@ class ScriptedModel:
         for r in ranked[:5]:
             if r["druggability_score"] == 0 and r["known_compound_score"] == 0:
                 continue
+            if r["score"] < 0.3:
+                continue  # weak or heavily penalised: not worth a nomination
             steps.append(
                 ToolUse(
                     "record_finding",
@@ -266,7 +319,7 @@ class ScriptedModel:
                 )
             )
         # a plain string ends the role, so only say "done" after the LAST state has been processed
-        states = [st["cluster"] for st in f.get("findings", {}).get("disease_state", [])][:2]
+        states = [st["cluster"] for st in f.get("findings", {}).get("disease_state", [])][:4]
         if cl == states[-1]:
             n_total = len(f.get("findings", {}).get("candidate_target", [])) + len([s for s in steps if isinstance(s, ToolUse)])
             steps.append(f"Nominated {n_total} candidate targets across clusters {', '.join(states)}.")
@@ -287,6 +340,8 @@ class ScriptedModel:
             cl = st["cluster"]
             row = da_rows.get(cl, {})
             wrow = da_within.get(cl, {})
+            if st.get("basis") == "program":
+                continue  # program states are judged by within-cluster DE, not by abundance
             if wrow and not wrow.get("disease_enriched"):
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"Cluster {cl} enrichment does not hold within its parent cell type", "detail": f"Recomputing proportions within the dominant cell type gives log2 ratio {wrow.get('log2_ratio')} (all-cells ratio was {row.get('log2_ratio')}); the enrichment may reflect a composition shift rather than a disease-specific state.", "cluster": cl, "severity": "major"}))
             if row and row.get("n_disease_samples_present", 0) < 2:
@@ -322,6 +377,7 @@ class ScriptedModel:
                 expand = {
                     "__analyst_dynamic__": self._analyst_dynamic,
                     "__analyst_characterise__": self._analyst_characterise,
+                    "__analyst_programs__": self._analyst_programs,
                     "__target_dynamic__": self._target_dynamic,
                     "__critic_dynamic__": self._critic_dynamic,
                     "__critic_review__": self._critic_review,

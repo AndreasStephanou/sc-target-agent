@@ -101,7 +101,8 @@ def _state_recovery(gt: dict[str, Any], facts: dict[str, Any], run_dir: Path) ->
                 best = {"cluster": cl, "overlap": len(ov), "overlap_genes": sorted(ov)}
         found = bool(best and best["overlap"] >= need)
         entry: dict[str, Any] = {"found": found, "required_overlap": need, "best_match": best}
-        if truth_df is not None and best and (run_dir / "cluster_assignments.csv").exists():
+        matched_basis = next((r.get("basis") for r in recorded if best and str(r.get("cluster")) == best["cluster"]), "composition")
+        if truth_df is not None and best and matched_basis != "program" and (run_dir / "cluster_assignments.csv").exists():
             # optional: compute F1 of the matched cluster vs the true state label
             assign = pd.read_csv(run_dir / "cluster_assignments.csv", index_col=0).iloc[:, 0].astype(str)
             truth = truth_df.iloc[:, 0].reindex(assign.index)
@@ -111,6 +112,8 @@ def _state_recovery(gt: dict[str, Any], facts: dict[str, Any], run_dir: Path) ->
             prec = tp / max(1, int(pred.sum()))
             rec_ = tp / max(1, int(actual.sum()))
             entry["cell_level"] = {"precision": round(prec, 3), "recall": round(rec_, 3), "f1": round(2 * prec * rec_ / max(1e-9, prec + rec_), 3)}
+        if best:
+            entry["basis"] = matched_basis
         out[exp["name"]] = entry
     return out
 

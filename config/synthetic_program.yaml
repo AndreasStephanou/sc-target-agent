@@ -1,0 +1,16 @@
+# Config for the program-mode synthetic dataset (python scripts/make_synthetic.py --mode program --out data/synthetic_program).
+dataset:
+  path: data/synthetic_program/synthetic.h5ad
+  species: homo_sapiens
+  sample_key: sample
+  condition_key: condition
+  celltype_key: cell_type
+  disease: CAA
+  reference: [COSCC, GINGIVA]
+  counts_layer: counts
+  already_processed: true
+
+analysis:
+  integration:
+    use_harmony: false        # synthetic batch effects are mild; keeps the test fast
+    resolution: 1.0

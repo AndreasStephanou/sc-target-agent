@@ -34,11 +34,22 @@ def _clip01(x: float | None, scale: float) -> float:
     return float(np.clip(x / scale, 0.0, 1.0))
 
 
-def _effect_size(session: AnalysisSession, gene: str, cluster: str) -> tuple[float | None, str]:
+def state_basis(session: AnalysisSession, cluster: str) -> str:
+    """'composition' (disease-enriched cluster) or 'program' (disease-altered program within a shared cluster)."""
+    for st in session.facts.get("findings", {}).get("disease_state", []):
+        if str(st.get("cluster")) == str(cluster) and st.get("basis"):
+            return str(st["basis"])
+    if str(cluster) in session.facts.get("disease_programs", {}).get("disease_altered_clusters", []) and str(cluster) not in session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", []):
+        return "program"
+    return "composition"
+
+
+def _effect_size(session: AnalysisSession, gene: str, cluster: str, basis: str = "composition") -> tuple[float | None, str]:
     pb = session.facts.get("pseudobulk_de", {})
+    wanted = "disease_vs_reference_within_cluster" if basis == "program" else "cluster_vs_reference_clusters"
     for key, val in pb.items():
         cl, contrast = key.split(":", 1)
-        if cl == cluster and contrast == "cluster_vs_reference_clusters":
+        if cl == cluster and contrast == wanted:
             for row in val.get("top_up", []):
                 if row.get("gene") == gene:
                     return float(row["log2fc"]), "pseudobulk_de"
@@ -73,7 +84,8 @@ def _effect_size(session: AnalysisSession, gene: str, cluster: str) -> tuple[flo
     compounds (druggability_lookup). Weights come from config targets.weights. Returns the
     ranked table with per-component scores and flags (low_specificity, not_druggable,
     no_known_compounds, inconsistent_across_samples, missing_evidence). Call the evidence
-    tools first; missing evidence scores 0 and is flagged.""",
+    tools first; missing evidence scores 0 and is flagged. Flags also penalise the score
+    (low_specificity x0.6, shared_across_conditions x0.6, inconsistent_across_samples x0.8).""",
     input_schema={
         "properties": {
             "genes": {"type": "array", "items": {"type": "string"}},
@@ -100,13 +112,14 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
 
     patterns = session.cfg.targets.get("exclude_gene_patterns") or None
     excluded = [g for g in dict.fromkeys(genes) if excluded_gene(g, patterns)]
+    basis = state_basis(session, str(cluster))
     rows = []
     for g in dict.fromkeys(genes):
         if g in excluded:
             continue
         hs = human_symbols.get(g, g)
         flags: list[str] = []
-        eff, eff_src = _effect_size(session, g, str(cluster))
+        eff, eff_src = _effect_size(session, g, str(cluster), basis)
         if eff is None:
             flags.append("missing_evidence:effect_size")
         s_eff = _clip01(eff, 4.0)
@@ -116,13 +129,20 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
             flags.append("missing_evidence:specificity")
             s_spec, cons = 0.0, None
         else:
-            s_spec = _clip01(sp.get("log2_specificity"), 4.0)
             cons = sp.get("disease_sample_consistency")
-            if (sp.get("log2_specificity") or 0) < 1.0:
-                flags.append("low_specificity")
             dvr = sp.get("log2_disease_vs_reference_within_cluster")
-            if dvr is not None and dvr < 0.5 and (sp.get("log2_specificity") or 0) < 1.0:
-                flags.append("shared_across_conditions")
+            if basis == "program":
+                # the state is a shared cell type running a disease program: what matters is how
+                # disease-specific the gene is INSIDE that cluster, not whether the cluster is unique
+                s_spec = _clip01(dvr, 3.0)
+                if dvr is None or dvr < 0.5:
+                    flags.append("shared_across_conditions")
+            else:
+                s_spec = _clip01(sp.get("log2_specificity"), 4.0)
+                if (sp.get("log2_specificity") or 0) < 1.0:
+                    flags.append("low_specificity")
+                if dvr is not None and dvr < 0.5 and (sp.get("log2_specificity") or 0) < 1.0:
+                    flags.append("shared_across_conditions")
         s_cons = 0.5 if cons is None else float(cons)
         if cons is not None and cons < 0.67:
             flags.append("inconsistent_across_samples")
@@ -151,18 +171,31 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
                 flags.append("no_known_compounds")
 
         score = w_eff * s_eff + w_spec * s_spec + w_drug * s_drug + w_cmp * s_cmp + w_cons * s_cons
+        # flags are not just annotations: a gene that is equally high elsewhere, or inconsistent
+        # across disease samples, is a worse target however druggable it is
+        penalty = 1.0
+        if "low_specificity" in flags:
+            penalty *= 0.6
+        if "shared_across_conditions" in flags:
+            penalty *= 0.6
+        if "inconsistent_across_samples" in flags:
+            penalty *= 0.8
+        score *= penalty
         rows.append(
             {
                 "gene": g,
                 "human_symbol": hs,
+                "basis": basis,
                 "score": round(float(score), 4),
                 "effect_size_log2fc": None if eff is None else round(eff, 3),
                 "effect_size_source": eff_src,
                 "log2_specificity": None if sp is None else sp.get("log2_specificity"),
+                "log2_disease_vs_reference_within_cluster": None if sp is None else sp.get("log2_disease_vs_reference_within_cluster"),
                 "sample_consistency": cons,
                 "druggability_score": s_drug,
                 "known_compound_score": round(s_cmp, 3),
                 "top_inhibitors": (d or {}).get("top_inhibitors", []),
+                "flag_penalty": round(penalty, 2),
                 "flags": flags,
             }
         )
@@ -170,7 +203,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
     df["rank"] = np.arange(1, len(df) + 1)
     session.save_table(f"ranked_targets_{cluster}", df)
     session.facts.setdefault("ranked_targets", {})[str(cluster)] = df.reset_index().to_dict(orient="records")
-    return {"cluster": str(cluster), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
+    return {"cluster": str(cluster), "state_basis": basis, "specificity_component": ("within-cluster disease vs reference log2FC" if basis == "program" else "cluster vs max other cluster log2 ratio"), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
 
 
 @tool(
@@ -189,6 +222,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
             "genes": {"type": ["array", "null"], "items": {"type": "string"}},
             "confidence": {"type": ["string", "null"], "enum": ["high", "medium", "low", None]},
             "severity": {"type": ["string", "null"], "enum": ["blocking", "major", "minor", None], "description": "critic_flag only"},
+            "basis": {"type": ["string", "null"], "enum": ["composition", "program", None], "description": "disease_state only: 'composition' = cluster enriched in disease; 'program' = shared cluster with a disease-specific expression program"},
         },
         "required": ["kind", "title", "detail"],
     },
@@ -203,7 +237,10 @@ def record_finding(
     genes: list[str] | None = None,
     confidence: str | None = None,
     severity: str | None = None,
+    basis: str | None = None,
 ) -> dict[str, Any]:
     entry = {"title": title, "detail": detail, "cluster": cluster, "genes": genes or [], "confidence": confidence, "severity": severity}
+    if kind == "disease_state":
+        entry["basis"] = basis or "composition"
     session.facts.setdefault("findings", {}).setdefault(kind, []).append(entry)
     return {"recorded": kind, "n_total_of_kind": len(session.facts["findings"][kind])}

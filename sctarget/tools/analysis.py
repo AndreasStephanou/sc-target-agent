@@ -86,6 +86,27 @@ def _bh(p: np.ndarray) -> np.ndarray:
     return out
 
 
+def _resolve_key(session: AnalysisSession, cluster: str | None, cluster_key: str | None) -> str:
+    """Pick the obs column a cluster label belongs to. Explicit key wins; otherwise the active key
+    if it contains the label; otherwise any other clustering column that does (e.g. the base
+    clustering after a subcluster step changed the active key)."""
+    a = session.require_adata()
+    if cluster_key:
+        if cluster_key not in a.obs:
+            raise ValueError(f"cluster_key '{cluster_key}' not in obs")
+        return cluster_key
+    key = session.cluster_key
+    if not key or key not in a.obs:
+        raise ValueError("no cluster key available; run integrate_and_cluster first")
+    if cluster is None or str(cluster) in set(a.obs[key].astype(str)):
+        return key
+    candidates = [key.split("_sub")[0]] + [c for c in a.obs.columns if c.lower().startswith(("leiden", "louvain", "sct_leiden")) or c.endswith("_sub")]
+    for c in candidates:
+        if c in a.obs and str(cluster) in set(a.obs[c].astype(str)):
+            return c
+    raise ValueError(f"cluster '{cluster}' not found in '{key}' or any other clustering column; pass cluster_key explicitly")
+
+
 def _cluster_mask(a: Any, key: str, clusters: list[str] | str) -> np.ndarray:
     labels = a.obs[key].astype(str)
     if clusters == "rest":
@@ -435,6 +456,7 @@ def cluster_composition(session: AnalysisSession, cluster_key: str | None = None
             "enrichment_log2fc": {"type": "number", "default": 1.0, "description": "log2 ratio threshold for the disease_enriched flag"},
             "within_celltype": {"type": "boolean", "default": False, "description": "compute proportions within the cluster's dominant cell type instead of all cells"},
             "min_cluster_cells": {"type": "integer", "default": 30, "description": "clusters smaller than this are reported but never flagged disease_enriched"},
+            "max_mwu_p": {"type": "number", "default": 0.1, "description": "Mann-Whitney p on per-sample proportions must be below this for the disease_enriched flag (guards against chance enrichment of small subclusters)"},
         },
         "required": [],
     },
@@ -447,6 +469,7 @@ def differential_abundance(
     enrichment_log2fc: float = 1.0,
     within_celltype: bool = False,
     min_cluster_cells: int = 30,
+    max_mwu_p: float = 0.1,
 ) -> dict[str, Any]:
     a = session.require_adata()
     key = cluster_key or session.cluster_key
@@ -511,7 +534,8 @@ def differential_abundance(
             }
         )
     df = pd.DataFrame(rows).set_index("cluster")
-    df["disease_enriched"] = (df["log2_ratio"] >= enrichment_log2fc) & (df["n_disease_samples_present"] >= min(2, int(is_dis.sum()))) & (df["n_cells"] >= min_cluster_cells)
+    p_ok = df["mannwhitney_p"].fillna(1.0) < max_mwu_p
+    df["disease_enriched"] = (df["log2_ratio"] >= enrichment_log2fc) & (df["n_disease_samples_present"] >= min(2, int(is_dis.sum()))) & (df["n_cells"] >= min_cluster_cells) & p_ok
     df = df.sort_values("log2_ratio", ascending=False)
     session.save_table(f"differential_abundance_{key}", df)
 
@@ -553,7 +577,7 @@ def differential_abundance(
         "disease_enriched_clusters": enriched,
         "table": df,
         "figure": str(p.relative_to(session.run_dir)),
-        "note": f"Small n per group: treat p-values as descriptive; prioritize log2_ratio and n_disease_samples_present. Clusters with < {min_cluster_cells} cells are never flagged enriched.",
+        "note": f"Small n per group: treat p-values as descriptive; prioritize log2_ratio and n_disease_samples_present. Clusters with < {min_cluster_cells} cells or MWU p >= {max_mwu_p} are never flagged enriched.",
     }
 
 
@@ -578,13 +602,9 @@ def differential_abundance(
 def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None = None, reference_clusters: list[str] | None = None, n_top: int = 30) -> dict[str, Any]:
     a = session.require_adata()
     _ensure_lognorm(session)
-    key = cluster_key or session.cluster_key
-    if not key or key not in a.obs:
-        raise ValueError("no cluster key available")
     cluster = str(cluster)
+    key = _resolve_key(session, cluster, cluster_key)
     labels = a.obs[key].astype(str)
-    if cluster not in set(labels):
-        raise ValueError(f"cluster '{cluster}' not in {sorted(set(labels))}")
     ref = _parse_cluster_list(reference_clusters)
     if ref == "rest":
         sub = a
@@ -656,11 +676,29 @@ def pseudobulk_de(
     padj_threshold: float = 0.05,
     min_base_mean: float = 10.0,
 ) -> dict[str, Any]:
+    out = _run_pseudobulk(session, cluster, cluster_key, contrast, reference_clusters, min_cells_per_pseudobulk, padj_threshold, min_base_mean, record=True)
+    if "error" in out:
+        return out
+    out["top_up"] = out.pop("_sig_up").head(n_top)
+    return out
+
+
+def _run_pseudobulk(
+    session: AnalysisSession,
+    cluster: str,
+    cluster_key: str | None,
+    contrast: str,
+    reference_clusters: list[str] | None,
+    min_cells_per_pseudobulk: int,
+    padj_threshold: float,
+    min_base_mean: float,
+    record: bool = True,
+) -> dict[str, Any]:
+    """Shared engine for pseudobulk_de and disease_programs. Returns the summary dict with the
+    full significant-up frame under '_sig_up' (caller decides how many rows to expose)."""
     a = session.require_adata()
-    key = cluster_key or session.cluster_key
-    if not key or key not in a.obs:
-        raise ValueError("no cluster key available")
     cluster = str(cluster)
+    key = _resolve_key(session, cluster, cluster_key)
     labels = a.obs[key].astype(str).to_numpy()
     samples = a.obs[session.sample_key].astype(str).to_numpy()
     conds = a.obs[session.condition_key].astype(str).to_numpy()
@@ -673,11 +711,10 @@ def pseudobulk_de(
         in_target = labels == cluster
         in_ref = (labels != cluster) if ref == "rest" else np.isin(labels, list(ref))
         group = np.where(in_target, "target", np.where(in_ref, "reference", None))
-        pb_id = np.array([f"{s}|{g}" for s, g in zip(samples, group)], dtype=object)
     else:
         in_cl = labels == cluster
         group = np.where(in_cl & (conds == session.disease), "target", np.where(in_cl & np.isin(conds, session.reference), "reference", None))
-        pb_id = np.array([f"{s}|{g}" for s, g in zip(samples, group)], dtype=object)
+    pb_id = np.array([f"{s}|{g}" for s, g in zip(samples, group)], dtype=object)
 
     keep = np.array([g is not None for g in group])
     pb_ids = pd.Series(pb_id[keep])
@@ -736,14 +773,15 @@ def pseudobulk_de(
     sig_up = sig[sig["log2fc"] > 0].sort_values("stat", ascending=False)
     sig_down = sig[sig["log2fc"] < 0]
     n_low_expr_dropped = int(((res["padj"] < padj_threshold) & (res["log2fc"] > 0) & (res["baseMean"] < min_base_mean)).sum())
-    session.facts.setdefault("pseudobulk_de", {})[f"{cluster}:{contrast}"] = {
-        "method": method,
-        "table_path": str(table_path),
-        "replicates": {"target": n_t, "reference": n_r},
-        "n_sig_up": int(len(sig_up)),
-        "n_sig_down": int(len(sig_down)),
-        "top_up": sig_up.head(50).reset_index().to_dict(orient="records"),
-    }
+    if record:
+        session.facts.setdefault("pseudobulk_de", {})[f"{cluster}:{contrast}"] = {
+            "method": method,
+            "table_path": str(table_path),
+            "replicates": {"target": n_t, "reference": n_r},
+            "n_sig_up": int(len(sig_up)),
+            "n_sig_down": int(len(sig_down)),
+            "top_up": sig_up.head(50).reset_index().to_dict(orient="records"),
+        }
     return {
         "cluster": cluster,
         "contrast": contrast,
@@ -753,7 +791,99 @@ def pseudobulk_de(
         "n_sig_down": int(len(sig_down)),
         "n_low_expression_excluded": n_low_expr_dropped,
         "ranking": f"top_up is sorted by test statistic among genes with baseMean >= {min_base_mean}",
-        "top_up": sig_up.head(n_top),
+        "_sig_up": sig_up,
+    }
+
+
+@tool(
+    name="disease_programs",
+    description="""
+    The EXPRESSION route to disease states, for when composition does not change: for each
+    cluster (largest first, up to max_clusters, >= min_cells), run replicate-aware pseudobulk DE
+    of disease samples vs reference samples WITHIN that cluster. A cluster with >= min_sig_genes
+    significantly up-regulated genes is flagged 'disease_altered' - the same cell type is present
+    in all conditions but runs a different program in disease. Returns per-cluster counts and the
+    top genes; results are stored so pseudobulk_de/gene_specificity/score_targets can use them.
+    Use after differential_abundance finds nothing, or alongside it to catch program shifts.""",
+    input_schema={
+        "properties": {
+            "cluster_key": {"type": ["string", "null"]},
+            "max_clusters": {"type": "integer", "default": 8},
+            "min_cells": {"type": "integer", "default": 200},
+            "min_cells_per_pseudobulk": {"type": "integer", "default": 10},
+            "padj_threshold": {"type": "number", "default": 0.05},
+            "min_log2fc": {"type": "number", "default": 1.0, "description": "genes must exceed this to count towards min_sig_genes"},
+            "min_sig_genes": {"type": "integer", "default": 30, "description": "absolute criterion"},
+            "small_program_min": {"type": "integer", "default": 5, "description": "relative criterion: a cluster with at least this many strong genes AND at least 3x more than any other cluster is also flagged"},
+            "min_base_mean": {"type": "number", "default": 10.0},
+        },
+        "required": [],
+    },
+    roles=ALL,
+)
+def disease_programs(
+    session: AnalysisSession,
+    cluster_key: str | None = None,
+    max_clusters: int = 8,
+    min_cells: int = 200,
+    min_cells_per_pseudobulk: int = 10,
+    padj_threshold: float = 0.05,
+    min_log2fc: float = 1.0,
+    min_sig_genes: int = 30,
+    small_program_min: int = 5,
+    min_base_mean: float = 10.0,
+) -> dict[str, Any]:
+    a = session.require_adata()
+    key = cluster_key or session.cluster_key
+    if not key or key not in a.obs:
+        raise ValueError("no cluster key available; run integrate_and_cluster first")
+    sizes = a.obs[key].astype(str).value_counts()
+    clusters = [c for c, n in sizes.items() if n >= min_cells][:max_clusters]
+    ck = session.celltype_key
+    dom = {}
+    if ck and ck in a.obs:
+        dom = pd.crosstab(a.obs[key].astype(str), a.obs[ck].astype(str)).idxmax(axis=1).to_dict()
+    rows, programs = [], {}
+    for cl in clusters:
+        r = _run_pseudobulk(session, cl, key, "disease_vs_reference_within_cluster", None, min_cells_per_pseudobulk, padj_threshold, min_base_mean, record=True)
+        if "error" in r:
+            rows.append({"cluster": cl, "n_cells": int(sizes[cl]), "dominant_celltype": dom.get(cl), "error": r["error"], "disease_altered": False})
+            continue
+        up = r["_sig_up"]
+        strong = up[up["log2fc"] >= min_log2fc]
+        rows.append(
+            {
+                "cluster": cl,
+                "n_cells": int(sizes[cl]),
+                "dominant_celltype": dom.get(cl),
+                "replicates_disease": r["replicates"]["target"],
+                "replicates_reference": r["replicates"]["reference"],
+                "n_sig_up": r["n_sig_up"],
+                "n_sig_up_strong": int(len(strong)),
+                "n_sig_down": r["n_sig_down"],
+                "top_up_genes": list(strong.index[:12]) if len(strong) else list(up.index[:12]),
+                "disease_altered": bool(len(strong) >= min_sig_genes),
+            }
+        )
+        programs[cl] = {"n_sig_up_strong": int(len(strong)), "top_up": strong.head(50).reset_index().to_dict(orient="records")}
+    df = pd.DataFrame(rows).set_index("cluster")
+    if "n_sig_up_strong" in df:
+        # relative criterion: a modest program that clearly stands out from every other cluster
+        counts_ = df["n_sig_up_strong"].fillna(0)
+        for cl in df.index:
+            others = counts_.drop(cl)
+            if counts_[cl] >= small_program_min and counts_[cl] >= 3 * (others.max() if len(others) else 0):
+                df.loc[cl, "disease_altered"] = True
+        df = df.sort_values("n_sig_up_strong", ascending=False)
+    session.save_table(f"disease_programs_{key}", df)
+    altered = [c for c in df.index if bool(df.loc[c, "disease_altered"])]
+    session.facts["disease_programs"] = {"cluster_key": key, "disease_altered_clusters": altered, "table": df.reset_index().to_dict(orient="records")}
+    return {
+        "cluster_key": key,
+        "contrast": "disease_vs_reference_within_cluster (pseudobulk per sample)",
+        "disease_altered_clusters": altered,
+        "table": df,
+        "note": "disease_altered = same cell type in all conditions but >= min_sig_genes genes up (padj<thr, log2FC>=min_log2fc) in disease samples. Characterise these with gene_specificity and nominate from their top_up genes; specificity should be judged by the within-cluster disease fold change, not cluster-vs-cluster.",
     }
 
 
@@ -780,10 +910,8 @@ def pseudobulk_de(
 def gene_specificity(session: AnalysisSession, genes: list[str], cluster: str, cluster_key: str | None = None) -> dict[str, Any]:
     a = session.require_adata()
     _ensure_lognorm(session)
-    key = cluster_key or session.cluster_key
-    if not key or key not in a.obs:
-        raise ValueError("no cluster key available")
     cluster = str(cluster)
+    key = _resolve_key(session, cluster, cluster_key)
     labels = a.obs[key].astype(str).to_numpy()
     conds = a.obs[session.condition_key].astype(str).to_numpy()
     samples = a.obs[session.sample_key].astype(str).to_numpy()

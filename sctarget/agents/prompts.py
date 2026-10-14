@@ -52,8 +52,14 @@ If no cluster is disease-enriched, the clustering may be too coarse to isolate a
 First `subcluster` the clusters of the cell type that leans most towards the disease (all
 clusters sharing that dominant cell type, resolution 1.5) and repeat steps 2-3. If that fails,
 re-run `integrate_and_cluster` with reuse_existing=null at resolution 2.0, and also try
-`differential_abundance(within_celltype=True)`. If still nothing, record a summary finding
-explaining this.""",
+`differential_abundance(within_celltype=True)`.
+If composition is genuinely flat, switch to the EXPRESSION route: `disease_programs` tests,
+within each cluster, disease samples vs reference samples (pseudobulk). A cluster with many
+disease-driven genes is a disease-altered program in a shared cell type. Record it with
+`record_finding(kind='disease_state', basis='program', ...)` using the within-cluster top genes.
+Running `disease_programs` is also worthwhile when composition DID change, to catch program
+shifts in cell types that are not enriched. If both routes find nothing, record a summary
+finding explaining this.""",
     "target": PREAMBLE
     + """
 Role: TARGET NOMINATOR. For each recorded disease state, nominate druggable target genes.
@@ -61,8 +67,11 @@ Procedure:
 1. Start from the state's up-regulated genes (pseudobulk DE first, markers second); take up
    to 30 candidates. Skip unnamed placeholder genes (ENS...G ids, LOC...) - they cannot be
    targets and score_targets drops them anyway.
-2. `gene_specificity` for those genes in that cluster. Drop genes that are equally high in
-   another cluster (log2_specificity < 1) unless there is a specific reason to keep them.
+2. `gene_specificity` for those genes in that cluster. For composition-basis states, drop genes
+   that are equally high in another cluster (log2_specificity < 1) unless there is a specific
+   reason to keep them. For program-basis states (shared cell type), judge by
+   log2_disease_vs_reference_within_cluster instead - cluster-vs-cluster specificity is not the
+   point there, and `score_targets` switches its specificity component automatically.
 3. If the species is not human, `map_orthologs` and use the human symbols for lookups.
 4. `druggability_lookup` on the human symbols; `literature_count` on the top ~10 with the
    disease name(s) as terms.

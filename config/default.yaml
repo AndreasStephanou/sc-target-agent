@@ -52,7 +52,7 @@ targets:
 
 agent:
   model: claude-sonnet-4-5
-  max_turns_per_role: 25
+  max_turns_per_role: 40
   temperature: 0.2
   seed: 0
 

@@ -60,7 +60,12 @@ def _gene_universe() -> list[str]:
     return out
 
 
-def make_synthetic(out_dir: Path, cells_per_sample: int = 400, seed: int = 0) -> Path:
+def make_synthetic(out_dir: Path, cells_per_sample: int = 400, seed: int = 0, mode: str = "state") -> Path:
+    """mode='state'  : a rare CAA-specific keratinocyte sub-state (composition shift)  [default]
+    mode='program': NO new state - every CAA keratinocyte runs a moderate (~2.5x) disease program
+                    on the same genes, so composition is flat and only the expression route works.
+                    The shipped leiden clustering is computed WITHOUT the program genes so it does
+                    not separate CAA keratinocytes (mimicking an atlas clustered on shared biology)."""
     rng = np.random.default_rng(seed)
     genes = _gene_universe()
     gidx = {g: i for i, g in enumerate(genes)}
@@ -101,12 +106,16 @@ def make_synthetic(out_dir: Path, cells_per_sample: int = 400, seed: int = 0) ->
                         mu[:, gidx[g]] *= rng.uniform(4, 7)
                 # disease-specific neuro state within keratinocytes
                 state = np.array([ct] * n_ct, dtype=object)
-                if ct == "keratinocyte":
+                if ct == "keratinocyte" and mode == "state":
                     is_neuro = rng.random(n_ct) < NEURO_STATE_FRACTION[cond]
                     for g in NEURO_STATE_GENES:
                         fold = rng.uniform(10, 20) if g in ("ERBB4", "PEG3") else rng.uniform(6, 12)
                         mu[is_neuro, gidx[g]] *= fold
                     state[is_neuro] = "neuro_keratinocyte"
+                elif ct == "keratinocyte" and mode == "program" and cond == "CAA":
+                    for g in NEURO_STATE_GENES:
+                        mu[:, gidx[g]] *= rng.uniform(2.0, 3.0)
+                    state[:] = "program_keratinocyte"
                 # library size variation + NB sampling
                 libsize = np.exp(rng.normal(0, 0.35, size=n_ct))[:, None]
                 mu = mu * libsize
@@ -131,11 +140,13 @@ def make_synthetic(out_dir: Path, cells_per_sample: int = 400, seed: int = 0) ->
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
     sc.pp.highly_variable_genes(adata, n_top_genes=600, batch_key="sample")
+    if mode == "program":  # cluster on shared biology only, as a reference atlas would
+        adata.var.loc[NEURO_STATE_GENES, "highly_variable"] = False
     sc.tl.pca(adata, n_comps=30, mask_var="highly_variable")
     sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30, random_state=seed)
     sc.tl.leiden(adata, resolution=1.0, key_added="leiden", random_state=seed, flavor="igraph", n_iterations=2, directed=False)
     sc.tl.umap(adata, random_state=seed)
-    adata.uns["synthetic"] = {"seed": seed, "cells_per_sample": cells_per_sample}
+    adata.uns["synthetic"] = {"seed": seed, "cells_per_sample": cells_per_sample, "mode": mode}
 
     out_dir.mkdir(parents=True, exist_ok=True)
     h5 = out_dir / "synthetic.h5ad"
@@ -162,8 +173,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--out", default="data/synthetic")
     ap.add_argument("--cells-per-sample", type=int, default=400)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--mode", choices=["state", "program"], default="state")
     args = ap.parse_args(argv)
-    path = make_synthetic(Path(args.out), args.cells_per_sample, args.seed)
+    path = make_synthetic(Path(args.out), args.cells_per_sample, args.seed, args.mode)
     print(f"wrote {path}")
 
 
