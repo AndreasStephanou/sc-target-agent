@@ -128,10 +128,12 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
             else:
                 s_drug = 0.0
                 flags.append("not_druggable")
-            n_appr = int(d.get("n_approved_inhibitors") or 0)
-            n_inh = int(d.get("n_inhibitors") or 0)
-            s_cmp = float(min(1.0, n_appr / 3.0 + (0.1 if n_inh > n_appr else 0.0)))
-            if n_inh == 0:
+            # approved compounds (typed inhibitor or untyped) drive the score; typed-but-unapproved
+            # inhibitors add a little. DGIdb often leaves interaction type empty for well-known drugs.
+            n_appr = int(d.get("n_approved_compounds", d.get("n_approved_inhibitors")) or 0)
+            n_cmp = int(d.get("n_compounds", d.get("n_inhibitors")) or 0)
+            s_cmp = float(min(1.0, n_appr / 3.0 + (0.1 if n_cmp > n_appr else 0.0)))
+            if n_cmp == 0:
                 flags.append("no_known_compounds")
 
         score = w_eff * s_eff + w_spec * s_spec + w_drug * s_drug + w_cmp * s_cmp + w_cons * s_cons

@@ -168,7 +168,8 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
         if g in res.nominated:
             inhibitors |= {str(x).lower() for x in d.get("top_inhibitors", [])}
     want_drugs = [d.lower() for d in gt["expected_drugs"]]
-    res.drugs_found = sorted(d for d in want_drugs if d in inhibitors)
+    # match on the compound stem so 'neratinib' matches 'neratinib maleate'
+    res.drugs_found = sorted(d for d in want_drugs if any(inh == d or inh.startswith(d + " ") or d in inh.split() for inh in inhibitors))
     if want_drugs:
         res.drug_recall = len(res.drugs_found) / len(want_drugs)
 
