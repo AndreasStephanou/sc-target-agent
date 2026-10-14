@@ -456,7 +456,7 @@ def cluster_composition(session: AnalysisSession, cluster_key: str | None = None
             "enrichment_log2fc": {"type": "number", "default": 1.0, "description": "log2 ratio threshold for the disease_enriched flag"},
             "within_celltype": {"type": "boolean", "default": False, "description": "compute proportions within the cluster's dominant cell type instead of all cells"},
             "min_cluster_cells": {"type": "integer", "default": 30, "description": "clusters smaller than this are reported but never flagged disease_enriched"},
-            "max_mwu_p": {"type": "number", "default": 0.1, "description": "Mann-Whitney p on per-sample proportions must be below this for the disease_enriched flag (guards against chance enrichment of small subclusters)"},
+            "max_mwu_p": {"type": ["number", "null"], "default": None, "description": "Mann-Whitney p on per-sample proportions must be below this for the disease_enriched flag (guards against chance enrichment of small subclusters)"},
         },
         "required": [],
     },
@@ -469,8 +469,10 @@ def differential_abundance(
     enrichment_log2fc: float = 1.0,
     within_celltype: bool = False,
     min_cluster_cells: int = 30,
-    max_mwu_p: float = 0.1,
+    max_mwu_p: float | None = None,
 ) -> dict[str, Any]:
+    if max_mwu_p is None:
+        max_mwu_p = float(session.cfg.get("analysis.differential_abundance.max_mwu_p", 0.05))
     a = session.require_adata()
     key = cluster_key or session.cluster_key
     if not key or key not in a.obs:
@@ -660,6 +662,7 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
             "n_top": {"type": "integer", "default": 40},
             "padj_threshold": {"type": "number", "default": 0.05},
             "min_base_mean": {"type": "number", "default": 10.0, "description": "genes with lower mean pseudobulk counts are excluded from the ranked lists (noise guard)"},
+            "min_frac_of_cluster": {"type": "number", "default": 0.01, "description": "cluster_vs_reference_clusters only: a target pseudobulk must hold at least this fraction of the cluster's cells (drops spill-over replicates)"},
         },
         "required": ["cluster"],
     },
@@ -675,8 +678,9 @@ def pseudobulk_de(
     n_top: int = 40,
     padj_threshold: float = 0.05,
     min_base_mean: float = 10.0,
+    min_frac_of_cluster: float = 0.01,
 ) -> dict[str, Any]:
-    out = _run_pseudobulk(session, cluster, cluster_key, contrast, reference_clusters, min_cells_per_pseudobulk, padj_threshold, min_base_mean, record=True)
+    out = _run_pseudobulk(session, cluster, cluster_key, contrast, reference_clusters, min_cells_per_pseudobulk, padj_threshold, min_base_mean, record=True, min_frac_of_cluster=min_frac_of_cluster)
     if "error" in out:
         return out
     out["top_up"] = out.pop("_sig_up").head(n_top)
@@ -693,6 +697,7 @@ def _run_pseudobulk(
     padj_threshold: float,
     min_base_mean: float,
     record: bool = True,
+    min_frac_of_cluster: float = 0.01,
 ) -> dict[str, Any]:
     """Shared engine for pseudobulk_de and disease_programs. Returns the summary dict with the
     full significant-up frame under '_sig_up' (caller decides how many rows to expose)."""
@@ -728,6 +733,15 @@ def _run_pseudobulk(
         mat[i] = np.asarray(Xk[idx].sum(axis=0)).ravel()
     meta = pd.DataFrame({"label": [u.split("|")[1] for u in uniq], "sample": [u.split("|")[0] for u in uniq], "n_cells": ncell}, index=uniq)
     ok = meta["n_cells"] >= min_cells_per_pseudobulk
+    n_dropped_small_share = 0
+    if contrast == "cluster_vs_reference_clusters":
+        # a target replicate must carry a non-trivial share of the state: samples contributing
+        # < min_frac_of_cluster of the cluster's cells are spill-over/doublets, and giving them a
+        # full vote makes the target group bimodal and inflates dispersion
+        n_cluster = int((labels == cluster).sum())
+        share_ok = (meta["label"] != "target") | (meta["n_cells"] >= max(min_cells_per_pseudobulk, min_frac_of_cluster * n_cluster))
+        n_dropped_small_share = int((ok & ~share_ok & (meta["label"] == "target")).sum())
+        ok = ok & share_ok
     meta, mat = meta[ok], mat[ok.to_numpy()]
     n_t, n_r = int((meta["label"] == "target").sum()), int((meta["label"] == "reference").sum())
     if n_t < 2 or n_r < 2:
@@ -790,6 +804,7 @@ def _run_pseudobulk(
         "n_sig_up": int(len(sig_up)),
         "n_sig_down": int(len(sig_down)),
         "n_low_expression_excluded": n_low_expr_dropped,
+        "n_target_replicates_dropped_small_share": n_dropped_small_share,
         "ranking": f"top_up is sorted by test statistic among genes with baseMean >= {min_base_mean}",
         "_sig_up": sig_up,
     }

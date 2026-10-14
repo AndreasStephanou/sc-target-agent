@@ -24,6 +24,7 @@ analysis:
   differential_abundance:
     min_cells_per_sample: 20
     enrichment_log2fc: 1.0
+    max_mwu_p: 0.05
   enrichment:
     gene_sets: data/h.all.v2026.1.Hs.symbols.gmt   # MSigDB Hallmark, human symbols (download from gsea-msigdb.org)
 
