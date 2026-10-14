@@ -33,7 +33,7 @@ targets:
 
 agent:
   model: claude-sonnet-4-5
-  max_turns_per_role: 30
+  max_turns_per_role: 60
 
 privacy:
   pseudonymize_samples: true

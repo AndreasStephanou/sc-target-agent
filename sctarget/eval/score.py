@@ -9,8 +9,9 @@ Metrics
                       or 5 by default).
   drug_recall         Fraction of expected drugs that appear among the inhibitors of any
                       nominated candidate.
-  false_leads         Number of distinct genes ranked ABOVE the first expected target that
-                      are not expected/acceptable, plus the decoys among them.
+  false_leads         Genes ranked ABOVE the first expected target that are not expected/
+                      acceptable, split into decoys_above_target (known-wrong, the error metric)
+                      and novel_above_target (absent from the answer key: new hypotheses, not errors).
   nominated_precision Fraction of recorded candidate_target genes that are expected or
                       acceptable.
   critic_flagged_decoys  Decoys that were nominated but flagged by the critic (good
@@ -37,8 +38,9 @@ class EvalResult:
     k: int = 5
     drug_recall: float | None = None
     drugs_found: list[str] = field(default_factory=list)
-    false_leads: list[str] = field(default_factory=list)
-    decoys_above_target: list[str] = field(default_factory=list)
+    false_leads: list[str] = field(default_factory=list)          # above the first true target and NOT expected/acceptable (= novel + decoy)
+    decoys_above_target: list[str] = field(default_factory=list)  # ... of which known-wrong (decoy_targets)
+    novel_above_target: list[str] = field(default_factory=list)   # ... of which not in the answer key at all: new hypotheses, not errors
     nominated: list[str] = field(default_factory=list)
     nominated_precision: float | None = None
     decoys_nominated_unflagged: list[str] = field(default_factory=list)
@@ -144,13 +146,10 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
     if expected:
         res.target_recall_at_k = sum(1 for g in expected if res.target_rank[g] is not None and res.target_rank[g] <= res.k) / len(expected)
     first_hit = min([r for r in res.target_rank.values() if r is not None], default=None)
-    if first_hit is not None:
-        above = order[: first_hit - 1]
-        res.false_leads = [g for g in above if g not in acceptable]
-        res.decoys_above_target = [g for g in above if g in decoys]
-    else:
-        res.false_leads = [g for g in order if g not in acceptable]
-        res.decoys_above_target = [g for g in order if g in decoys]
+    above = order[: first_hit - 1] if first_hit is not None else order
+    res.false_leads = [g for g in above if g not in acceptable]
+    res.decoys_above_target = [g for g in above if g in decoys]
+    res.novel_above_target = [g for g in res.false_leads if g not in decoys]
 
     # nominated candidates
     cands = facts.get("findings", {}).get("candidate_target", [])
@@ -207,7 +206,7 @@ def format_eval(res: EvalResult) -> str:
         if "cell_level" in v:
             lines.append(f"    cell-level P/R/F1: {v['cell_level']['precision']}/{v['cell_level']['recall']}/{v['cell_level']['f1']}")
     lines.append(f"target ranks: {res.target_rank}   recall@{res.k}: {res.target_recall_at_k}")
-    lines.append(f"false leads above first true target: {res.false_leads or 'none'}  (decoys: {res.decoys_above_target or 'none'})")
+    lines.append(f"above first true target: {len(res.false_leads)} not in answer key -> known-wrong decoys: {res.decoys_above_target or 'none'}; novel candidates: {res.novel_above_target or 'none'}")
     lines.append(f"nominated: {res.nominated}  precision: {res.nominated_precision}")
     lines.append(f"decoys nominated - flagged by critic: {res.decoys_nominated_flagged or 'none'}; UNFLAGGED: {res.decoys_nominated_unflagged or 'none'}")
     lines.append(f"drug recall: {res.drug_recall}  found: {res.drugs_found}")

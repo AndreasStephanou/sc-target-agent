@@ -51,7 +51,7 @@ python scripts/run_eval.py --ground-truth data/ground_truth/caa.yaml runs/baseli
 |---|---|
 | state recovery (found / marker overlap / cell-level F1) | did it find the right cell state? |
 | rank of ERBB4; recall@5 | is the right target near the top? |
-| false leads above first true target; decoys above target | how much noise sits above the answer? |
+| decoys above target / novel candidates above target | known-wrong genes above the answer (the error metric) vs genes absent from the answer key (new hypotheses - report, do not penalise) |
 | nominated precision; decoys nominated **unflagged** | did the critic catch the decoys that were nominated? |
 | drug recall | did it reach the actionable compound? |
 | mean Jaccard of top-10 across runs; rank-1 consistency | is the answer stable or a coin flip? |

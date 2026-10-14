@@ -49,6 +49,12 @@ def _resume_session(session: AnalysisSession, source: Path, keep_findings_from: 
         for kind in drop[role]:
             facts.get("findings", {}).pop(kind, None)
         facts.get("role_summaries", {}).pop(role, None)
+    if "target" not in keep_findings_from:  # the nominator's derived facts are recomputed
+        for k in ("ranked_targets", "gene_specificity", "condition_attribution", "druggability", "literature", "orthologs"):
+            facts.pop(k, None)
+    if "critic" not in keep_findings_from:
+        facts.get("findings", {})["summary"] = [x for x in facts.get("findings", {}).get("summary", []) if x.get("title") != "Critic summary"]
+        facts.pop("differential_abundance_within_celltype", None)
     for sub in ("tables", "figures"):
         if (source / sub).exists():
             for f in (source / sub).iterdir():
