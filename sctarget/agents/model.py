@@ -431,4 +431,9 @@ class ScriptedModel:
 def make_model(name: str, session: Any, temperature: float = 0.2) -> Model:
     if name == "scripted":
         return ScriptedModel(session)
+    if name == "claude-code" or name.startswith("claude-code:"):
+        # subscription-login backend (no API key); a separate experimental arm, see claude_code.py
+        from .claude_code import ClaudeCodeModel
+
+        return ClaudeCodeModel(model=name.split(":", 1)[1] if ":" in name else None)
     return AnthropicModel(model=name, temperature=temperature)

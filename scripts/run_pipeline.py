@@ -7,6 +7,9 @@ Examples
     # real agent run on your data
     python scripts/run_pipeline.py --config config/caa.yaml --model claude-sonnet-4-5
 
+    # no API key: drive the pipeline through a Claude Code subscription login (separate experimental arm)
+    python scripts/run_pipeline.py --config config/caa.yaml --model claude-code            # or claude-code:sonnet
+
     # re-run only the nominator + critic on an existing run's analysis (no re-clustering / DE)
     python scripts/run_pipeline.py --config config/caa.yaml --model scripted --resume-from runs/caa_dry6 --run-dir runs/caa_dry6b
 """
