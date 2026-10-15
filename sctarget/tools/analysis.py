@@ -651,10 +651,10 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
         (default: all other clusters). Finds state-specific genes with sample-level replication.
       - 'disease_vs_reference_within_cluster': within `cluster`, disease samples vs reference
         samples. Finds disease-driven changes inside one cell type/state.
-      - 'disease_vs_reference_within_compartment': within the cluster's whole compartment (the
-        cluster plus all clusters of the same dominant cell type), disease vs reference samples.
-        Finds disease-wide genes of that lineage (up across all disease cells of the compartment,
-        absent from the reference condition's cells of the same lineage).
+      - 'disease_vs_reference_within_compartment': within the SHARED clusters of the cluster's
+        compartment (same dominant cell type, excluding the disease-enriched clusters), disease vs
+        reference samples. Finds disease-wide genes of that lineage: up in disease cells of the
+        ordinary, condition-shared clusters too, not only in the disease-specific state.
     Returns top up-regulated genes ranked by test statistic among genes with
     baseMean >= min_base_mean (so rare, barely-expressed genes do not dominate), plus the number
     of pseudobulk replicates per side. Requires >=2 replicates per side.""",
@@ -693,22 +693,30 @@ def pseudobulk_de(
     return out
 
 
-def compartment_mask(session: AnalysisSession, cluster: str, key: str) -> np.ndarray:
-    """Cells of `cluster` plus of every cluster sharing its dominant cell type (celltype_key).
-    Without a cell-type annotation the compartment is all cells."""
+def compartment_mask(session: AnalysisSession, cluster: str, key: str, shared_only: bool = True) -> np.ndarray:
+    """Cells of the clusters sharing `cluster`'s dominant cell type (its compartment / lineage).
+    With shared_only (the default, used for the disease-wide axis) the disease-enriched clusters
+    - `cluster` itself and any other cluster flagged by differential_abundance - are EXCLUDED, so
+    the disease-vs-reference contrast asks whether a gene is up in disease cells of the lineage's
+    ordinary, condition-shared clusters, rather than re-measuring the composition shift (a state
+    that makes up most of the disease compartment would otherwise score 'disease-wide' trivially).
+    Without a cell-type annotation the compartment is all cells (minus the excluded clusters)."""
     a = session.require_adata()
     labels = a.obs[key].astype(str).to_numpy()
     in_c = labels == str(cluster)
+    excluded = {str(cluster)} | set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", []))) if shared_only else set()
     ck = session.celltype_key
     if not ck or ck not in a.obs:
-        return np.ones(a.n_obs, dtype=bool)
+        return ~np.isin(labels, list(excluded)) if excluded else np.ones(a.n_obs, dtype=bool)
     ct = a.obs[ck].astype(str).to_numpy()
     dom = pd.Series(ct[in_c]).value_counts().idxmax() if in_c.any() else None
     if dom is None:
         return in_c
     # a cluster belongs to the compartment when the compartment cell type is its dominant one
     cl_dom = pd.Series(ct).groupby(labels).agg(lambda v: v.value_counts().idxmax())
-    members = set(cl_dom[cl_dom == dom].index.astype(str)) | {str(cluster)}
+    members = (set(cl_dom[cl_dom == dom].index.astype(str)) | {str(cluster)}) - excluded
+    if not members:  # the whole lineage is disease-enriched: nothing shared to compare in
+        return np.zeros(a.n_obs, dtype=bool)
     return np.isin(labels, list(members))
 
 

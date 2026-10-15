@@ -25,11 +25,22 @@ def test_compartment_contrast_and_mask(cfg, tmp_path):
     a = s.adata
     key = s.cluster_key
     cl = str(a.obs[key].astype(str).value_counts().idxmax())
-    m = compartment_mask(s, cl, key)
-    assert m.sum() >= (a.obs[key].astype(str) == cl).sum()  # compartment contains the cluster
-    r = pseudobulk_de(s, cluster=cl, contrast="disease_vs_reference_within_compartment")
-    assert "error" not in r, r
-    assert f"{cl}:disease_vs_reference_within_compartment" in s.facts["pseudobulk_de"]
+    in_cl = (a.obs[key].astype(str) == cl).to_numpy()
+    m_all = compartment_mask(s, cl, key, shared_only=False)
+    assert m_all[in_cl].all()  # the full compartment contains the cluster
+    m = compartment_mask(s, cl, key)  # shared clusters only: the cluster itself is excluded
+    assert not m[in_cl].any() and m.sum() > 0
+    # the contrast needs reference cells in the shared clusters of the lineage; in a tiny synthetic
+    # not every cluster has them, so it must either succeed or say exactly why not
+    ok = []
+    for c in a.obs[key].astype(str).unique():
+        r = pseudobulk_de(s, cluster=str(c), contrast="disease_vs_reference_within_compartment")
+        if "error" in r:
+            assert "insufficient pseudobulk replicates" in r["error"], r
+        else:
+            ok.append(str(c))
+            assert f"{c}:disease_vs_reference_within_compartment" in s.facts["pseudobulk_de"]
+    assert ok, "compartment contrast never computable"
 
 
 def test_scoring_v2_adds_lineage_axis_and_keeps_planted_target_on_top(synthetic_dir, cfg, tmp_path):

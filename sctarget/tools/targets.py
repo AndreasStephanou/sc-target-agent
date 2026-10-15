@@ -46,7 +46,7 @@ def state_basis(session: AnalysisSession, cluster: str) -> str:
 
 SCORING_VERSIONS = {
     1: "effect size = cluster vs sibling clusters (composition states) or disease vs reference within cluster (program states)",
-    2: "as v1, plus a second effect axis for composition states: disease vs reference within the state's compartment (its lineage); the larger axis is used and recorded as target_class state_specific | disease_wide",
+    2: "as v1, plus a second effect axis for composition states: disease vs reference within the SHARED clusters of the state's compartment (its lineage minus the disease-enriched clusters); the larger axis is used and recorded as target_class state_specific | disease_wide (disease_wide requires lineage log2FC >= 1 and > the state log2FC)",
 }
 
 
@@ -156,8 +156,9 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
         eff_lin, target_class = None, ("program" if basis == "program" else "state_specific")
         if use_lineage_axis:
             eff_lin, _ = _effect_size(session, g, str(cluster), basis, contrast="disease_vs_reference_within_compartment")
-            # the larger axis carries the effect component; which one won is recorded, not hidden
-            if eff_lin is not None and (eff is None or eff_lin > eff):
+            # the larger axis carries the effect component; which one won is recorded, not hidden.
+            # disease_wide needs a real lineage effect (>= 1 log2) that beats the state effect.
+            if eff_lin is not None and eff_lin >= 1.0 and (eff is None or eff_lin > eff):
                 target_class = "disease_wide"
         if eff is None and eff_lin is None:
             flags.append("missing_evidence:effect_size")
