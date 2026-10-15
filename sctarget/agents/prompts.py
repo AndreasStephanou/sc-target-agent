@@ -1,8 +1,18 @@
-"""System and stage prompts for the four roles."""
+"""System and stage prompts for the four roles.
+
+PROMPT_VERSION history
+  1  method-freeze-v1: nominator prompt carried recorded states + pseudobulk top genes only;
+     record_finding accepted disease states without genes.
+  2  (post-freeze arm) nominator prompt also carries find_markers top genes and asks for the
+     union as candidate set; record_finding rejects a disease_state with < 5 genes.
+"""
+
 from __future__ import annotations
 
 import json
 from typing import Any
+
+PROMPT_VERSION = 2
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -141,11 +151,13 @@ def stage_prompt(role: str, facts: dict[str, Any], cfg: dict[str, Any]) -> str:
     if role == "target":
         states = facts.get("findings", {}).get("disease_state", [])
         pb = {k: {"method": v.get("method"), "n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30]} for k, v in facts.get("pseudobulk_de", {}).items()}
+        mk = {k: [r["gene"] for r in rows][:30] for k, rows in facts.get("markers", {}).items()}
         return (
             header
             + f"Recorded disease states ({len(states)}):\n{_compact(states)}\n\n"
-            + f"Pseudobulk DE summaries:\n{_compact(pb)}\n\n"
-            + "Nominate and score druggable targets for each state."
+            + f"Pseudobulk DE summaries (replicate-aware; primary evidence):\n{_compact(pb)}\n\n"
+            + f"Cell-level marker summaries (find_markers; secondary evidence - genes here but not in the pseudobulk top list are still candidates):\n{_compact(mk)}\n\n"
+            + "Nominate and score druggable targets for each state. Build the candidate set from the union of the state's recorded genes, the pseudobulk top genes and the marker top genes."
         )
     if role == "critic":
         f = {

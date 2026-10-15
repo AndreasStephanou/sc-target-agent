@@ -54,7 +54,7 @@ def build_markdown(session: AnalysisSession) -> str:
     md: list[str] = []
     md.append(f"# Target discovery report — {ds.get('disease', '?')} vs {', '.join(ds.get('reference_conditions', []))}\n")
     md.append(
-        f"<span class='small'>Run `{session.run_dir.name}` · {dt.datetime.now().strftime('%Y-%m-%d %H:%M')} · model(s): {', '.join(model_names) or '–'} · "
+        f"<span class='small'>Run `{session.run_dir.name}` · {dt.datetime.now().strftime('%Y-%m-%d %H:%M')} · model(s): {', '.join(model_names) or '–'} · prompts v{session.facts.get('prompt_version', 1)} · "
         f"tokens in/out: {usage.get('input_tokens', 0):,}/{usage.get('output_tokens', 0):,} · {len([e for e in events if e['type']=='tool_call'])} tool calls</span>\n"
     )
     md.append(

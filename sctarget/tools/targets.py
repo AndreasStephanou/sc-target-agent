@@ -220,13 +220,19 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
     return {"cluster": str(cluster), "state_basis": basis, "specificity_component": ("within-cluster disease vs reference log2FC" if basis == "program" else "cluster vs max other cluster log2 ratio"), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
 
 
+MIN_STATE_GENES = 5  # a disease_state finding without its signature cannot be acted on downstream
+
+
 @tool(
     name="record_finding",
     description="""
     Record a structured conclusion so it appears in the report and can be evaluated.
     kinds: 'disease_state' (a cluster you conclude is disease-specific), 'candidate_target'
     (a gene you nominate), 'critic_flag' (a concern about a claim), 'summary' (free-text
-    conclusion for the report). Always include the evidence you relied on.""",
+    conclusion for the report). Always include the evidence you relied on.
+    A 'disease_state' finding MUST carry `genes`: the state's top up-regulated genes (>= 5,
+    ideally 15, from pseudobulk_de / find_markers against sibling clusters). Record the state
+    AFTER characterising it; a disease_state without genes is rejected.""",
     input_schema={
         "properties": {
             "kind": {"type": "string", "enum": ["disease_state", "candidate_target", "critic_flag", "summary"]},
@@ -253,6 +259,12 @@ def record_finding(
     severity: str | None = None,
     basis: str | None = None,
 ) -> dict[str, Any]:
+    if kind == "disease_state" and len(genes or []) < MIN_STATE_GENES:
+        return {
+            "error": f"disease_state finding for cluster {cluster} rejected: it carries {len(genes or [])} genes, at least {MIN_STATE_GENES} are required.",
+            "hint": "Characterise the state first (pseudobulk_de and find_markers against sibling clusters of the same cell type), then record it again with its top up-regulated genes (ideally 15) in `genes`. Downstream roles only see the genes you record.",
+            "recorded": None,
+        }
     entry = {"title": title, "detail": detail, "cluster": cluster, "genes": genes or [], "confidence": confidence, "severity": severity}
     if kind == "disease_state":
         entry["basis"] = basis or "composition"

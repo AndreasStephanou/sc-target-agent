@@ -20,7 +20,7 @@ from ..session import AnalysisSession
 from ..tools import REGISTRY
 from .loop import RoleResult, run_role
 from .model import Model, make_model
-from .prompts import ROLE_SYSTEM, stage_prompt
+from .prompts import PROMPT_VERSION, ROLE_SYSTEM, stage_prompt
 
 STAGES = ["planner", "analyst", "target", "critic"]
 
@@ -95,9 +95,10 @@ def run_pipeline(
         stages = stages or ["target", "critic"]
         _resume_session(session, Path(resume_from), keep_findings_from=set(STAGES) - set(stages))
     model = model or make_model(model_name or cfg.agent.get("model", "scripted"), session, temperature=float(cfg.agent.get("temperature", 0.2)))
-    session.log.stage("pipeline", "start", model=model.name, config=cfg.raw)
+    session.facts["prompt_version"] = PROMPT_VERSION
+    session.log.stage("pipeline", "start", model=model.name, prompt_version=PROMPT_VERSION, config=cfg.raw)
     with open(run_dir / "config_used.json", "w") as fh:
-        json.dump(cfg.raw, fh, indent=2, default=str)
+        json.dump({**cfg.raw, "prompt_version": PROMPT_VERSION}, fh, indent=2, default=str)
 
     result = PipelineResult(run_dir=run_dir)
     for role in stages or STAGES:

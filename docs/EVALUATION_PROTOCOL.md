@@ -85,3 +85,17 @@ critic flags verbatim from `report.md`, the audit trail excerpt (a chain from a 
 sentence to the `run.jsonl` event that produced the number), and the ablations. State the
 limitations plainly: n=3 per group, one disease, hand-tuned weights, and that the agent
 nominates hypotheses – IHC and the kinase screen remain the validation.
+
+## 8. Prompt / interface versions (post-freeze arms)
+
+The frozen method (`method-freeze-v1`) is the analysis: tools, thresholds, scoring. The role
+*interface* - what each role is told and what `record_finding` accepts - is versioned separately
+as `PROMPT_VERSION` (in `agents/prompts.py`, written to `config_used.json`, the report header and
+the eval output). Changes to it after the freeze are allowed only as a new, labelled arm, run with
+its own set of runs and reported next to the previous version, never as a replacement.
+
+| version | change | motivation (which runs) |
+|---|---|---|
+| 1 | freeze | - |
+| 2 | nominator prompt carries `find_markers` top genes beside the pseudobulk list and asks for the union as candidate set; `record_finding(kind='disease_state')` rejects fewer than 5 genes | `caa_cc_1`, `caa_cc_2`: the analyst recorded both states with no `genes`, and the nominator (which is told "pseudobulk first, markers second") was never shown the marker tables, so a known target present only in the marker table was unreachable - a hand-off defect of the interface, not of the analysis |
+
