@@ -32,13 +32,16 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--run-dir", default=None, help="output directory (default: runs/<auto>)")
     ap.add_argument("--stages", nargs="+", default=None, choices=STAGES)
     ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--scoring-version", type=int, default=None, choices=[1, 2], help="override targets.scoring_version (2 = add the disease-vs-reference-within-compartment effect axis)")
     ap.add_argument("--no-report", action="store_true")
     ap.add_argument("--resume-from", default=None, help="reuse an earlier run directory's analysis (state.json, tables) and run only --stages (default: target critic)")
     args = ap.parse_args(argv)
 
-    overrides = {}
+    overrides: dict = {}
     if args.seed is not None:
-        overrides = {"agent": {"seed": args.seed}}
+        overrides["agent"] = {"seed": args.seed}
+    if args.scoring_version is not None:
+        overrides["targets"] = {"scoring_version": args.scoring_version}
     cfg = load_config(args.config, overrides)
     res = run_pipeline(cfg, model_name=args.model, run_dir=Path(args.run_dir) if args.run_dir else None, stages=args.stages, write_report=not args.no_report, resume_from=Path(args.resume_from) if args.resume_from else None)
     print(f"run dir : {res.run_dir}")

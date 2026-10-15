@@ -1,0 +1,8 @@
+nohup: ignoring input
+run dir : runs/caa_cc_v2_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns= 8 tools=19 errors=0  stop=end_turn
+  target   turns=10 tools=24 errors=1  stop=end_turn
+  critic   turns= 7 tools=18 errors=0  stop=end_turn
+report  : runs/caa_cc_v2_1/report.md
+elapsed : 837.7s

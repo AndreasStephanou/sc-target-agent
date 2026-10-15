@@ -1,0 +1,229 @@
+{
+  "runs": [
+    {
+      "run_dir": "runs/caa_cc_1",
+      "ground_truth": "data/ground_truth/caa.yaml",
+      "prompt_version": 1,
+      "state_recovery": {
+        "CAA_specific_keratinocytes": {
+          "found": true,
+          "found_strict": false,
+          "required_overlap": 5,
+          "best_match": {
+            "cluster": "12",
+            "overlap": 9,
+            "overlap_genes": [
+              "ERBB4",
+              "FAM13A",
+              "GABRB1",
+              "MAGI2",
+              "NAALADL2",
+              "NEO1",
+              "NFIA",
+              "PEG3",
+              "SESN3"
+            ]
+          },
+          "best_match_strict": {
+            "cluster": "6",
+            "overlap": 0,
+            "overlap_genes": [],
+            "n_recorded_genes": 0
+          },
+          "basis": "composition"
+        }
+      },
+      "target_rank": {
+        "ERBB4": null
+      },
+      "target_recall_at_k": 0.0,
+      "k": 5,
+      "drug_recall": 0.0,
+      "drugs_found": [],
+      "false_leads": [
+        "HSD17B2",
+        "GLDC",
+        "GREB1",
+        "FAM184B",
+        "FAM20A",
+        "PAM",
+        "DOK5",
+        "FHDC1",
+        "DLEC1"
+      ],
+      "decoys_above_target": [],
+      "novel_above_target": [
+        "HSD17B2",
+        "GLDC",
+        "GREB1",
+        "FAM184B",
+        "FAM20A",
+        "PAM",
+        "DOK5",
+        "FHDC1",
+        "DLEC1"
+      ],
+      "nominated": [
+        "GABRB1",
+        "HSD17B2",
+        "GLDC",
+        "NEO1"
+      ],
+      "nominated_precision": 0.5,
+      "decoys_nominated_unflagged": [],
+      "decoys_nominated_flagged": [],
+      "n_tool_calls": 46,
+      "n_tool_errors": 0,
+      "tokens": {
+        "input_tokens": 560353,
+        "output_tokens": 20723
+      },
+      "passed": false
+    },
+    {
+      "run_dir": "runs/caa_cc_2",
+      "ground_truth": "data/ground_truth/caa.yaml",
+      "prompt_version": 1,
+      "state_recovery": {
+        "CAA_specific_keratinocytes": {
+          "found": true,
+          "found_strict": false,
+          "required_overlap": 5,
+          "best_match": {
+            "cluster": "12",
+            "overlap": 13,
+            "overlap_genes": [
+              "BNC2",
+              "ERBB4",
+              "FAM13A",
+              "GABRB1",
+              "MAGI2",
+              "MCTP2",
+              "NAALADL2",
+              "NEO1",
+              "NFIA",
+              "PEG3",
+              "RBFOX1",
+              "SESN3",
+              "SLIT2"
+            ]
+          },
+          "best_match_strict": {
+            "cluster": "6",
+            "overlap": 0,
+            "overlap_genes": [],
+            "n_recorded_genes": 0
+          },
+          "basis": "composition"
+        }
+      },
+      "target_rank": {
+        "ERBB4": null
+      },
+      "target_recall_at_k": 0.0,
+      "k": 5,
+      "drug_recall": 0.0,
+      "drugs_found": [],
+      "false_leads": [
+        "PNOC",
+        "GABRA4",
+        "SYT1",
+        "HSD17B2",
+        "SLC29A4",
+        "LHFPL1",
+        "ST6GAL2",
+        "GREB1",
+        "DACT2",
+        "SLC12A2",
+        "VWA5A",
+        "GAS6",
+        "SMOC2"
+      ],
+      "decoys_above_target": [],
+      "novel_above_target": [
+        "PNOC",
+        "GABRA4",
+        "SYT1",
+        "HSD17B2",
+        "SLC29A4",
+        "LHFPL1",
+        "ST6GAL2",
+        "GREB1",
+        "DACT2",
+        "SLC12A2",
+        "VWA5A",
+        "GAS6",
+        "SMOC2"
+      ],
+      "nominated": [
+        "GABRB1",
+        "GABRA4",
+        "PNOC",
+        "SYT1",
+        "HSD17B2"
+      ],
+      "nominated_precision": 0.2,
+      "decoys_nominated_unflagged": [],
+      "decoys_nominated_flagged": [],
+      "n_tool_calls": 48,
+      "n_tool_errors": 0,
+      "tokens": {
+        "input_tokens": 651543,
+        "output_tokens": 28210
+      },
+      "passed": false
+    }
+  ],
+  "stability": {
+    "n_runs": 2,
+    "k": 10,
+    "mean_jaccard_topk": 0.176,
+    "mean_jaccard_nominated": 0.286,
+    "rank1_genes": [
+      "GABRB1",
+      "GABRB1"
+    ],
+    "rank1_consistent": true,
+    "top_k_per_run": {
+      "caa_cc_1": [
+        "GABRB1",
+        "HSD17B2",
+        "GLDC",
+        "GREB1",
+        "NEO1",
+        "FAM184B",
+        "FAM20A",
+        "PAM",
+        "DOK5",
+        "FHDC1"
+      ],
+      "caa_cc_2": [
+        "GABRB1",
+        "PNOC",
+        "GABRA4",
+        "SYT1",
+        "HSD17B2",
+        "SLC29A4",
+        "LHFPL1",
+        "ST6GAL2",
+        "GREB1",
+        "DACT2"
+      ]
+    },
+    "nominated_per_run": {
+      "caa_cc_1": [
+        "GABRB1",
+        "GLDC",
+        "HSD17B2",
+        "NEO1"
+      ],
+      "caa_cc_2": [
+        "GABRA4",
+        "GABRB1",
+        "HSD17B2",
+        "PNOC",
+        "SYT1"
+      ]
+    }
+  }
+}

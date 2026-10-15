@@ -1,0 +1,325 @@
+{
+  "runs": [
+    {
+      "run_dir": "runs/caa_cc_v2_1",
+      "ground_truth": "data/ground_truth/caa.yaml",
+      "prompt_version": 2,
+      "state_recovery": {
+        "CAA_specific_keratinocytes": {
+          "found": true,
+          "found_strict": false,
+          "required_overlap": 5,
+          "best_match": {
+            "cluster": "12",
+            "overlap": 13,
+            "overlap_genes": [
+              "BNC2",
+              "ERBB4",
+              "FAM13A",
+              "GABRB1",
+              "MAGI2",
+              "MCTP2",
+              "NAALADL2",
+              "NEO1",
+              "NFIA",
+              "PEG3",
+              "RBFOX1",
+              "SESN3",
+              "SLIT2"
+            ]
+          },
+          "best_match_strict": {
+            "cluster": "12",
+            "overlap": 4,
+            "overlap_genes": [
+              "ERBB4",
+              "GABRB1",
+              "NAALADL2",
+              "PEG3"
+            ],
+            "n_recorded_genes": 15
+          },
+          "basis": "composition"
+        }
+      },
+      "target_rank": {
+        "ERBB4": 2
+      },
+      "target_recall_at_k": 1.0,
+      "k": 5,
+      "drug_recall": 0.75,
+      "drugs_found": [
+        "afatinib",
+        "dacomitinib",
+        "neratinib"
+      ],
+      "false_leads": [
+        "FGFR2"
+      ],
+      "decoys_above_target": [
+        "FGFR2"
+      ],
+      "novel_above_target": [],
+      "nominated": [
+        "FGFR2",
+        "FGF14",
+        "PNOC",
+        "SYT1",
+        "TNC",
+        "ERBB4",
+        "TNFRSF11B",
+        "GABRA4",
+        "HSD17B2"
+      ],
+      "nominated_precision": 0.1111111111111111,
+      "decoys_nominated_unflagged": [],
+      "decoys_nominated_flagged": [
+        "FGFR2"
+      ],
+      "n_tool_calls": 63,
+      "n_tool_errors": 1,
+      "tokens": {
+        "input_tokens": 900902,
+        "output_tokens": 29743
+      },
+      "passed": true
+    },
+    {
+      "run_dir": "runs/caa_cc_v2_2",
+      "ground_truth": "data/ground_truth/caa.yaml",
+      "prompt_version": 2,
+      "state_recovery": {
+        "CAA_specific_keratinocytes": {
+          "found": true,
+          "found_strict": false,
+          "required_overlap": 5,
+          "best_match": {
+            "cluster": "12",
+            "overlap": 9,
+            "overlap_genes": [
+              "ERBB4",
+              "FAM13A",
+              "GABRB1",
+              "MAGI2",
+              "NAALADL2",
+              "NEO1",
+              "NFIA",
+              "PEG3",
+              "SESN3"
+            ]
+          },
+          "best_match_strict": {
+            "cluster": "12",
+            "overlap": 2,
+            "overlap_genes": [
+              "GABRB1",
+              "NEO1"
+            ],
+            "n_recorded_genes": 15
+          },
+          "basis": "composition"
+        }
+      },
+      "target_rank": {
+        "ERBB4": 2
+      },
+      "target_recall_at_k": 1.0,
+      "k": 5,
+      "drug_recall": 0.75,
+      "drugs_found": [
+        "afatinib",
+        "dacomitinib",
+        "neratinib"
+      ],
+      "false_leads": [
+        "FGFR2"
+      ],
+      "decoys_above_target": [
+        "FGFR2"
+      ],
+      "novel_above_target": [],
+      "nominated": [
+        "FGFR2",
+        "TNC",
+        "DOK5",
+        "ERBB4",
+        "TNFRSF11B",
+        "SLCO2B1",
+        "HSD17B2"
+      ],
+      "nominated_precision": 0.14285714285714285,
+      "decoys_nominated_unflagged": [],
+      "decoys_nominated_flagged": [
+        "FGFR2"
+      ],
+      "n_tool_calls": 63,
+      "n_tool_errors": 1,
+      "tokens": {
+        "input_tokens": 821607,
+        "output_tokens": 30839
+      },
+      "passed": true
+    },
+    {
+      "run_dir": "runs/caa_cc_v2_3",
+      "ground_truth": "data/ground_truth/caa.yaml",
+      "prompt_version": 2,
+      "state_recovery": {
+        "CAA_specific_keratinocytes": {
+          "found": true,
+          "found_strict": false,
+          "required_overlap": 5,
+          "best_match": {
+            "cluster": "12",
+            "overlap": 12,
+            "overlap_genes": [
+              "BNC2",
+              "ERBB4",
+              "FAM13A",
+              "GABRB1",
+              "MAGI2",
+              "MCTP2",
+              "NAALADL2",
+              "NEO1",
+              "NFIA",
+              "PEG3",
+              "RBFOX1",
+              "SESN3"
+            ]
+          },
+          "best_match_strict": {
+            "cluster": "12",
+            "overlap": 1,
+            "overlap_genes": [
+              "GABRB1"
+            ],
+            "n_recorded_genes": 15
+          },
+          "basis": "composition"
+        }
+      },
+      "target_rank": {
+        "ERBB4": 2
+      },
+      "target_recall_at_k": 1.0,
+      "k": 5,
+      "drug_recall": 0.75,
+      "drugs_found": [
+        "afatinib",
+        "dacomitinib",
+        "neratinib"
+      ],
+      "false_leads": [
+        "FGFR2"
+      ],
+      "decoys_above_target": [
+        "FGFR2"
+      ],
+      "novel_above_target": [],
+      "nominated": [
+        "FGFR2",
+        "FGF14",
+        "PNOC",
+        "SYT1",
+        "ERBB4",
+        "TNFRSF11B",
+        "GABRA4",
+        "HSD17B2"
+      ],
+      "nominated_precision": 0.125,
+      "decoys_nominated_unflagged": [],
+      "decoys_nominated_flagged": [
+        "FGFR2"
+      ],
+      "n_tool_calls": 61,
+      "n_tool_errors": 2,
+      "tokens": {
+        "input_tokens": 928919,
+        "output_tokens": 31823
+      },
+      "passed": true
+    }
+  ],
+  "stability": {
+    "n_runs": 3,
+    "k": 10,
+    "mean_jaccard_topk": 0.417,
+    "mean_jaccard_nominated": 0.569,
+    "rank1_genes": [
+      "FGFR2",
+      "FGFR2",
+      "FGFR2"
+    ],
+    "rank1_consistent": true,
+    "top_k_per_run": {
+      "caa_cc_v2_1": [
+        "FGFR2",
+        "ERBB4",
+        "TNFRSF11B",
+        "FGF14",
+        "GABRA4",
+        "PNOC",
+        "SYT1",
+        "TNC",
+        "HSD17B2",
+        "SGK1"
+      ],
+      "caa_cc_v2_2": [
+        "FGFR2",
+        "ERBB4",
+        "DOK5",
+        "TNFRSF11B",
+        "TNC",
+        "SLCO2B1",
+        "HSD17B2",
+        "DLG2",
+        "GLDC",
+        "GREB1"
+      ],
+      "caa_cc_v2_3": [
+        "FGFR2",
+        "ERBB4",
+        "TNFRSF11B",
+        "FGF14",
+        "GABRA4",
+        "PNOC",
+        "SYT1",
+        "HSD17B2",
+        "GAS6",
+        "VWA5A"
+      ]
+    },
+    "nominated_per_run": {
+      "caa_cc_v2_1": [
+        "ERBB4",
+        "FGF14",
+        "FGFR2",
+        "GABRA4",
+        "HSD17B2",
+        "PNOC",
+        "SYT1",
+        "TNC",
+        "TNFRSF11B"
+      ],
+      "caa_cc_v2_2": [
+        "DOK5",
+        "ERBB4",
+        "FGFR2",
+        "HSD17B2",
+        "SLCO2B1",
+        "TNC",
+        "TNFRSF11B"
+      ],
+      "caa_cc_v2_3": [
+        "ERBB4",
+        "FGF14",
+        "FGFR2",
+        "GABRA4",
+        "HSD17B2",
+        "PNOC",
+        "SYT1",
+        "TNFRSF11B"
+      ]
+    }
+  }
+}

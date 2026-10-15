@@ -25,6 +25,7 @@ def main(argv: list[str] | None = None) -> None:
     args = ap.parse_args(argv)
 
     results = []
+    args.run_dirs = [d for d in args.run_dirs if Path(d).is_dir()]  # a glob like runs/x_* also matches .log files
     for d in args.run_dirs:
         res = evaluate_run(d, args.ground_truth, k=args.k)
         results.append(res.to_dict())

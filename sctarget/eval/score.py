@@ -36,6 +36,7 @@ class EvalResult:
     run_dir: str
     ground_truth: str
     prompt_version: int = 1
+    scoring_version: int = 1
     state_recovery: dict[str, Any] = field(default_factory=dict)
     target_rank: dict[str, int | None] = field(default_factory=dict)
     target_recall_at_k: float | None = None
@@ -188,6 +189,7 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
         res.drug_recall = len(res.drugs_found) / len(want_drugs)
 
     res.prompt_version = int(facts.get("prompt_version", 1))
+    res.scoring_version = int(facts.get("scoring_version", 1))
     res.state_recovery = _state_recovery(gt, facts, run_dir)
 
     # provenance stats
@@ -212,7 +214,7 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
 
 
 def format_eval(res: EvalResult) -> str:
-    lines = [f"Evaluation of {res.run_dir} vs {Path(res.ground_truth).name}  (prompts v{res.prompt_version})", "=" * 72]
+    lines = [f"Evaluation of {res.run_dir} vs {Path(res.ground_truth).name}  (prompts v{res.prompt_version}, scoring v{res.scoring_version})", "=" * 72]
     for name, v in res.state_recovery.items():
         bm = v.get("best_match") or {}
         lines.append(f"state '{name}': {'FOUND' if v['found'] else 'missed'}  (cluster {bm.get('cluster')}, marker overlap {bm.get('overlap')}/{v['required_overlap']} needed: {', '.join(bm.get('overlap_genes', []))})")

@@ -99,3 +99,18 @@ its own set of runs and reported next to the previous version, never as a replac
 | 1 | freeze | - |
 | 2 | nominator prompt carries `find_markers` top genes beside the pseudobulk list and asks for the union as candidate set; `record_finding(kind='disease_state')` rejects fewer than 5 genes | `caa_cc_1`, `caa_cc_2`: the analyst recorded both states with no `genes`, and the nominator (which is told "pseudobulk first, markers second") was never shown the marker tables, so a known target present only in the marker table was unreachable - a hand-off defect of the interface, not of the analysis |
 
+## 9. Scoring versions (post-freeze arms)
+
+`targets.scoring_version` (default 1 = frozen) is recorded in every run as `scoring_version`, in
+the report header and in the eval output, like `prompt_version`. A new version is a new arm.
+
+| version | change | motivation |
+|---|---|---|
+| 1 | freeze: effect size = cluster vs sibling clusters (composition states) | - |
+| 2 | second effect axis for composition states: disease vs reference pseudobulk within the state's compartment (cluster + all clusters of its dominant cell type); the larger axis is used and recorded as `target_class` state_specific / disease_wide | v1 scores composition states for state-specificity only, so a gene up across all disease cells of the lineage and absent from the reference lineage (`disease_wide` in attribution) is detected and labelled but under-ranked; program states already had this axis - v2 removes the asymmetry |
+
+`scripts/rescore.py` re-scores an existing run's candidate sets under another version without
+re-running the agent (deterministic given the stored facts), writing `<run>_s<version>/`. It can
+only re-rank genes the nominator already chose; a live run under the new version is still needed
+to see candidates the nominator would pick with that scoring in place.
+

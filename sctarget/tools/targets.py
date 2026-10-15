@@ -44,9 +44,19 @@ def state_basis(session: AnalysisSession, cluster: str) -> str:
     return "composition"
 
 
-def _effect_size(session: AnalysisSession, gene: str, cluster: str, basis: str = "composition") -> tuple[float | None, str]:
+SCORING_VERSIONS = {
+    1: "effect size = cluster vs sibling clusters (composition states) or disease vs reference within cluster (program states)",
+    2: "as v1, plus a second effect axis for composition states: disease vs reference within the state's compartment (its lineage); the larger axis is used and recorded as target_class state_specific | disease_wide",
+}
+
+
+def scoring_version(session: AnalysisSession) -> int:
+    return int(session.cfg.targets.get("scoring_version", 1))
+
+
+def _effect_size(session: AnalysisSession, gene: str, cluster: str, basis: str = "composition", contrast: str | None = None) -> tuple[float | None, str]:
     pb = session.facts.get("pseudobulk_de", {})
-    wanted = "disease_vs_reference_within_cluster" if basis == "program" else "cluster_vs_reference_clusters"
+    wanted = contrast or ("disease_vs_reference_within_cluster" if basis == "program" else "cluster_vs_reference_clusters")
     for key, val in pb.items():
         cl, contrast = key.split(":", 1)
         if cl == cluster and contrast == wanted:
@@ -67,12 +77,27 @@ def _effect_size(session: AnalysisSession, gene: str, cluster: str, basis: str =
                         return (lfc if padj < 0.05 else 0.5 * lfc), "pseudobulk_de"
                 except Exception:
                     pass
-    for key, rows in session.facts.get("markers", {}).items():
-        if key.startswith(f"{cluster}_vs_"):
-            for row in rows:
-                if row.get("gene") == gene:
-                    return float(row["log2fc"]), "find_markers"
+    if wanted == "cluster_vs_reference_clusters":
+        for key, rows in session.facts.get("markers", {}).items():
+            if key.startswith(f"{cluster}_vs_"):
+                for row in rows:
+                    if row.get("gene") == gene:
+                        return float(row["log2fc"]), "find_markers"
     return None, "missing"
+
+
+def _ensure_compartment_de(session: AnalysisSession, cluster: str) -> bool:
+    """Scoring v2: make sure the disease-vs-reference-within-compartment pseudobulk exists for this
+    cluster (computed once, cached in facts like any pseudobulk_de result)."""
+    key = f"{cluster}:disease_vs_reference_within_compartment"
+    if key in session.facts.get("pseudobulk_de", {}):
+        return True
+    if session.adata is None:
+        return False
+    from .analysis import _run_pseudobulk
+
+    r = _run_pseudobulk(session, cluster, None, "disease_vs_reference_within_compartment", None, 10, 0.05, 10.0, record=True)
+    return "error" not in r
 
 
 @tool(
@@ -87,7 +112,10 @@ def _effect_size(session: AnalysisSession, gene: str, cluster: str, basis: str =
     tools first; missing evidence scores 0 and is flagged. Flags also penalise the score
     (low_specificity x0.6, shared_across_conditions x0.6, inconsistent_across_samples x0.8,
     reference_driven / ambient_like x0.2, shared_with_reference / weak x0.5; disease_wide is informational). Run
-    condition_attribution on the candidates first or they are flagged missing_evidence:attribution.""",
+    condition_attribution on the candidates first or they are flagged missing_evidence:attribution.
+    With targets.scoring_version 2, composition states get a second effect axis (disease vs
+    reference within the state's compartment / lineage) and each gene's target_class says which
+    axis carried it: state_specific or disease_wide.""",
     input_schema={
         "properties": {
             "genes": {"type": "array", "items": {"type": "string"}},
@@ -115,6 +143,9 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
     patterns = session.cfg.targets.get("exclude_gene_patterns") or None
     excluded = [g for g in dict.fromkeys(genes) if excluded_gene(g, patterns)]
     basis = state_basis(session, str(cluster))
+    sv = scoring_version(session)
+    use_lineage_axis = sv >= 2 and basis == "composition" and _ensure_compartment_de(session, str(cluster))
+    session.facts["scoring_version"] = sv
     rows = []
     for g in dict.fromkeys(genes):
         if g in excluded:
@@ -122,9 +153,15 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
         hs = human_symbols.get(g, g)
         flags: list[str] = []
         eff, eff_src = _effect_size(session, g, str(cluster), basis)
-        if eff is None:
+        eff_lin, target_class = None, ("program" if basis == "program" else "state_specific")
+        if use_lineage_axis:
+            eff_lin, _ = _effect_size(session, g, str(cluster), basis, contrast="disease_vs_reference_within_compartment")
+            # the larger axis carries the effect component; which one won is recorded, not hidden
+            if eff_lin is not None and (eff is None or eff_lin > eff):
+                target_class = "disease_wide"
+        if eff is None and eff_lin is None:
             flags.append("missing_evidence:effect_size")
-        s_eff = _clip01(eff, 4.0)
+        s_eff = max(_clip01(eff, 4.0), _clip01(eff_lin, 4.0) if use_lineage_axis else 0.0)
 
         sp = spec_rows.get(g)
         if sp is None:
@@ -202,6 +239,8 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
                 "score": round(float(score), 4),
                 "effect_size_log2fc": None if eff is None else round(eff, 3),
                 "effect_size_source": eff_src,
+                "lineage_log2fc_disease_vs_reference": None if eff_lin is None else round(eff_lin, 3),
+                "target_class": target_class,
                 "log2_specificity": None if sp is None else sp.get("log2_specificity"),
                 "log2_disease_vs_reference_within_cluster": None if sp is None else sp.get("log2_disease_vs_reference_within_cluster"),
                 "sample_consistency": cons,
@@ -217,7 +256,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
     df["rank"] = np.arange(1, len(df) + 1)
     session.save_table(f"ranked_targets_{cluster}", df)
     session.facts.setdefault("ranked_targets", {})[str(cluster)] = df.reset_index().to_dict(orient="records")
-    return {"cluster": str(cluster), "state_basis": basis, "specificity_component": ("within-cluster disease vs reference log2FC" if basis == "program" else "cluster vs max other cluster log2 ratio"), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
+    return {"cluster": str(cluster), "state_basis": basis, "scoring_version": sv, "effect_axes": (["cluster_vs_siblings", "disease_vs_reference_within_compartment"] if use_lineage_axis else ["cluster_vs_siblings" if basis == "composition" else "disease_vs_reference_within_cluster"]), "specificity_component": ("within-cluster disease vs reference log2FC" if basis == "program" else "cluster vs max other cluster log2 ratio"), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
 
 
 MIN_STATE_GENES = 5  # a disease_state finding without its signature cannot be acted on downstream

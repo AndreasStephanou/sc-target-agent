@@ -651,6 +651,10 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
         (default: all other clusters). Finds state-specific genes with sample-level replication.
       - 'disease_vs_reference_within_cluster': within `cluster`, disease samples vs reference
         samples. Finds disease-driven changes inside one cell type/state.
+      - 'disease_vs_reference_within_compartment': within the cluster's whole compartment (the
+        cluster plus all clusters of the same dominant cell type), disease vs reference samples.
+        Finds disease-wide genes of that lineage (up across all disease cells of the compartment,
+        absent from the reference condition's cells of the same lineage).
     Returns top up-regulated genes ranked by test statistic among genes with
     baseMean >= min_base_mean (so rare, barely-expressed genes do not dominate), plus the number
     of pseudobulk replicates per side. Requires >=2 replicates per side.""",
@@ -658,7 +662,7 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
         "properties": {
             "cluster": {"type": "string"},
             "cluster_key": {"type": ["string", "null"]},
-            "contrast": {"type": "string", "enum": ["cluster_vs_reference_clusters", "disease_vs_reference_within_cluster"], "default": "cluster_vs_reference_clusters"},
+            "contrast": {"type": "string", "enum": ["cluster_vs_reference_clusters", "disease_vs_reference_within_cluster", "disease_vs_reference_within_compartment"], "default": "cluster_vs_reference_clusters"},
             "reference_clusters": {"type": ["array", "null"], "items": {"type": "string"}},
             "min_cells_per_pseudobulk": {"type": "integer", "default": 10},
             "n_top": {"type": "integer", "default": 40},
@@ -687,6 +691,25 @@ def pseudobulk_de(
         return out
     out["top_up"] = out.pop("_sig_up").head(n_top)
     return out
+
+
+def compartment_mask(session: AnalysisSession, cluster: str, key: str) -> np.ndarray:
+    """Cells of `cluster` plus of every cluster sharing its dominant cell type (celltype_key).
+    Without a cell-type annotation the compartment is all cells."""
+    a = session.require_adata()
+    labels = a.obs[key].astype(str).to_numpy()
+    in_c = labels == str(cluster)
+    ck = session.celltype_key
+    if not ck or ck not in a.obs:
+        return np.ones(a.n_obs, dtype=bool)
+    ct = a.obs[ck].astype(str).to_numpy()
+    dom = pd.Series(ct[in_c]).value_counts().idxmax() if in_c.any() else None
+    if dom is None:
+        return in_c
+    # a cluster belongs to the compartment when the compartment cell type is its dominant one
+    cl_dom = pd.Series(ct).groupby(labels).agg(lambda v: v.value_counts().idxmax())
+    members = set(cl_dom[cl_dom == dom].index.astype(str)) | {str(cluster)}
+    return np.isin(labels, list(members))
 
 
 def _run_pseudobulk(
@@ -718,6 +741,11 @@ def _run_pseudobulk(
         in_target = labels == cluster
         in_ref = (labels != cluster) if ref == "rest" else np.isin(labels, list(ref))
         group = np.where(in_target, "target", np.where(in_ref, "reference", None))
+    elif contrast == "disease_vs_reference_within_compartment":
+        # the cluster plus every cluster of the same dominant cell type (its lineage / compartment):
+        # disease samples' compartment cells vs reference samples' compartment cells
+        in_cp = compartment_mask(session, cluster, key)
+        group = np.where(in_cp & (conds == session.disease), "target", np.where(in_cp & np.isin(conds, session.reference), "reference", None))
     else:
         in_cl = labels == cluster
         group = np.where(in_cl & (conds == session.disease), "target", np.where(in_cl & np.isin(conds, session.reference), "reference", None))
