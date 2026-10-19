@@ -114,3 +114,25 @@ re-running the agent (deterministic given the stored facts), writing `<run>_s<ve
 only re-rank genes the nominator already chose; a live run under the new version is still needed
 to see candidates the nominator would pick with that scoring in place.
 
+## 10. De novo clustering arm
+
+All runs above reuse the dataset's existing clustering (`reuse_clustering`), i.e. the partition
+from the original analysis. That partition encodes the original analysts' choices, so a state
+found inside it is not fully independent evidence. The de novo arm strips the object to counts,
+sample, condition and the broad lineage annotation (`data/caa_denovo.h5ad`, `config/caa_denovo.yaml`)
+and lets the pipeline recompute HVGs, PCA, Harmony and Leiden. The broad annotation is kept (used
+only to define sibling sets and compartments) and disclosed as inherited.
+
+Tooling notes from the first attempt (`runs/caa_denovo_1`, not a valid arm):
+* harmonypy >= 1 returns cells x PCs; scanpy's `harmony_integrate` wrapper transposes it and the
+  result is rejected. `integrate_and_cluster` now calls harmonypy directly and normalises the
+  orientation.
+* The tool used to fall back to uncorrected PCA silently when Harmony failed. It now returns an
+  error and tells the model it may call again with `use_harmony=false`; the choice is recorded.
+  In the failed run the clustering split by patient and the critic correctly flagged every
+  CAA-restricted cluster as single-patient and tied it to `harmony_used=false` - a useful
+  robustness record, at 2.4M input tokens.
+* `condition_attribution` now judges `disease_wide` on the lineage's shared clusters (other
+  enriched states excluded, reported separately), the same definition `score_targets` v2 uses;
+  the critic had flagged the label mismatch in `runs/caa_cc_v2s2_1`.
+

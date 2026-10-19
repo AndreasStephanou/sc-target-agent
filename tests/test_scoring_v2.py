@@ -21,15 +21,21 @@ def test_compartment_contrast_and_mask(cfg, tmp_path):
 
     s = AnalysisSession.create(cfg, tmp_path / "cp")
     load_dataset(s)
-    integrate_and_cluster(s, reuse_existing=cfg.dataset.get("reuse_clustering"))
+    # the shipped synthetic clustering is one cluster per lineage; recompute finer so lineages have siblings
+    integrate_and_cluster(s, reuse_existing=None, resolution=2.0, use_harmony=False)
     a = s.adata
     key = s.cluster_key
-    cl = str(a.obs[key].astype(str).value_counts().idxmax())
-    in_cl = (a.obs[key].astype(str) == cl).to_numpy()
-    m_all = compartment_mask(s, cl, key, shared_only=False)
-    assert m_all[in_cl].all()  # the full compartment contains the cluster
-    m = compartment_mask(s, cl, key)  # shared clusters only: the cluster itself is excluded
-    assert not m[in_cl].any() and m.sum() > 0
+    checked = 0
+    for cl in a.obs[key].astype(str).value_counts().index:
+        in_cl = (a.obs[key].astype(str) == cl).to_numpy()
+        m_all = compartment_mask(s, cl, key, shared_only=False)
+        assert m_all[in_cl].all()  # the full compartment contains the cluster
+        m = compartment_mask(s, cl, key)  # shared clusters only: the cluster itself is excluded
+        assert not m[in_cl].any()
+        if m.sum() > 0:  # a lineage with more than one cluster
+            assert m.sum() == m_all.sum() - in_cl.sum() or m.sum() < m_all.sum()
+            checked += 1
+    assert checked > 0, "no lineage with sibling clusters in the synthetic data"
     # the contrast needs reference cells in the shared clusters of the lineage; in a tiny synthetic
     # not every cluster has them, so it must either succeed or say exactly why not
     ok = []

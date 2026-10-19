@@ -96,6 +96,7 @@ def run_pipeline(
         _resume_session(session, Path(resume_from), keep_findings_from=set(STAGES) - set(stages))
     model = model or make_model(model_name or cfg.agent.get("model", "scripted"), session, temperature=float(cfg.agent.get("temperature", 0.2)))
     session.facts["prompt_version"] = PROMPT_VERSION
+    session.facts["scoring_version"] = int(cfg.targets.get("scoring_version", 1))
     session.log.stage("pipeline", "start", model=model.name, prompt_version=PROMPT_VERSION, config=cfg.raw)
     with open(run_dir / "config_used.json", "w") as fh:
         json.dump({**cfg.raw, "prompt_version": PROMPT_VERSION}, fh, indent=2, default=str)

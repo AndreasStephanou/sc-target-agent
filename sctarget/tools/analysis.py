@@ -303,13 +303,16 @@ def integrate_and_cluster(
         rep = "X_pca"
         if use_harmony:
             try:
-                import harmonypy  # noqa: F401
-
-                sc.external.pp.harmony_integrate(a, key=session.sample_key, basis="X_pca", adjusted_basis="X_pca_harmony", random_state=seed)
+                a.obsm["X_pca_harmony"] = _run_harmony(a, session.sample_key, seed)
                 rep = "X_pca_harmony"
                 harmony_used = True
-            except Exception as e:  # pragma: no cover - depends on optional dep
-                session.log.note("analyst", f"harmony unavailable or failed ({e}); using uncorrected PCA")
+            except Exception as e:
+                # never swap the method silently: an auditable pipeline makes the choice explicit
+                session.log.note("analyst", f"harmony failed ({e})")
+                return {
+                    "error": f"Harmony integration failed: {type(e).__name__}: {str(e)[:300]}",
+                    "hint": "Call integrate_and_cluster again with use_harmony=false to cluster on uncorrected PCA (clusters may then split by sample; check per-sample proportions), or fix the integration environment. The choice is recorded either way.",
+                }
         sc.pp.neighbors(a, n_neighbors=n_neighbors, use_rep=rep, random_state=seed)
         sc.tl.leiden(a, resolution=resolution, key_added=key, random_state=seed, flavor="igraph", n_iterations=2, directed=False)
         sc.tl.umap(a, random_state=seed)
@@ -691,6 +694,24 @@ def pseudobulk_de(
         return out
     out["top_up"] = out.pop("_sig_up").head(n_top)
     return out
+
+
+def _run_harmony(a, batch_key: str, seed: int) -> np.ndarray:
+    """Harmony on X_pca via harmonypy directly. harmonypy < 1 returns PCs x cells, >= 1 (incl. 2.x)
+    returns cells x PCs (and may return a torch tensor); scanpy's wrapper assumes the old layout and
+    produces a wrong-shaped obsm. Normalise to cells x PCs here."""
+    import harmonypy as hm
+
+    ho = hm.run_harmony(np.asarray(a.obsm["X_pca"]), a.obs[[batch_key]].copy(), batch_key, random_state=seed, verbose=False)
+    Z = ho.Z_corr
+    if hasattr(Z, "detach"):
+        Z = Z.detach().cpu().numpy()
+    Z = np.asarray(Z)
+    if Z.shape[0] != a.n_obs:
+        Z = Z.T
+    if Z.shape[0] != a.n_obs:
+        raise ValueError(f"harmony returned shape {Z.shape}, expected ({a.n_obs}, n_pcs)")
+    return Z
 
 
 def compartment_mask(session: AnalysisSession, cluster: str, key: str, shared_only: bool = True) -> np.ndarray:
@@ -1129,7 +1150,9 @@ def _is_ambient_like(row: pd.Series, ratio_threshold: float = 3.0, control_eleva
     sibling clusters of the same cell type. Classifies each gene:
       state_specific    high in disease cells of this cluster, low in reference cells here, low in
                         disease cells of sibling clusters
-      disease_wide      also high in disease cells of sibling clusters (a disease marker, not a
+      disease_wide      also high in disease cells of the lineage's SHARED (condition-mixed) sibling
+                        clusters - other disease-enriched states are excluded from this test and
+                        reported separately in pct_disease_in_other_enriched_states (a disease marker, not a
                         state marker - still a legitimate target)
       shared_with_reference  also high in reference-condition cells of the same cell type (here or in
                         sibling clusters): a cell-type marker or a pan-condition (e.g. pan-tumour) gene
@@ -1169,6 +1192,8 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     is_r = np.isin(conds, session.reference)
     in_c = labels == cluster
     ck = session.celltype_key
+    enriched = set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", []))) - {cluster}
+    in_enriched_other = np.isin(labels, list(enriched)) if enriched else np.zeros(a.n_obs, dtype=bool)
     if ck and ck in a.obs:
         ct = a.obs[ck].astype(str).to_numpy()
         dom = pd.Series(ct[in_c]).value_counts().idxmax()
@@ -1177,6 +1202,12 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     else:
         sib = ~in_c
         sib_desc = "all other clusters"
+    # 'disease_wide' is judged on the lineage's SHARED (condition-mixed) clusters, excluding other
+    # disease-enriched states, so the label means the same thing as score_targets' target_class:
+    # a gene also up in disease cells of ordinary clusters, not merely present in a second disease state
+    sib_shared = sib & ~in_enriched_other
+    if enriched:
+        sib_desc += f" (disease_wide judged on shared clusters, excluding enriched {sorted(enriched)})"
     present = [g for g in genes if g in a.var_names]
     missing = [g for g in genes if g not in a.var_names]
     if not present:
@@ -1205,8 +1236,9 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     for j, g in enumerate(present):
         a_pct, a_mean, n_a = per_sample_median(in_c & is_d, j)       # disease cells, this cluster
         b_pct, b_mean, n_b = per_sample_median(in_c & is_r, j)       # reference cells, this cluster
-        d_pct, d_mean, n_d = per_sample_median(sib & is_d, j)        # disease cells, sibling clusters
+        d_pct, d_mean, n_d = per_sample_median(sib_shared & is_d, j)  # disease cells, SHARED sibling clusters
         r_pct, r_mean, n_r = per_sample_median(sib & is_r, j)        # reference cells, sibling clusters
+        e_pct, e_mean, n_e = per_sample_median(sib & is_d & in_enriched_other, j) if enriched else (None, None, 0)  # disease cells in other enriched states
         # classify on mean expression ratios (detection % alone saturates for broadly expressed genes)
         eps = 1e-3
         if a_pct is None or a_mean is None:
@@ -1230,6 +1262,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
                 "pct_disease_in_cluster": None if a_pct is None else round(a_pct, 3),
                 "pct_reference_in_cluster": None if b_pct is None else round(b_pct, 3),
                 "pct_disease_in_siblings": None if d_pct is None else round(d_pct, 3),
+                "pct_disease_in_other_enriched_states": None if e_pct is None else round(e_pct, 3),
                 "pct_reference_in_siblings": None if r_pct is None else round(r_pct, 3),
                 "mean_disease_in_cluster": None if a_mean is None else round(a_mean, 3),
                 "mean_reference_in_cluster": None if b_mean is None else round(b_mean, 3),
@@ -1251,7 +1284,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
         "class_counts": counts,
         "table": df,
         "missing_genes": missing,
-        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in siblings >= 0.5x; ambient_like = within disease samples the gene is < threshold-fold higher in these cells than in the least-related lineage of the same samples AND that control lineage is itself elevated (>=1.5x) in disease vs reference samples - the two signatures of sample background rather than cell-intrinsic expression. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster.",
+        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in the SHARED sibling clusters (other disease-enriched states excluded; see pct_disease_in_other_enriched_states for those) >= 0.5x; ambient_like = within disease samples the gene is < threshold-fold higher in these cells than in the least-related lineage of the same samples AND that control lineage is itself elevated (>=1.5x) in disease vs reference samples - the two signatures of sample background rather than cell-intrinsic expression. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster.",
     }
 
 

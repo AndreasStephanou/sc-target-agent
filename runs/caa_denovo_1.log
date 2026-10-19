@@ -1,0 +1,31 @@
+nohup: ignoring input
+2026-10-19 12:37:05,949 - harmonypy - INFO - Running Harmony
+2026-10-19 12:37:05,950 - harmonypy - INFO -   Parameters:
+2026-10-19 12:37:05,950 - harmonypy - INFO -     max_iter_harmony: 10
+2026-10-19 12:37:05,950 - harmonypy - INFO -     max_iter_kmeans: 4
+2026-10-19 12:37:05,950 - harmonypy - INFO -     epsilon_cluster: 0.001
+2026-10-19 12:37:05,950 - harmonypy - INFO -     epsilon_harmony: 0.01
+2026-10-19 12:37:05,950 - harmonypy - INFO -     nclust: 100
+2026-10-19 12:37:05,950 - harmonypy - INFO -     block_size: 0.05
+2026-10-19 12:37:05,950 - harmonypy - INFO -     lamb: dynamic (alpha=0.2)
+2026-10-19 12:37:05,950 - harmonypy - INFO -     theta: [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.]
+2026-10-19 12:37:05,950 - harmonypy - INFO -     sigma: [0.1 0.1 0.1 0.1 0.1]...
+2026-10-19 12:37:05,950 - harmonypy - INFO -     verbose: True
+2026-10-19 12:37:05,950 - harmonypy - INFO -     random_state: 0
+2026-10-19 12:37:05,950 - harmonypy - INFO -   Data: 30 PCs × 204967 cells
+2026-10-19 12:37:05,950 - harmonypy - INFO -   Batch variables: ['sample']
+2026-10-19 12:37:06,013 - harmonypy - INFO - Computing initial centroids...
+2026-10-19 12:37:06,125 - harmonypy - INFO - Initialization complete.
+2026-10-19 12:37:06,125 - harmonypy - INFO - Iteration 1 of 10
+2026-10-19 12:37:06,220 - harmonypy - INFO - Iteration 2 of 10
+2026-10-19 12:37:06,317 - harmonypy - INFO - Iteration 3 of 10
+2026-10-19 12:37:06,414 - harmonypy - INFO - Iteration 4 of 10
+2026-10-19 12:37:06,510 - harmonypy - INFO - Iteration 5 of 10
+2026-10-19 12:37:06,606 - harmonypy - INFO - Converged after 5 iterations
+run dir : runs/caa_denovo_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=11 tools=27 errors=0  stop=end_turn
+  target   turns=18 tools=47 errors=0  stop=end_turn
+  critic   turns= 8 tools=26 errors=1  stop=end_turn
+report  : runs/caa_denovo_1/report.md
+elapsed : 1463.7s
