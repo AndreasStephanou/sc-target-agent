@@ -159,3 +159,27 @@ current rules and scores every gene the nominator examined (its `gene_specificit
 only the ones it chose to score: "what would this run have nominated with current rules and no
 premature drop", at zero token cost. A live run remains the confirmation.
 
+## 12. Annotation-free structure (post-freeze)
+
+The structural logic (sibling sets, compartments, the ambient-control lineage) used to depend on
+the dataset's cell-type annotation (`celltype_key`). It now runs on a *lineage key* that is the
+annotation when one is configured and present, and otherwise a data-derived coarse clustering
+(`derive_lineages`: Leiden at `analysis.lineages.resolution`, default 0.2, on the same embedding
+as the fine clustering; each fine cluster belongs to the coarse group holding most of its cells).
+Tools derive it lazily the first time they need it, so a dataset with no annotation runs
+unchanged; `analysis.lineages.ignore_annotation: true` forces the derived hierarchy even when an
+annotation exists (useful for a fully independent de novo arm: the CAA de novo runs still inherit
+`Broad_anno` from the original analysis).
+
+Names are separate from structure. `label_lineages` scores groups against a small marker table
+(species-agnostic symbols, matched through the human-symbol column when present) and returns a
+label with a confidence; nothing downstream reads labels. The rule is deliberate: a model's
+annotation can vary between runs, the hierarchy cannot, and both ERBB4 losses in the agent runs
+traced to how cell groups were drawn and compared.
+
+Known costs: the coarse resolution is a knob (a singleton group gives its cluster no siblings and
+is reported); a disease lineage that drifts far from its normal counterpart can form its own
+coarse group, which weakens the state-vs-normal sibling contrast (the reference-aware compartment
+axis of scoring v2 is the mitigation). Synthetic check: the e2e pipeline passes with
+`celltype_key` removed (`tests/test_lineages.py`).
+

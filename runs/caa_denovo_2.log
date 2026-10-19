@@ -1,0 +1,8 @@
+nohup: ignoring input
+run dir : runs/caa_denovo_2
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=11 tools=25 errors=0  stop=end_turn
+  target   turns=13 tools=34 errors=0  stop=end_turn
+  critic   turns= 6 tools=15 errors=0  stop=end_turn
+report  : runs/caa_denovo_2/report.md
+elapsed : 1401.8s

@@ -26,6 +26,10 @@ analysis:
     n_pcs: 30
     n_neighbors: 15
     resolution: 1.0
+  lineages:                                  # data-derived lineages when no celltype_key (or ignore_annotation: true)
+    resolution: 0.2                           # coarse Leiden on the clustering embedding
+    min_fine_per_group: 2                     # a lineage with fewer fine clusters is flagged (no siblings)
+    ignore_annotation: false
   attribution:
     min_reference_frac_in_cluster: 0.02     # in-cluster reference comparison needs >= 2% reference cells (thin-pool guard)
   differential_abundance:

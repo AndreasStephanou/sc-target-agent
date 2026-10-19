@@ -69,7 +69,7 @@ def build_markdown(session: AnalysisSession) -> str:
         f"- {ds.get('n_cells', 0):,} cells × {ds.get('n_genes', 0):,} genes · species `{ds.get('species')}` · "
         f"conditions: {', '.join(f'{k} ({v:,})' for k, v in ds.get('condition_counts', {}).items())}\n"
         f"- samples per condition: {', '.join(f'{k}: {v}' for k, v in ds.get('samples_per_condition', {}).items())} (pseudonymized S01…)\n"
-        f"- existing annotations: {ds.get('celltype_key') or 'none'}; clustering used: `{f.get('clustering', {}).get('cluster_key', '–')}` ({f.get('clustering', {}).get('method', '–')}, harmony={f.get('clustering', {}).get('harmony_used')})\n"
+        f"- lineages: {('annotation `' + ds['celltype_key'] + '`') if ds.get('celltype_key') and not f.get('lineages') else ('derived from the data (coarse Leiden r' + str(f.get('lineages', {}).get('resolution')) + ', ' + str(len(f.get('lineages', {}).get('groups', {}))) + ' groups)' if f.get('lineages') else 'none')}; clustering used: `{f.get('clustering', {}).get('cluster_key', '–')}` ({f.get('clustering', {}).get('method', '–')}, harmony={f.get('clustering', {}).get('harmony_used')})\n"
     )
     if "qc" in f:
         q = f["qc"]

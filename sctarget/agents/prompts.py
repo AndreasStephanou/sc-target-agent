@@ -5,6 +5,8 @@ PROMPT_VERSION history
      record_finding accepted disease states without genes.
   2  (post-freeze arm) nominator prompt also carries find_markers top genes and asks for the
      union as candidate set; record_finding rejects a disease_state with < 5 genes.
+  2  (unchanged number) analyst step 1b added: derive_lineages / label_lineages for datasets
+     without an annotation; wording only, no behavioural rule.
 """
 
 from __future__ import annotations
@@ -48,6 +50,12 @@ Procedure:
 1. `load_dataset`. If not already processed, `run_qc` then `integrate_and_cluster`
    (recompute). If processed, `integrate_and_cluster` with reuse_existing set to the existing
    clustering column.
+1b. Lineages (compartments) define sibling sets and ambient controls. If the dataset has a
+   cell-type annotation (celltype_key) it is used; otherwise run `derive_lineages` (coarse
+   clustering of the same embedding) right after clustering - the tools do this automatically
+   if you forget, but calling it lets you check the groups. `label_lineages` proposes marker-
+   based names for the groups; the names are for your interpretation and the report only, never
+   evidence, and a low-confidence label is reported by group id.
 2. `cluster_composition` and `differential_abundance`. A disease-specific state is a cluster
    that is (a) enriched in disease samples by per-sample proportion, (b) present in >= 2 disease
    samples, and (c) not merely a cell type that is more abundant in the disease tissue.

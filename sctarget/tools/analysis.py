@@ -183,6 +183,7 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
         "sample_condition": {str(k): str(v) for k, v in cond_of_sample.items()},
         "cells_per_sample": {str(k): int(v) for k, v in cells_per_sample.items()},
         "celltype_key": ck if celltypes else None,
+        "lineage_source": "annotation" if celltypes else "will be derived from the data (derive_lineages) after clustering",
         "celltype_counts": {str(k): int(v) for k, v in celltypes.items()},
         "existing_clusterings": existing_clusterings,
         "preferred_clustering": preferred if preferred and preferred in a.obs else None,
@@ -433,7 +434,7 @@ def cluster_composition(session: AnalysisSession, cluster_key: str | None = None
     df.columns = [f"frac_{c}" for c in df.columns]
     df["n_cells"] = ct.sum(axis=1)
     df["n_samples_contributing"] = nsamp.reindex(df.index).fillna(0).astype(int)
-    ck = session.celltype_key
+    ck = _lineage_key(session)
     if ck and ck in a.obs:
         dom = pd.crosstab(a.obs[key].astype(str), a.obs[ck].astype(str))
         df["dominant_celltype"] = dom.idxmax(axis=1)
@@ -482,7 +483,7 @@ def differential_abundance(
         raise ValueError("no cluster key available; run integrate_and_cluster first")
     obs = a.obs[[key, session.sample_key, session.condition_key]].copy()
     obs[key] = obs[key].astype(str)
-    ck = session.celltype_key
+    ck = _lineage_key(session)
     if within_celltype and ck and ck in a.obs:
         obs["_ct"] = a.obs[ck].astype(str).to_numpy()
         dom = pd.crosstab(obs[key], obs["_ct"]).idxmax(axis=1)
@@ -714,6 +715,152 @@ def _run_harmony(a, batch_key: str, seed: int) -> np.ndarray:
     return Z
 
 
+def _lineage_key(session: AnalysisSession) -> str | None:
+    """Lineage column for structural logic. Uses the configured annotation when present; otherwise
+    derives coarse lineages from the data (derive_lineages) the first time they are needed."""
+    key = session.lineage_key
+    if key is None and session.adata is not None and session.cluster_key:
+        try:
+            derive_lineages(session)
+            key = session.lineage_key
+        except Exception as e:  # structural fallback: tools then treat all clusters as one lineage
+            session.log.note("analyst", f"derive_lineages failed ({e}); proceeding without lineages")
+    return key
+
+
+@tool(
+    name="derive_lineages",
+    description="""
+    Derive broad lineages (compartments) FROM THE DATA, with no cell-type annotation: a coarse
+    Leiden clustering (default resolution 0.2) on the same embedding as the fine clustering, with
+    every fine cluster assigned to the coarse group holding most of its cells. Lineages define
+    sibling sets, compartments and the ambient-control lineage downstream. Used automatically when
+    the dataset has no celltype_key; call it explicitly to choose the resolution or to override an
+    annotation (analysis.lineages.ignore_annotation). Returns the fine->coarse mapping and sanity
+    checks (a coarse group that holds a single fine cluster cannot provide siblings). Names are NOT
+    assigned here: see label_lineages, which proposes marker-based labels for interpretation only.""",
+    input_schema={
+        "properties": {
+            "resolution": {"type": ["number", "null"], "default": None, "description": "coarse Leiden resolution (config analysis.lineages.resolution, default 0.2)"},
+            "cluster_key": {"type": ["string", "null"]},
+        },
+        "required": [],
+    },
+    roles=ALL,
+)
+def derive_lineages(session: AnalysisSession, resolution: float | None = None, cluster_key: str | None = None) -> dict[str, Any]:
+    a = session.require_adata()
+    key = cluster_key or session.cluster_key
+    if not key or key not in a.obs:
+        return {"error": "no clustering yet: run integrate_and_cluster first"}
+    lcfg = session.cfg.analysis.get("lineages", {})
+    resolution = float(resolution if resolution is not None else lcfg.get("resolution", 0.2))
+    seed = int(session.cfg.agent.get("seed", 0))
+    if "connectivities" not in a.obsp:
+        rep = "X_pca_harmony" if "X_pca_harmony" in a.obsm else ("X_pca" if "X_pca" in a.obsm else None)
+        if rep is None:
+            _ensure_lognorm(session)
+            sc.pp.highly_variable_genes(a, n_top_genes=min(2000, max(300, a.n_vars // 5)))
+            sc.tl.pca(a, n_comps=min(30, a.n_vars - 1, a.n_obs - 1), mask_var="highly_variable", random_state=seed)
+            rep = "X_pca"
+        sc.pp.neighbors(a, n_neighbors=15, use_rep=rep, random_state=seed)
+    tmp = "_sct_coarse"
+    sc.tl.leiden(a, resolution=resolution, key_added=tmp, random_state=seed, flavor="igraph", n_iterations=2, directed=False)
+    fine = a.obs[key].astype(str)
+    coarse = a.obs[tmp].astype(str)
+    # each fine cluster belongs to ONE lineage: the coarse group holding most of its cells
+    ctab = pd.crosstab(fine, coarse)
+    fine_to_coarse = ctab.idxmax(axis=1)
+    purity = (ctab.max(axis=1) / ctab.sum(axis=1)).round(3)
+    lineage = fine.map(fine_to_coarse).astype(str)
+    a.obs[session.DERIVED_LINEAGE_KEY] = ("L" + lineage).to_numpy()
+    del a.obs[tmp]
+    groups = {}
+    for g, members in fine_to_coarse.groupby(fine_to_coarse):
+        groups["L" + str(g)] = {"fine_clusters": sorted(members.index.astype(str), key=lambda x: (len(x), x)), "n_cells": int((lineage == g).sum())}
+    singletons = [g for g, v in groups.items() if len(v["fine_clusters"]) < int(lcfg.get("min_fine_per_group", 2))]
+    session.facts["lineages"] = {"key": session.DERIVED_LINEAGE_KEY, "resolution": resolution, "groups": groups, "fine_to_lineage": {str(k): "L" + str(v) for k, v in fine_to_coarse.items()}, "fine_cluster_purity": {str(k): float(v) for k, v in purity.items()}, "singleton_groups": singletons}
+    session.log.stage("analyst", "lineages_derived", resolution=resolution, n_groups=len(groups), singletons=singletons)
+    return {
+        "lineage_key": session.DERIVED_LINEAGE_KEY,
+        "resolution": resolution,
+        "n_lineages": len(groups),
+        "groups": groups,
+        "fine_cluster_purity": {str(k): float(v) for k, v in purity.items()},
+        "singleton_groups": singletons,
+        "note": "Lineages are data-derived compartments used for sibling sets, compartments and ambient controls. A singleton group (one fine cluster) gives that cluster no siblings: consider a higher resolution for the fine clustering or a lower one here. Labels are interpretation only (label_lineages).",
+    }
+
+
+_LINEAGE_MARKERS: dict[str, list[str]] = {
+    "epithelial": ["EPCAM", "KRT5", "KRT14", "KRT8", "KRT18", "KRT19", "CDH1", "TP63"],
+    "T/NK": ["CD3E", "CD3D", "CD2", "CD247", "NKG7", "GNLY", "IL7R"],
+    "B/plasma": ["MS4A1", "CD79A", "CD79B", "JCHAIN", "MZB1", "IGKC"],
+    "myeloid": ["CD68", "LYZ", "CSF1R", "C1QA", "C1QB", "ITGAX", "CD14"],
+    "mast": ["KIT", "CPA3", "TPSAB1", "MS4A2"],
+    "endothelial": ["PECAM1", "VWF", "CDH5", "FLT1", "KDR", "CLDN5"],
+    "fibroblast/mesenchymal": ["COL1A1", "COL1A2", "COL3A1", "DCN", "LUM", "PDGFRA"],
+    "smooth muscle/pericyte": ["ACTA2", "MYH11", "RGS5", "PDGFRB", "TAGLN"],
+    "neural/glial": ["PLP1", "SOX10", "S100B", "NRXN1", "CDH19"],
+    "melanocyte": ["PMEL", "MLANA", "TYR", "DCT"],
+    "erythroid": ["HBB", "HBA1", "HBA2", "ALAS2"],
+    "hepatocyte": ["ALB", "APOA1", "TTR", "SERPINA1"],
+    "cardiomyocyte": ["TNNT2", "MYH6", "MYH7", "RYR2"],
+}
+
+
+@tool(
+    name="label_lineages",
+    description="""
+    Propose names for lineages / clusters from canonical marker genes, FOR INTERPRETATION ONLY:
+    nothing downstream reads the labels (sibling sets and compartments come from the hierarchy).
+    Scores each group against a small species-agnostic marker table (symbols matched case-
+    insensitively, via the human_symbol column when present) and returns the best label with a
+    confidence (margin over the runner-up) and the markers that supported it. Low-confidence
+    labels should be reported as such, never asserted. Groups default to the lineage key.""",
+    input_schema={
+        "properties": {
+            "group_key": {"type": ["string", "null"], "description": "obs column to label (default: the lineage key; use the cluster key to label fine clusters)"},
+        },
+        "required": [],
+    },
+    roles=ALL,
+)
+def label_lineages(session: AnalysisSession, group_key: str | None = None) -> dict[str, Any]:
+    a = session.require_adata()
+    _ensure_lognorm(session)
+    key = group_key or _lineage_key(session) or session.cluster_key
+    if not key or key not in a.obs:
+        return {"error": "no lineage or cluster column to label"}
+    hs_col = session.cfg.dataset.get("human_symbol_var")
+    names = a.var[hs_col].astype(str) if hs_col and hs_col in a.var else pd.Series(a.var_names, index=a.var_names)
+    upper = {str(v).upper(): i for i, v in zip(range(a.n_vars), names)}
+    groups = a.obs[key].astype(str).to_numpy()
+    uniq = sorted(np.unique(groups), key=lambda x: (len(x), x))
+    out = {}
+    for g in uniq:
+        m = groups == g
+        scores = {}
+        support = {}
+        for lab, markers in _LINEAGE_MARKERS.items():
+            idx = [upper[mk] for mk in markers if mk in upper]
+            if not idx:
+                continue
+            sub = a.X[m][:, idx]
+            frac = np.asarray((sub > 0).mean(axis=0)).ravel()
+            scores[lab] = float(frac.mean())
+            support[lab] = [markers[k] for k, f in zip([markers.index(mk) for mk in markers if mk in upper], frac) if f >= 0.25]
+        if not scores:
+            out[g] = {"label": None, "confidence": 0.0, "note": "no marker genes found in the dataset"}
+            continue
+        ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+        best, second = ranked[0], (ranked[1] if len(ranked) > 1 else (None, 0.0))
+        conf = float(best[1] - second[1]) / max(best[1], 1e-6)
+        out[g] = {"label": best[0], "confidence": round(conf, 3), "score": round(best[1], 3), "runner_up": second[0], "supporting_markers": support.get(best[0], [])}
+    session.facts.setdefault("lineage_labels", {})[key] = out
+    return {"group_key": key, "labels": out, "note": "Interpretation only. Confidence is the margin over the runner-up label; below ~0.3 report the group by its id."}
+
+
 def compartment_mask(session: AnalysisSession, cluster: str, key: str, shared_only: bool = True) -> np.ndarray:
     """Cells of the clusters sharing `cluster`'s dominant cell type (its compartment / lineage).
     With shared_only (the default, used for the disease-wide axis) the disease-enriched clusters
@@ -726,7 +873,7 @@ def compartment_mask(session: AnalysisSession, cluster: str, key: str, shared_on
     labels = a.obs[key].astype(str).to_numpy()
     in_c = labels == str(cluster)
     excluded = {str(cluster)} | set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", []))) if shared_only else set()
-    ck = session.celltype_key
+    ck = _lineage_key(session)
     if not ck or ck not in a.obs:
         return ~np.isin(labels, list(excluded)) if excluded else np.ones(a.n_obs, dtype=bool)
     ct = a.obs[ck].astype(str).to_numpy()
@@ -940,7 +1087,7 @@ def disease_programs(
     labels_all = a.obs[key].astype(str).to_numpy()
     Xlog = a.X
     clusters = [c for c, n in sizes.items() if n >= min_cells and c not in enriched][:max_clusters]
-    ck = session.celltype_key
+    ck = _lineage_key(session)
     dom = {}
     if ck and ck in a.obs:
         dom = pd.crosstab(a.obs[key].astype(str), a.obs[ck].astype(str)).idxmax(axis=1).to_dict()
@@ -1078,7 +1225,7 @@ def _ambient_ratios(
     a = session.require_adata()
     conds = a.obs[session.condition_key].astype(str).to_numpy()
     samples = a.obs[session.sample_key].astype(str).to_numpy()
-    ck = session.celltype_key
+    ck = _lineage_key(session)
     if ck and ck in a.obs:
         lineage = a.obs[ck].astype(str).to_numpy()
     else:  # no broad annotation: use clusters as lineages
@@ -1192,7 +1339,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     is_d = conds == session.disease
     is_r = np.isin(conds, session.reference)
     in_c = labels == cluster
-    ck = session.celltype_key
+    ck = _lineage_key(session)
     enriched = set(map(str, session.facts.get("differential_abundance", {}).get("disease_enriched_clusters", []))) - {cluster}
     in_enriched_other = np.isin(labels, list(enriched)) if enriched else np.zeros(a.n_obs, dtype=bool)
     if ck and ck in a.obs:

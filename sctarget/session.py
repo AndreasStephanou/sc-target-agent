@@ -53,7 +53,23 @@ class AnalysisSession:
 
     @property
     def celltype_key(self) -> str | None:
+        """The configured cell-type annotation column, if any (used for naming / override)."""
         return self.cfg.dataset.get("celltype_key")
+
+    DERIVED_LINEAGE_KEY = "sct_lineage"
+
+    @property
+    def lineage_key(self) -> str | None:
+        """The column that defines lineages (sibling sets, compartments, ambient controls):
+        the configured annotation when present in obs, else the data-derived coarse clustering
+        written by derive_lineages (None until it has been run)."""
+        a = self.adata
+        ck = self.celltype_key
+        if ck and a is not None and ck in a.obs and not self.cfg.analysis.get("lineages", {}).get("ignore_annotation", False):
+            return ck
+        if a is not None and self.DERIVED_LINEAGE_KEY in a.obs:
+            return self.DERIVED_LINEAGE_KEY
+        return None
 
     @property
     def disease(self) -> str:
