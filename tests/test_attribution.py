@@ -117,3 +117,52 @@ def test_integrate_and_cluster_fails_loudly_when_harmony_breaks(cfg, tmp_path, m
     assert "error" in r and "Harmony" in r["error"] and "use_harmony=false" in r["hint"]
     r2 = A.integrate_and_cluster(s, reuse_existing=None, use_harmony=False)
     assert "error" not in r2 and r2.get("harmony_used") is False
+
+
+
+def test_thin_reference_pool_does_not_decide_class(cfg, tmp_path):
+    """A handful of reference cells inside a disease cluster must not flip a gene to
+    shared_with_reference / reference_driven; the pool is reported instead."""
+    import numpy as np
+    import scipy.sparse as sp
+
+    from sctarget.session import AnalysisSession
+    from sctarget.tools import analysis as A
+
+    s = AnalysisSession.create(cfg, tmp_path / "thin")
+    A.load_dataset(s)
+    A.integrate_and_cluster(s, reuse_existing=cfg.dataset.get("reuse_clustering"))
+    A._ensure_lognorm(s)
+    a = s.adata
+    key = s.cluster_key
+    labels = a.obs[key].astype(str).to_numpy()
+    conds = a.obs[s.condition_key].astype(str).to_numpy()
+    is_r = np.isin(conds, s.reference)
+    frac = {c: float((conds[labels == c] == s.disease).mean()) for c in np.unique(labels)}
+    cl = max(frac, key=frac.get)
+    # make the reference pool in this cluster thin but present: keep exactly 2 reference cells
+    in_c = labels == cl
+    ref_idx = np.where(in_c & is_r)[0]
+    if len(ref_idx) < 2:
+        extra = [i for i in np.where(is_r)[0] if i not in ref_idx][: 2 - len(ref_idx)]
+        labels[extra] = cl
+        ref_idx = np.array(list(ref_idx) + extra)
+    else:
+        for i in ref_idx[2:]:
+            labels[i] = "other_ref"
+        ref_idx = ref_idx[:2]
+    a.obs[key] = labels
+    in_c = labels == cl
+    thin_frac = len(ref_idx) / in_c.sum()
+    floor = thin_frac * 2  # the synthetic clusters are small; test the guard's logic at a matching scale
+    g = "ERBB4"
+    j = list(a.var_names).index(g)
+    X = a.X.toarray() if sp.issparse(a.X) else np.asarray(a.X)
+    X[ref_idx, j] = X[in_c, j].max() + 1.0  # the thin reference pool is strongly positive
+    a.X = sp.csr_matrix(X)
+    thin = A.condition_attribution(s, genes=[g], cluster=cl, min_cells=1, min_reference_frac=floor)["table"].loc[g]
+    assert str(thin["reference_pool_in_cluster"]).startswith("too_thin")
+    assert thin["class"] not in ("shared_with_reference", "reference_driven")
+    full = A.condition_attribution(s, genes=[g], cluster=cl, min_cells=1, min_reference_frac=0.0)["table"].loc[g]
+    assert full["reference_pool_in_cluster"] == "ok"
+    assert full["class"] in ("shared_with_reference", "reference_driven")  # with the guard off the 5 cells decide

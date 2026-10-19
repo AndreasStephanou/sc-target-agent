@@ -136,3 +136,26 @@ Tooling notes from the first attempt (`runs/caa_denovo_1`, not a valid arm):
   enriched states excluded, reported separately), the same definition `score_targets` v2 uses;
   the critic had flagged the label mismatch in `runs/caa_cc_v2s2_1`.
 
+## 11. Attribution: thin reference-pool guard (post-freeze)
+
+`condition_attribution` compares a gene's expression in the cluster's disease cells with its
+expression in the reference cells *inside the same cluster* (the `reference_driven` and part of
+the `shared_with_reference` tests). That comparison is only meaningful when the reference cells
+are a non-trivial share of the cluster. A disease-specific state always attracts a few reference
+cells that resemble it (doublets, misassigned nuclei, a rare real population), and a pool of a few
+hundred cells among tens of thousands can carry a mean dominated by a handful of high expressers.
+Since the fix, the in-cluster comparison decides the class only when reference cells are
+>= `analysis.attribution.min_reference_frac_in_cluster` (default 2%) of the cluster; below that
+the pool is reported in `reference_pool_in_cluster` but the sibling-cluster comparison carries
+the judgement. Motivation: `runs/caa_denovo_1`, where ~150 reference cells (0.5%) inside a 31k-cell
+CAA cluster were ERBB4-high and the gene was classed shared_with_reference and dropped before
+scoring, while the same gene in the same population under the original clustering (5% reference
+cells, ERBB4-low) was state-specific. The change names no gene; it mirrors the pseudobulk replicate
+floor. Which samples such thin pools come from is worth a critic check (doublets vs a real rare
+population).
+
+`scripts/rescore.py --recompute-attribution --full-candidates` re-runs attribution under the
+current rules and scores every gene the nominator examined (its `gene_specificity` calls), not
+only the ones it chose to score: "what would this run have nominated with current rules and no
+premature drop", at zero token cost. A live run remains the confirmation.
+

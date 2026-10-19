@@ -1175,12 +1175,13 @@ def _is_ambient_like(row: pd.Series, ratio_threshold: float = 3.0, control_eleva
             "cluster_key": {"type": ["string", "null"]},
             "min_cells": {"type": "integer", "default": 20, "description": "a condition subset smaller than this is reported as not evaluable"},
             "ambient_ratio_threshold": {"type": "number", "default": 3.0, "description": "below this interest/control-lineage ratio a gene is classed ambient_like"},
+            "min_reference_frac": {"type": ["number", "null"], "default": None, "description": "reference cells inside the cluster must be at least this fraction of it for the in-cluster reference comparison to decide the class (default from config analysis.attribution.min_reference_frac_in_cluster, 0.02); below it the pool is reported as too thin and the sibling comparison carries the judgement"},
         },
         "required": ["genes", "cluster"],
     },
     roles=ALL,
 )
-def condition_attribution(session: AnalysisSession, genes: list[str], cluster: str, cluster_key: str | None = None, min_cells: int = 20, ambient_ratio_threshold: float = 3.0) -> dict[str, Any]:
+def condition_attribution(session: AnalysisSession, genes: list[str], cluster: str, cluster_key: str | None = None, min_cells: int = 20, ambient_ratio_threshold: float = 3.0, min_reference_frac: float | None = None) -> dict[str, Any]:
     a = session.require_adata()
     _ensure_lognorm(session)
     cluster = str(cluster)
@@ -1208,6 +1209,19 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     sib_shared = sib & ~in_enriched_other
     if enriched:
         sib_desc += f" (disease_wide judged on shared clusters, excluding enriched {sorted(enriched)})"
+    # Thin reference pool guard: the in-cluster reference comparison (reference_driven /
+    # shared_with_reference via reference cells INSIDE the cluster) only decides the class when
+    # reference cells are a non-trivial share of the cluster. A disease state always attracts a few
+    # reference cells that resemble it (doublets, misassigned nuclei, a rare real population), and
+    # letting a 0.5% pool overrule the other 99.5% is the wrong weighting. Below the floor the pool
+    # is reported, not consulted, and the sibling-cluster comparison carries the judgement.
+    if min_reference_frac is None:
+        min_reference_frac = float(session.cfg.analysis.get("attribution", {}).get("min_reference_frac_in_cluster", 0.02))
+    n_in_c = int(in_c.sum())
+    n_ref_in_c = int((in_c & is_r).sum())
+    ref_frac_in_c = n_ref_in_c / max(1, n_in_c)
+    ref_pool_ok = ref_frac_in_c >= min_reference_frac
+    ref_pool_status = "ok" if ref_pool_ok else f"too_thin ({n_ref_in_c} cells, {100*ref_frac_in_c:.2f}% of cluster < {100*min_reference_frac:g}%): in-cluster reference comparison not used for the class"
     present = [g for g in genes if g in a.var_names]
     missing = [g for g in genes if g not in a.var_names]
     if not present:
@@ -1243,13 +1257,13 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
         eps = 1e-3
         if a_pct is None or a_mean is None:
             cls = "not_evaluable"
-        elif b_mean is not None and b_pct is not None and b_pct > 0.2 and b_mean >= 2 * (a_mean + eps):
+        elif ref_pool_ok and b_mean is not None and b_pct is not None and b_pct > 0.2 and b_mean >= 2 * (a_mean + eps):
             cls = "reference_driven"  # checked before 'weak': weak-in-disease but strong-in-reference IS the artefact
         elif a_pct < 0.10:
             cls = "weak"
         elif _is_ambient_like(amb.loc[g], ambient_ratio_threshold):
             cls = "ambient_like"
-        elif (r_mean is not None and r_mean >= 0.5 * (a_mean + eps)) or (b_mean is not None and b_mean >= 0.5 * (a_mean + eps)):
+        elif (r_mean is not None and r_mean >= 0.5 * (a_mean + eps)) or (ref_pool_ok and b_mean is not None and b_mean >= 0.5 * (a_mean + eps)):
             cls = "shared_with_reference"
         elif d_mean is not None and d_mean >= 0.5 * (a_mean + eps):
             cls = "disease_wide"
@@ -1266,6 +1280,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
                 "pct_reference_in_siblings": None if r_pct is None else round(r_pct, 3),
                 "mean_disease_in_cluster": None if a_mean is None else round(a_mean, 3),
                 "mean_reference_in_cluster": None if b_mean is None else round(b_mean, 3),
+                "reference_pool_in_cluster": ref_pool_status,
                 "ambient_ratio": amb.loc[g, "ambient_ratio"],
                 "ambient_control_lineage": amb.loc[g, "control_lineage"],
                 "pct_in_control_lineage": amb.loc[g, "pct_control"],
@@ -1281,10 +1296,11 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
         "cluster": cluster,
         "cluster_key": key,
         "siblings": sib_desc,
+        "reference_pool_in_cluster": ref_pool_status,
         "class_counts": counts,
         "table": df,
         "missing_genes": missing,
-        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in the SHARED sibling clusters (other disease-enriched states excluded; see pct_disease_in_other_enriched_states for those) >= 0.5x; ambient_like = within disease samples the gene is < threshold-fold higher in these cells than in the least-related lineage of the same samples AND that control lineage is itself elevated (>=1.5x) in disease vs reference samples - the two signatures of sample background rather than cell-intrinsic expression. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster.",
+        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in the SHARED sibling clusters (other disease-enriched states excluded; see pct_disease_in_other_enriched_states for those) >= 0.5x; ambient_like = within disease samples the gene is < threshold-fold higher in these cells than in the least-related lineage of the same samples AND that control lineage is itself elevated (>=1.5x) in disease vs reference samples - the two signatures of sample background rather than cell-intrinsic expression. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster. The in-cluster reference comparison is only used when reference cells are >= min_reference_frac of the cluster (reference_pool_in_cluster column); a thinner pool is reported but cannot decide the class.",
     }
 
 

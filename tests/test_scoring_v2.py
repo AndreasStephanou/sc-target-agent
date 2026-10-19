@@ -84,3 +84,27 @@ def test_rescore_script_reproduces_ranking(cfg, tmp_path):
     yaml.safe_dump(gt, open(p, "w"))
     ev = evaluate_run(out, p)
     assert ev.target_rank["ERBB4"] == 1
+
+
+def test_rescore_full_candidates_and_reattribution(cfg, tmp_path):
+    """--full-candidates adds the genes the nominator examined but did not score; --recompute-attribution runs."""
+    import copy
+    import json
+
+    from scripts.rescore import rescore
+
+    base = run_pipeline(cfg, model_name="scripted", run_dir=tmp_path / "b")
+    # pretend the nominator examined an extra gene it never scored: append a gene_specificity call to the log
+    cl = next(iter(base.facts["ranked_targets"]))
+    import anndata as ad
+
+    scored = {r["gene"] for r in base.facts["ranked_targets"][cl]}
+    names = list(ad.read_h5ad(cfg.dataset["path"], backed="r").var_names)
+    extra = next(g for g in names if g not in scored and not g.startswith(("MT-", "ENS")))
+    with open(base.run_dir / "run.jsonl", "a") as fh:
+        fh.write(json.dumps({"type": "tool_call", "role": "target", "tool": "gene_specificity", "args": {"genes": [extra], "cluster": cl}, "result_sent": {}, "error": None}) + "\n")
+    cfg2 = copy.deepcopy(cfg)
+    ch = rescore(cfg2, base.run_dir, tmp_path / "b_full", recompute_attribution=True, full_candidates=True)
+    rows = ch[cl]["rows"]
+    assert any(r["gene"] == extra and r["rank_before"] is None for r in rows), rows
+    assert all("attribution_after" in r for r in rows)

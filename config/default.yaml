@@ -26,6 +26,8 @@ analysis:
     n_pcs: 30
     n_neighbors: 15
     resolution: 1.0
+  attribution:
+    min_reference_frac_in_cluster: 0.02     # in-cluster reference comparison needs >= 2% reference cells (thin-pool guard)
   differential_abundance:
     min_cells_per_sample: 20
     enrichment_log2fc: 1.0                  # cluster counts as "disease-specific" above this (2-fold)
