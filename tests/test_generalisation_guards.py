@@ -108,3 +108,38 @@ def test_detect_doublets_flags_then_removes(cfg, tmp_path):
     r2 = A.detect_doublets(s, remove=True)
     assert r2["removed"] in (True, False)  # True unless no doublets were predicted at all
     assert s.adata.n_obs <= n
+
+
+def test_stress_flag_spares_real_population_with_superimposed_stress(cfg, tmp_path):
+    """A cluster whose top markers include many stress genes but also a strong clean signature is NOT an artefact."""
+    s = AnalysisSession.create(cfg, tmp_path / "st")
+    A.load_dataset(s)
+    A.integrate_and_cluster(s, reuse_existing=cfg.dataset.get("reuse_clustering"))
+    a = s.adata
+    lab = a.obs[s.cluster_key].astype(str)
+    cl = lab.value_counts().index[0]
+    m = (lab == cl).to_numpy()
+    # plant a strong stress programme into the biggest cluster on top of its real markers
+    stress_genes = [g for g in ("FOS", "JUN", "HSPA1A", "DNAJB1", "ATF3", "EGR1", "IER2", "HSPB1", "JUNB", "KLF2") if g in a.var_names]
+    if len(stress_genes) < 5:
+        import anndata as ad, numpy as np, pandas as pd, scipy.sparse as sp
+
+        new = [g for g in ("FOS", "JUN", "HSPA1A", "DNAJB1", "ATF3", "EGR1", "IER2", "HSPB1", "JUNB", "KLF2") if g not in a.var_names]
+        extra = ad.AnnData(X=sp.csr_matrix((a.n_obs, len(new))), obs=a.obs[[]].copy(), var=pd.DataFrame(index=new))
+        merged = ad.concat([a, extra], axis=1, merge="first")
+        merged.obs = a.obs.copy()
+        for k in a.obsm.keys():
+            merged.obsm[k] = a.obsm[k]
+        a = merged; s.adata = a
+        stress_genes = new + stress_genes
+    X = a.X.tolil() if sp.issparse(a.X) else sp.lil_matrix(a.X)
+    for g in stress_genes:
+        j = list(a.var_names).index(g)
+        X[np.where(m)[0], j] = 5.0
+    a.X = X.tocsr()
+    a.uns["sctarget_lognorm"] = True
+    r = A.find_markers(s, cluster=cl, n_top=30)
+    assert r["dissociation_stress_fraction_top30"] >= 0.3
+    assert r["stress_artifact_suspect"] is False, r  # the real markers survive the removal
+    assert not any(g in set(r["top_markers"].index) for g in stress_genes)  # stress genes removed from the list
+    assert str(cl) not in s.facts.get("stress_suspect_clusters", {})

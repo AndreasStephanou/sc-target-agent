@@ -251,3 +251,15 @@ immune or tumour-endothelial doublet cluster looks exactly like a disease-enrich
 population, so this is a guard for the composition route, not only hygiene. Removal is an explicit
 option (remove=true). The scripted model flags and skips suspect clusters; it does not remove.
 
+Refinements after the second ccRCC calibration run (`runs/ccrcc_dry2`):
+* The stress flag rejected a 2,300-cell tumour cluster (98% tumour, CA9 in 84% of cells) because
+  30% of its sibling-contrast markers were heat-shock genes: the dissociation programme was
+  superimposed on real tumour cells and differed by condition because tumour and benign tissue
+  were handled differently. `find_markers` now removes the stress genes from the marker list and
+  calls a cluster an artefact only when fewer than 10 strong markers remain without them.
+* Scrublet's automatic threshold found no doublets in any library while three clusters were
+  visibly doublets (CA9+/PECAM1+, CA9+/PTPRC+, PECAM1+/PTPRC+). `detect_doublets` falls back to
+  the score quantile at the expected rate when the automatic threshold finds nothing, and says so.
+* The merged cluster the merge step produced was never characterised (two-state cap, one slot
+  spent on a cluster dropped late as stress). Merged clusters are characterised first; cap 3.
+

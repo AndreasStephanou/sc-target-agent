@@ -419,15 +419,22 @@ def detect_doublets(session: AnalysisSession, expected_doublet_rate: float = 0.0
             sub.X = sub.layers[layer].copy()
         try:
             sc.pp.scrublet(sub, expected_doublet_rate=expected_doublet_rate, threshold=threshold, random_state=seed, verbose=False)
-            sc_ = sub.obs["doublet_score"].to_numpy()
-            pd_ = sub.obs["predicted_doublet"].astype(bool).to_numpy()
+            sc_ = sub.obs["doublet_score"].to_numpy().astype(float)
+            pred_col = sub.obs["predicted_doublet"]
+            pd_ = pred_col.fillna(False).astype(bool).to_numpy() if pred_col.dtype == object or pred_col.isna().any() else pred_col.astype(bool).to_numpy()
+            fallback = None
+            if threshold is None and pd_.sum() == 0 and np.isfinite(sc_).any():
+                # Scrublet's automatic threshold (bimodality of simulated doublet scores) often fails;
+                # fall back to calling the top expected_doublet_rate of scores doublets
+                fallback = float(np.nanquantile(sc_, 1.0 - expected_doublet_rate))
+                pd_ = sc_ >= fallback
         except Exception as e:  # scrublet can fail on tiny / degenerate samples
             per_sample[str(session.pseudo.to_pseudo(smp))] = {"n_cells": int(len(m)), "doublet_rate": None, "error": f"{type(e).__name__}: {str(e)[:120]}"}
             continue
         scores[m] = sc_
         pred[m] = pd_
         thr = sub.uns.get("scrublet", {}).get("threshold") if isinstance(sub.uns.get("scrublet"), dict) else None
-        per_sample[str(session.pseudo.to_pseudo(smp))] = {"n_cells": int(len(m)), "doublet_rate": round(float(pd_.mean()), 4), "score_threshold": None if thr is None else round(float(thr), 3)}
+        per_sample[str(session.pseudo.to_pseudo(smp))] = {"n_cells": int(len(m)), "doublet_rate": round(float(pd_.mean()), 4), "score_threshold": None if (thr is None or not np.isfinite(float(thr))) else round(float(thr), 3), **({"threshold_source": f"fallback quantile at expected rate ({fallback:.3f}); Scrublet's automatic threshold found no doublets"} if fallback is not None else {})}
     a.obs["doublet_score"] = scores
     a.obs["predicted_doublet"] = pred
     n_doublets = int(pred.sum())
@@ -832,22 +839,37 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
     df = df[["gene", "log2fc", "padj", "pct_in", "pct_out", "scores"]].set_index("gene")
     df = df.sort_values("scores", ascending=False)
     session.save_table(f"markers_{key}_{cluster}_vs_{'rest' if ref == 'rest' else '-'.join(ref)}", df)
-    up = df[(df["log2fc"] > 0)].head(n_top)
+    up_all = df[(df["log2fc"] > 0)]
+    stress = stress_fraction(list(up_all.head(30).index))
+    is_stress = up_all.index.to_series().str.upper().isin(STRESS_GENES).to_numpy()
+    # the dissociation programme is often SUPERIMPOSED on a real population (and differs between
+    # conditions when tissues were handled differently), so: report markers with the stress genes
+    # removed, and call the cluster an artefact only when little survives that removal
+    up_clean = up_all[~is_stress]
+    strong_clean = int(((up_clean["log2fc"] >= 1.0) & (up_clean["padj"] < 0.05)).sum())
+    suspect = bool(stress >= 0.3 and strong_clean < 10)
+    up = (up_clean if stress >= 0.3 else up_all).head(n_top)
     session.facts.setdefault("markers", {})[f"{cluster}_vs_{'rest' if ref == 'rest' else ','.join(ref)}"] = up.head(50).reset_index().to_dict(orient="records")
-    stress = stress_fraction(list(up.head(30).index))
-    if stress >= 0.3:
+    if suspect:
         session.facts.setdefault("stress_suspect_clusters", {})[str(cluster)] = round(stress, 2)
-    return {
+    else:
+        session.facts.get("stress_suspect_clusters", {}).pop(str(cluster), None)
+    out = {
         "cluster": cluster,
         "cluster_key": key,
         "reference": "rest" if ref == "rest" else ref,
         "n_cells_target": int((labels == cluster).sum()),
         "n_cells_reference": int(sub.n_obs - (labels == cluster).sum()),
         "dissociation_stress_fraction_top30": round(stress, 2),
-        "stress_artifact_suspect": bool(stress >= 0.3),
+        "n_strong_markers_excluding_stress_genes": strong_clean,
+        "stress_artifact_suspect": suspect,
         "top_markers": up,
-        **({"warning": f"{stress:.0%} of the top 30 markers are immediate-early / heat-shock genes (FOS, JUN, HSPA1A, DNAJB1 ...): this cluster is likely a dissociation-stress artefact, not a disease state. Do not record it as one unless the signal survives after excluding those genes."} if stress >= 0.3 else {}),
     }
+    if stress >= 0.3 and not suspect:
+        out["note"] = f"{stress:.0%} of the raw top-30 markers are dissociation-stress genes (FOS, JUN, HSPA1A, DNAJB1 ...); they were removed from top_markers and {strong_clean} strong markers remain, so this is a real population carrying a stress response (handling differs between conditions). Do not nominate the stress genes."
+    if suspect:
+        out["warning"] = f"{stress:.0%} of the top-30 markers are dissociation-stress genes and only {strong_clean} strong markers remain without them: this cluster is likely a dissociation-stress artefact, not a disease state."
+    return out
 
 
 @tool(

@@ -155,7 +155,9 @@ class ScriptedModel:
         def prio(c):
             r = rows.get(c, {})
             return -((r.get("log2_ratio") or 0) * np.log10(max(10, r.get("n_cells") or 10)))
-        enriched = [c for c in sorted(da.get("disease_enriched_clusters", []), key=prio) if str(c) not in stress][:2]
+        def prio2(c):
+            return (0 if "+" in str(c) else 1, prio(c))  # a merged cluster was built on purpose: characterise it first
+        enriched = [c for c in sorted(da.get("disease_enriched_clusters", []), key=prio2) if str(c) not in stress][:3]
         if not enriched:
             retries = self._step.get("analyst_recluster", 0)
             da_thr = float(self.session.cfg.get("analysis.differential_abundance.enrichment_log2fc", 1.0))
