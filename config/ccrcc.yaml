@@ -3,7 +3,9 @@ dataset:
   species: homo_sapiens                  # no ortholog step
   sample_key: sample                     # GSM library (patient SS_2014 contributes cortex + medulla as two benign libraries)
   condition_key: condition
-  celltype_key: author_celltype          # the authors' annotation when attached; set analysis.lineages.ignore_annotation: true to run annotation-free
+  celltype_key: author_celltype          # authors' annotation collapsed to Epithelial/Endothelial/Mesenchymal/Immune; set analysis.lineages.ignore_annotation: true for the annotation-free arm
+  # provenance: GEO 'tissue' labels for the four matched-pair patients are swapped relative to the authors'
+  # annotation files and to the data (CA9); the builder uses the annotation files and keeps obs['geo_tissue']
   disease: ccRCC
   reference: [Benign]
   condition_descriptions:
@@ -12,7 +14,7 @@ dataset:
   counts_layer: counts
   already_processed: false               # filtered 10x matrices: run QC, recompute embedding + clustering
   reuse_clustering: null
-  forbidden_obs_columns: [sex, library]
+  forbidden_obs_columns: [sex, library, author_anno_fine, geo_tissue]
 analysis:
   lineages:
     ignore_annotation: false             # flip to true for the annotation-free arm
