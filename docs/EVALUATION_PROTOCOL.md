@@ -236,3 +236,18 @@ infiltrates that are consistent across patients (every tumour has TAMs; benign k
 over malignant cells that partition by patient: the agent run characterised macrophage and T-cell
 clusters, and the critic correctly refused both as lineage-wide. That bias is now stated.
 
+## 15. QC as a recorded choice; doublets
+
+`run_qc(apply=false)` previews what the thresholds would remove - overall, per sample (with each
+sample's mito and gene-count distribution) and per annotated type - without changing the data.
+The analyst is told to preview, adjust the caps if a lineage would lose most of its cells, then
+apply. The data-driven rule stays the default, so the result is reproducible; the deviation is
+what gets logged and justified.
+
+`detect_doublets` runs Scrublet per sample and FLAGS doublets (doublet_score, predicted_doublet
+on every cell) rather than removing them; `cluster_composition` reports each cluster's
+doublet_frac and marks `doublet_suspect` clusters (>= 20% and >= 3x the dataset rate). A tumour-
+immune or tumour-endothelial doublet cluster looks exactly like a disease-enriched, state-specific
+population, so this is a guard for the composition route, not only hygiene. Removal is an explicit
+option (remove=true). The scripted model flags and skips suspect clusters; it does not remove.
+

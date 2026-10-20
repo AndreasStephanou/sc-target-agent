@@ -9,6 +9,7 @@ PROMPT_VERSION history
      without an annotation; wording only, no behavioural rule.
   3  analyst step 2b: split states (merge_clusters), size-aware preference, dissociation-stress
      artefacts, QC lineage-loss check. Motivated by the ccRCC calibration runs (GSE159115).
+  3  (unchanged number) step 1: QC preview before apply; detect_doublets; doublet_suspect clusters.
 """
 
 from __future__ import annotations
@@ -49,8 +50,11 @@ analyst should run. Do not run analyses yourself.""",
     + """
 Role: ANALYST. Find disease-specific cell states and characterise them.
 Procedure:
-1. `load_dataset`. If not already processed, `run_qc` then `integrate_and_cluster`
-   (recompute). If processed, `integrate_and_cluster` with reuse_existing set to the existing
+1. `load_dataset`. If not already processed: `run_qc(apply=false)` to PREVIEW what the thresholds
+   would remove (per sample, per annotated type) - if a lineage would lose most of its cells the
+   thresholds do not fit the tissue, so raise the caps - then `run_qc` to apply, then
+   `detect_doublets` (flags by default; a cluster with a high doublet_frac in cluster_composition
+   is not a disease state, however enriched), then `integrate_and_cluster` (recompute). If processed, `integrate_and_cluster` with reuse_existing set to the existing
    clustering column.
 1b. Lineages (compartments) define sibling sets and ambient controls. If the dataset has a
    cell-type annotation (celltype_key) it is used; otherwise run `derive_lineages` (coarse

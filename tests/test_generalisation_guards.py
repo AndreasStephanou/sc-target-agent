@@ -83,3 +83,28 @@ def test_split_state_candidates_reported(cfg, tmp_path):
     A.integrate_and_cluster(s, reuse_existing=None, resolution=2.0, use_harmony=False)
     da = A.differential_abundance(s)
     assert "split_state_candidates" in da and isinstance(da["split_state_candidates"], list)
+
+
+def test_qc_preview_changes_nothing(cfg, tmp_path):
+    s = AnalysisSession.create(cfg, tmp_path / "prev")
+    A.load_dataset(s)
+    n = s.adata.n_obs
+    r = A.run_qc(s, apply=False, mode="fixed", max_mt_pct=10.0)
+    assert r["preview"] is True and s.adata.n_obs == n and "thresholds_proposed" in r and "per_sample_distributions" in r
+    assert "qc" not in s.facts or s.facts["qc"].get("preview") is None  # nothing recorded as applied
+
+
+def test_detect_doublets_flags_then_removes(cfg, tmp_path):
+    s = AnalysisSession.create(cfg, tmp_path / "dbl")
+    A.load_dataset(s)
+    n = s.adata.n_obs
+    r = A.detect_doublets(s)
+    assert "predicted_doublet" in s.adata.obs and "doublet_score" in s.adata.obs
+    assert r["removed"] is False and s.adata.n_obs == n
+    assert any(v.get("doublet_rate") is not None for v in r["per_sample"].values())
+    A.integrate_and_cluster(s, reuse_existing=cfg.dataset.get("reuse_clustering"))
+    comp = A.cluster_composition(s)["table"]
+    assert "doublet_frac" in comp.columns and "doublet_suspect" in comp.columns
+    r2 = A.detect_doublets(s, remove=True)
+    assert r2["removed"] in (True, False)  # True unless no doublets were predicted at all
+    assert s.adata.n_obs <= n

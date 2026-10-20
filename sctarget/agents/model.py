@@ -118,6 +118,7 @@ class ScriptedModel:
         processed = bool(ds.get("already_processed_flag"))
         if not processed:
             steps.append(ToolUse("run_qc", dict(cfg.analysis.get("qc", {}))))
+            steps.append(ToolUse("detect_doublets", {}))
         reuse = ds["existing_clusterings"][0] if processed and ds.get("existing_clusterings") else None
         integ = cfg.analysis.get("integration", {})
         steps.append(ToolUse("integrate_and_cluster", {"reuse_existing": reuse, "use_harmony": bool(integ.get("use_harmony", True)), "resolution": float(integ.get("resolution", 1.0)), "n_pcs": int(integ.get("n_pcs", 30))}))
@@ -150,6 +151,7 @@ class ScriptedModel:
         # size-aware ordering: effect x log10(cells), so a large consistent state outranks a tiny extreme one;
         # dissociation-stress suspects are skipped
         stress = set(map(str, f.get("stress_suspect_clusters", {}).keys()))
+        stress |= {str(c) for c, r in comp.items() if r.get("doublet_suspect")}
         def prio(c):
             r = rows.get(c, {})
             return -((r.get("log2_ratio") or 0) * np.log10(max(10, r.get("n_cells") or 10)))

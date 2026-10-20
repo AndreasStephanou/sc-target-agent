@@ -206,7 +206,8 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
 @tool(
     name="run_qc",
     description="""
-    Cell/gene quality control on raw counts. mode='adaptive' (default) sets the mitochondrial and
+    Cell/gene quality control on raw counts. Call with apply=false first to PREVIEW what the
+    thresholds would remove; then apply. mode='adaptive' (default) sets the mitochondrial and
     gene-count cutoffs PER SAMPLE from the data (median + n_mads median absolute deviations, in
     log space for counts), bounded by the hard caps given; this is what transfers across tissues
     - a fixed 10% mitochondrial cutoff removes most healthy kidney tubule or cardiomyocytes, whose
@@ -224,13 +225,14 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
             "max_mt_pct": {"type": "number", "description": "hard cap on % mitochondrial counts (fixed mode: the threshold; adaptive mode: the ceiling the per-sample threshold may not exceed)", "default": 50.0},
             "mt_floor_pct": {"type": "number", "default": 20.0, "description": "adaptive mode: the per-sample mito threshold never falls below this, so a mitochondria-rich lineage that is a minority in a sample is not cut wholesale"},
             "min_cells_per_gene": {"type": "integer", "default": 3},
+            "apply": {"type": "boolean", "default": True, "description": "false = PREVIEW: compute thresholds and what they would remove (overall, per sample, per annotated type) without changing the data. Preview first, adjust, then apply."},
         },
         "required": [],
     },
     roles=ANALYST,
     mutates_state=True,
 )
-def run_qc(session: AnalysisSession, mode: str = "adaptive", n_mads: float = 3.0, min_genes: int = 200, max_genes: int = 8000, max_mt_pct: float = 50.0, mt_floor_pct: float = 20.0, min_cells_per_gene: int = 3) -> dict[str, Any]:
+def run_qc(session: AnalysisSession, mode: str = "adaptive", n_mads: float = 3.0, min_genes: int = 200, max_genes: int = 8000, max_mt_pct: float = 50.0, mt_floor_pct: float = 20.0, min_cells_per_gene: int = 3, apply: bool = True) -> dict[str, Any]:
     a = session.require_adata()
     layer = session.cfg.dataset.get("counts_layer")
     layer = layer if layer and layer in a.layers else None
@@ -268,6 +270,29 @@ def run_qc(session: AnalysisSession, mode: str = "adaptive", n_mads: float = 3.0
         ct = a.obs[ck].astype(str)
         rem = pd.DataFrame({"type": ct.to_numpy(), "removed": (~keep).to_numpy()}).groupby("type")["removed"].agg(["mean", "size"])
         removed_by_type = {t: {"frac_removed": round(float(r["mean"]), 3), "n": int(r["size"])} for t, r in rem.iterrows()}
+    heavy = [t for t, v in (removed_by_type or {}).items() if v["frac_removed"] > 0.5 and v["n"] >= 50 and t.lower() not in ("unannotated", "unknown", "ua", "nan")]
+    if not apply:
+        per_sample_prev = pd.DataFrame({"before": before_per_sample, "would_keep": pd.Series(keep.to_numpy(), index=a.obs_names).groupby(samples).sum()}).fillna(0).astype(int)
+        per_sample_prev["retained_frac"] = (per_sample_prev["would_keep"] / per_sample_prev["before"]).round(3)
+        per_sample_prev.index = session.pseudo.map_index(per_sample_prev.index)
+        dist = pd.DataFrame({"pct_mt": mt, "n_genes": ng}).groupby(samples).agg(["median", lambda v: float(np.percentile(v, 90))])
+        dist.columns = ["pct_mt_median", "pct_mt_p90", "n_genes_median", "n_genes_p90"]
+        dist.index = session.pseudo.map_index(dist.index)
+        out = {
+            "preview": True,
+            "cells_before": int(before),
+            "cells_would_keep": int(keep.sum()),
+            "mode": mode,
+            "thresholds_proposed": thresholds,
+            "per_sample": per_sample_prev,
+            "per_sample_distributions": dist.round(1),
+            "would_remove_by_annotated_type": removed_by_type,
+            "params": {"mode": mode, "n_mads": n_mads, "min_genes": min_genes, "max_genes": max_genes, "max_mt_pct": max_mt_pct, "mt_floor_pct": mt_floor_pct},
+            "note": "Nothing was changed. Adjust mode / caps if a lineage would lose most of its cells, then call again with apply=true.",
+        }
+        if heavy:
+            out["warning"] = f"These thresholds would remove > 50% of annotated types {heavy}: likely a tissue whose normal mitochondrial fraction is high. Raise mt_floor_pct / max_mt_pct or keep adaptive mode."
+        return out
     session.adata = a[keep.to_numpy()].copy()
     a = session.adata
     gene_counts = np.asarray((session.counts() > 0).sum(axis=0)).ravel()
@@ -293,7 +318,6 @@ def run_qc(session: AnalysisSession, mode: str = "adaptive", n_mads: float = 3.0
         "params": {"mode": mode, "n_mads": n_mads, "min_genes": min_genes, "max_genes": max_genes, "max_mt_pct": max_mt_pct, "mt_floor_pct": mt_floor_pct, "min_cells_per_gene": min_cells_per_gene},
     }
     if removed_by_type:
-        heavy = [t for t, v in removed_by_type.items() if v["frac_removed"] > 0.5 and v["n"] >= 50 and t.lower() not in ("unannotated", "unknown", "ua", "nan")]
         if heavy:
             out["warning"] = f"QC removed > 50% of annotated types {heavy}: the thresholds may not fit this tissue (e.g. mitochondria-rich epithelia). Consider mode='adaptive' with a higher max_mt_pct cap."
     session.facts["qc"] = {k: v for k, v in out.items() if k != "per_sample"}
@@ -355,6 +379,66 @@ def merge_clusters(session: AnalysisSession, clusters: list[str], cluster_key: s
         row = tab.loc[[merged]] if merged in tab.index else tab.iloc[0:0]
     rec = row.iloc[0].to_dict() if len(row) else {}
     return {"cluster_key": new_key, "merged_cluster": merged, "pieces": clusters, "piece_disease_fracs": {c: round(f, 3) for c, f in fracs.items()}, "n_cells": int((a.obs[new_key] == merged).sum()), "merged_abundance": {k: rec.get(k) for k in ("log2_ratio", "mwu_p", "n_disease_samples_present", "enriched") if k in rec}, "note": "The merged label is now the active cluster; characterise it (find_markers / pseudobulk_de against its lineage siblings) like any state. Record the merge reason in your finding."}
+
+
+@tool(
+    name="detect_doublets",
+    description="""
+    Per-sample doublet detection (Scrublet, via scanpy): writes doublet_score and predicted_doublet
+    for every cell and reports the doublet rate per sample. By default doublets are FLAGGED, not
+    removed: cluster_composition then reports each cluster's doublet fraction and marks
+    doublet_suspect clusters (a tumour-immune or tumour-endothelial doublet cluster looks exactly
+    like a disease-enriched, state-specific population). Set remove=true to drop predicted doublets
+    (an explicit, recorded choice). Run after run_qc and before integrate_and_cluster.""",
+    input_schema={
+        "properties": {
+            "expected_doublet_rate": {"type": "number", "default": 0.06},
+            "remove": {"type": "boolean", "default": False},
+            "threshold": {"type": ["number", "null"], "default": None, "description": "fixed score threshold instead of Scrublet's automatic one"},
+        },
+        "required": [],
+    },
+    roles=ANALYST,
+    mutates_state=True,
+)
+def detect_doublets(session: AnalysisSession, expected_doublet_rate: float = 0.06, remove: bool = False, threshold: float | None = None) -> dict[str, Any]:
+    a = session.require_adata()
+    layer = session.cfg.dataset.get("counts_layer")
+    seed = int(session.cfg.agent.get("seed", 0))
+    scores = np.full(a.n_obs, np.nan)
+    pred = np.zeros(a.n_obs, dtype=bool)
+    samples = a.obs[session.sample_key].astype(str).to_numpy()
+    per_sample = {}
+    for smp in np.unique(samples):
+        m = np.where(samples == smp)[0]
+        if len(m) < 100:
+            per_sample[str(session.pseudo.to_pseudo(smp))] = {"n_cells": int(len(m)), "doublet_rate": None, "note": "too few cells"}
+            continue
+        sub = a[m].copy()
+        if layer and layer in sub.layers:
+            sub.X = sub.layers[layer].copy()
+        try:
+            sc.pp.scrublet(sub, expected_doublet_rate=expected_doublet_rate, threshold=threshold, random_state=seed, verbose=False)
+            sc_ = sub.obs["doublet_score"].to_numpy()
+            pd_ = sub.obs["predicted_doublet"].astype(bool).to_numpy()
+        except Exception as e:  # scrublet can fail on tiny / degenerate samples
+            per_sample[str(session.pseudo.to_pseudo(smp))] = {"n_cells": int(len(m)), "doublet_rate": None, "error": f"{type(e).__name__}: {str(e)[:120]}"}
+            continue
+        scores[m] = sc_
+        pred[m] = pd_
+        thr = sub.uns.get("scrublet", {}).get("threshold") if isinstance(sub.uns.get("scrublet"), dict) else None
+        per_sample[str(session.pseudo.to_pseudo(smp))] = {"n_cells": int(len(m)), "doublet_rate": round(float(pd_.mean()), 4), "score_threshold": None if thr is None else round(float(thr), 3)}
+    a.obs["doublet_score"] = scores
+    a.obs["predicted_doublet"] = pred
+    n_doublets = int(pred.sum())
+    out: dict[str, Any] = {"n_cells": int(a.n_obs), "n_predicted_doublets": n_doublets, "overall_rate": round(n_doublets / max(1, a.n_obs), 4), "per_sample": per_sample, "removed": False}
+    if remove and n_doublets:
+        session.adata = a[~pred].copy()
+        out["removed"] = True
+        out["n_cells_after"] = int(session.adata.n_obs)
+    session.facts["doublets"] = {k: v for k, v in out.items() if k != "per_sample"}
+    out["note"] = "Scores are stored per cell; cluster_composition now reports doublet_frac and doublet_suspect per cluster. Flagged by default; pass remove=true to drop predicted doublets."
+    return out
 
 
 @tool(
@@ -542,6 +626,12 @@ def cluster_composition(session: AnalysisSession, cluster_key: str | None = None
         dom = pd.crosstab(a.obs[key].astype(str), a.obs[ck].astype(str))
         df["dominant_celltype"] = dom.idxmax(axis=1)
         df["dominant_celltype_frac"] = (dom.max(axis=1) / dom.sum(axis=1)).round(3)
+    if "predicted_doublet" in a.obs:
+        dfrac = a.obs.groupby(a.obs[key].astype(str), observed=True)["predicted_doublet"].mean()
+        df["doublet_frac"] = dfrac.reindex(df.index).round(3)
+        overall = float(a.obs["predicted_doublet"].mean())
+        # suspect: well above the dataset rate and above 1 in 5 cells
+        df["doublet_suspect"] = (df["doublet_frac"] >= max(0.2, 3 * overall))
     df.index.name = "cluster"
     session.save_table(f"cluster_composition_{key}", df)
     session.facts["cluster_composition"] = df.reset_index().to_dict(orient="records")
