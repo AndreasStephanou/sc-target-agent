@@ -17,6 +17,7 @@ dependencies = [
     "pandas>=2.0",
     "scipy>=1.10",
     "scikit-learn>=1.3",
+    "scikit-image>=0.21",   # scrublet automatic threshold (detect_doublets falls back without it)
     "matplotlib>=3.7",
     "pyyaml>=6.0",
     "requests>=2.31",

@@ -418,7 +418,15 @@ def detect_doublets(session: AnalysisSession, expected_doublet_rate: float = 0.0
         if layer and layer in sub.layers:
             sub.X = sub.layers[layer].copy()
         try:
-            sc.pp.scrublet(sub, expected_doublet_rate=expected_doublet_rate, threshold=threshold, random_state=seed, verbose=False)
+            try:
+                sc.pp.scrublet(sub, expected_doublet_rate=expected_doublet_rate, threshold=threshold, random_state=seed, verbose=False)
+            except ValueError as e:
+                if "skimage" not in str(e):
+                    raise
+                # scanpy's automatic threshold needs scikit-image; without it, get the scores with a
+                # provisional threshold and let the quantile fallback below call the doublets
+                sc.pp.scrublet(sub, expected_doublet_rate=expected_doublet_rate, threshold=1.0, random_state=seed, verbose=False)
+                sub.obs["predicted_doublet"] = False
             sc_ = sub.obs["doublet_score"].to_numpy().astype(float)
             pred_col = sub.obs["predicted_doublet"]
             pd_ = pred_col.fillna(False).astype(bool).to_numpy() if pred_col.dtype == object or pred_col.isna().any() else pred_col.astype(bool).to_numpy()
