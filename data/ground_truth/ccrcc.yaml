@@ -1,0 +1,13 @@
+# Frozen answer key for GSE159115 (clear cell RCC vs benign kidney). Drafted from the published
+# ccRCC single-cell biology (Young 2018 Science; Zhang 2021 PNAS) before any run on this dataset.
+expected_states:
+  - name: ccRCC_tumour_cells            # VHL-loss / HIF programme in proximal-tubule-derived tumour cells
+    marker_genes: [CA9, NDUFA4L2, EGLN3, VEGFA, ANGPTL4, SLC2A1, PLIN2, LOX, CP, NNMT, VIM, ENO2, FABP7, SPP1, PDK1, BHLHE41]
+    min_marker_overlap: 5
+expected_targets: [EPAS1]                # HIF-2alpha: belzutifan (FDA-approved; VHL disease 2021, advanced ccRCC 2023)
+acceptable_targets: [CA9, VEGFA]         # ccRCC-specific / clinical-stage (girentuximab, SLC-0111; bevacizumab) but not the driver
+expected_drugs: [belzutifan]
+decoy_targets: [MKI67, TOP2A, KDR, FLT1, CUBN, LRP2, PAX8, KRT8, KRT18, EGFR]
+# KDR / FLT1: targets of real ccRCC drugs (sunitinib, pazopanib) but expressed by normal endothelium -> not disease-specific
+# CUBN / LRP2 / PAX8: proximal-tubule / renal lineage markers; KRT8/18, EGFR: pan-epithelial; MKI67 / TOP2A: proliferation
+per_cell_truth: null
