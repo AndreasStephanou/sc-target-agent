@@ -2,7 +2,9 @@
 
 dataset:
   path: data/synthetic/synthetic.h5ad       # processed AnnData
-  species: homo_sapiens                     # homo_sapiens | canis_lupus_familiaris | mus_musculus ...
+  species: homo_sapiens                     # homo_sapiens (no ortholog step) | mus_musculus | canis_lupus_familiaris ... (Ensembl orthologs, or human_symbol_var)
+  # disease / reference may also be written as case / reference: any two-condition design
+  # (treated vs vehicle, knockout vs wild-type, infected vs mock) maps onto them.
   sample_key: sample                        # obs column: biological replicate / donor / animal
   condition_key: condition                  # obs column: disease / tissue group
   celltype_key: cell_type                   # obs column with existing annotations (optional, may be null)
@@ -50,6 +52,7 @@ targets:
   min_specificity_log2fc: 1.0               # disease-state vs all other states
   top_k_report: 15
   exclude_gene_patterns: null               # regexes for genes never nominated (default: ENS*G ids, LOC*, MT-, RPL/RPS, snoRNA/miRNA/lincRNA)
+  objective: target                         # target = druggable targets (default) | marker = condition-specific response genes (druggability reported, not scored)
   weights:                                  # scoring weights, sum ~1
     effect_size: 0.25
     specificity: 0.25

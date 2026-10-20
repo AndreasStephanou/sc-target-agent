@@ -17,6 +17,8 @@ dataset:
   already_processed: true
 
 analysis:
+  lineages:
+    ignore_annotation: true
   integration:
     use_harmony: true                   # only used if the agent decides to recompute clustering
     resolution: 1.0
@@ -41,3 +43,4 @@ privacy:
   #  - sample_names / donor carry pet names; the rest is per-animal metadata the agent does not need
   forbidden_obs_columns: [refined_anno, sample_names, sample_tube_number, breed_status, Sex, Age,
                           Tumor_Location, BRAF_status, bc1_wind, bc2_wind, bc3_wind, bc1_well, bc2_well, bc3_well]
+

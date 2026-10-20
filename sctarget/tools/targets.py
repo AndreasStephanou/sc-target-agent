@@ -127,7 +127,12 @@ def _ensure_compartment_de(session: AnalysisSession, cluster: str) -> bool:
     roles=ALL,
 )
 def score_targets(session: AnalysisSession, genes: list[str], cluster: str, human_symbols: dict[str, str] | None = None) -> dict[str, Any]:
-    w = session.cfg.targets.get("weights", {})
+    w = dict(session.cfg.targets.get("weights", {}))
+    objective = str(session.cfg.targets.get("objective", "target"))
+    if objective == "marker":
+        # a perturbation / response study: rank the strongest, most specific, most consistent
+        # condition-specific genes; druggability is reported but does not drive the ranking
+        w = {"effect_size": 0.40, "specificity": 0.35, "druggability": 0.0, "known_compounds": 0.0, "consistency_across_samples": 0.25, **{k: v for k, v in w.items() if k in ("effect_size", "specificity", "consistency_across_samples") and session.cfg.targets.get("weights_override_marker")}}
     w_eff = float(w.get("effect_size", 0.25))
     w_spec = float(w.get("specificity", 0.25))
     w_drug = float(w.get("druggability", 0.25))
@@ -257,7 +262,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
     df["rank"] = np.arange(1, len(df) + 1)
     session.save_table(f"ranked_targets_{cluster}", df)
     session.facts.setdefault("ranked_targets", {})[str(cluster)] = df.reset_index().to_dict(orient="records")
-    return {"cluster": str(cluster), "state_basis": basis, "scoring_version": sv, "effect_axes": (["cluster_vs_siblings", "disease_vs_reference_within_compartment"] if use_lineage_axis else ["cluster_vs_siblings" if basis == "composition" else "disease_vs_reference_within_cluster"]), "specificity_component": ("within-cluster disease vs reference log2FC" if basis == "program" else "cluster vs max other cluster log2 ratio"), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
+    return {"cluster": str(cluster), "state_basis": basis, "scoring_version": sv, "objective": objective, "effect_axes": (["cluster_vs_siblings", "disease_vs_reference_within_compartment"] if use_lineage_axis else ["cluster_vs_siblings" if basis == "composition" else "disease_vs_reference_within_cluster"]), "specificity_component": ("within-cluster disease vs reference log2FC" if basis == "program" else "cluster vs max other cluster log2 ratio"), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
 
 
 MIN_STATE_GENES = 5  # a disease_state finding without its signature cannot be acted on downstream

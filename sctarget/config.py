@@ -85,6 +85,13 @@ def load_config(path: str | Path | None = None, overrides: dict | None = None) -
         base = _deep_update(base, user)
     if overrides:
         base = _deep_update(base, overrides)
+    ds = base.get("dataset", {})
+    if "case" in ds:  # alias: any two-condition design (the default config carries a placeholder 'disease')
+        ds["disease"] = ds.pop("case")
+    if "control" in ds:
+        ds["reference"] = ds.pop("control")
+    if isinstance(ds.get("reference"), str):
+        ds["reference"] = [ds["reference"]]
     # env overrides
     if os.getenv("SCTARGET_MODEL"):
         base["agent"]["model"] = os.environ["SCTARGET_MODEL"]

@@ -107,3 +107,48 @@ def test_excluded_gene_patterns():
     assert excluded_gene("ENSCAFG00000047853") and excluded_gene("LOC102154") and excluded_gene("MT-CO1")
     assert excluded_gene("RPL13A") and excluded_gene("U6-968") and excluded_gene("ENSG00000178568")
     assert not excluded_gene("ERBB4") and not excluded_gene("PEG3") and not excluded_gene("C1H18orf54") and not excluded_gene("HLA-DQB1")
+
+
+def test_human_dataset_skips_ortholog_lookup(cfg, tmp_path, monkeypatch):
+    import copy
+
+    from sctarget.session import AnalysisSession
+    from sctarget.tools.knowledge import map_orthologs
+
+    c = copy.deepcopy(cfg)
+    c.raw["dataset"]["species"] = "human"
+    c.raw["dataset"].pop("human_symbol_var", None)
+    s = AnalysisSession.create(c, tmp_path / "h")
+
+    def boom(*a, **k):
+        raise AssertionError("network ortholog lookup must not run for human data")
+
+    monkeypatch.setattr("sctarget.tools.knowledge._client", boom)
+    r = map_orthologs(s, genes=["ERBB4", "PEG3"])
+    assert r["mapping"]["ERBB4"]["human_symbol"] == "ERBB4" and r["mapping"]["ERBB4"]["type"] == "identity" and not r["unmapped"]
+
+
+def test_config_case_control_aliases(tmp_path):
+    import yaml
+
+    from sctarget.config import load_config
+
+    p = tmp_path / "c.yaml"
+    yaml.safe_dump({"dataset": {"path": "x.h5ad", "sample_key": "s", "condition_key": "c", "case": "treated", "control": "vehicle"}}, open(p, "w"))
+    c = load_config(p)
+    assert c.dataset["disease"] == "treated" and c.dataset["reference"] == ["vehicle"]
+
+
+def test_marker_objective_zeroes_druggability(cfg, tmp_path):
+    import copy
+
+    from sctarget.agents.orchestrator import run_pipeline
+
+    c = copy.deepcopy(cfg)
+    c.raw.setdefault("targets", {})["objective"] = "marker"
+    res = run_pipeline(c, model_name="scripted", run_dir=tmp_path / "mk", write_report=False)
+    rows = next(iter(res.facts["ranked_targets"].values()))
+    # with druggability out of the score, ranking follows effect/specificity/consistency only
+    assert rows and all("score" in r for r in rows)
+    scored = [r for r in rows if r["druggability_score"] == 0.0]
+    assert scored, "expected some non-druggable genes to be scored on biology alone"

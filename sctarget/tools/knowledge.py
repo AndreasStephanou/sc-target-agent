@@ -315,6 +315,9 @@ def _client(session: AnalysisSession) -> KnowledgeClient:
     return session.facts["knowledge_client"]
 
 
+HUMAN_ALIASES = {"homo_sapiens", "human", "hsapiens", "h_sapiens", "homo sapiens"}
+
+
 @tool(
     name="map_orthologs",
     description="""
@@ -334,6 +337,11 @@ def map_orthologs(session: AnalysisSession, genes: list[str], from_species: str 
     sp = from_species or session.cfg.dataset.get("species", "homo_sapiens")
     res: dict[str, dict[str, Any]] = {}
     remaining = list(genes)
+    if str(sp).strip().lower() in HUMAN_ALIASES:
+        # human data: symbols are already the knowledge-base vocabulary; no lookup, no network
+        res = {g: {"human_symbol": g, "type": "identity", "source": "human dataset"} for g in genes}
+        session.facts.setdefault("orthologs", {}).update(res)
+        return {"from_species": sp, "mapping": res, "unmapped": [], "assumed_or_unverified": [], "n_from_var_column": 0, "note": "human dataset: identity mapping"}
     # 1) a precomputed mapping shipped inside the AnnData (dataset.human_symbol_var) wins:
     #    it is offline, reproducible, and under the analyst's control (e.g. made once with biomaRt)
     col = session.cfg.dataset.get("human_symbol_var")

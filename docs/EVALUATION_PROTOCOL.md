@@ -183,3 +183,23 @@ coarse group, which weakens the state-vs-normal sibling contrast (the reference-
 axis of scoring v2 is the mitigation). Synthetic check: the e2e pipeline passes with
 `celltype_key` removed (`tests/test_lineages.py`).
 
+## 13. Any species, any two conditions
+
+What is dataset-specific lives in the config and the answer key; the tools and prompts are generic.
+`scripts/new_dataset.py <h5ad> --name X` inspects an object, guesses sample / condition / cell-type
+columns, counts location and species from the gene symbols, and writes `config/X.yaml` plus a
+ground-truth template with every guess marked for checking.
+
+* Conditions: `disease` / `reference` may be written `case` / `control`; any two-condition design
+  (treated vs vehicle, knockout vs wild-type, infected vs mock) maps onto them.
+* Objective: `targets.objective: target` (default; druggability scored) or `marker` (a perturbation
+  or response study: druggability reported but not scored).
+* Species: human data skips the ortholog step (identity mapping, no network); other species map
+  to human through `dataset.human_symbol_var` when provided, else Ensembl. Drug knowledge is
+  human-centric; for non-model species the same-name assumption is reported and should be flagged.
+* Cell-type annotation is optional (section 12).
+* Before any model run on a new dataset: freeze and commit its key; run the scripted model once
+  (free) as calibration and check how many clusters pass each gate (section 1-2); then one model run.
+* The evaluator is for validating the method on datasets with a known answer; the pipeline runs
+  without a key and produces hypotheses with critic flags.
+
