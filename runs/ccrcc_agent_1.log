@@ -1,0 +1,8 @@
+nohup: ignoring input
+run dir : runs/ccrcc_agent_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns= 6 tools= 9 errors=0  stop=end_turn
+  target   turns= 7 tools=19 errors=0  stop=end_turn
+  critic   turns= 5 tools=13 errors=0  stop=end_turn
+report  : runs/ccrcc_agent_1/report.md
+elapsed : 264.9s

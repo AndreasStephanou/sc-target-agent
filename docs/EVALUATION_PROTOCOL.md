@@ -203,3 +203,36 @@ ground-truth template with every guess marked for checking.
 * The evaluator is for validating the method on datasets with a known answer; the pipeline runs
   without a key and produces hypotheses with critic flags.
 
+## 14. Lessons from the second dataset's calibration (ccRCC, GSE159115)
+
+Three generic defects surfaced on the first scripted run of a dissociated human tumour dataset,
+none of which the snRNA-seq CAA data could have shown. All fixes are rule-level and name no gene.
+
+* **Fixed QC thresholds do not transfer across tissues.** `max_mt_pct: 10` removed 61% of benign
+  epithelium and ~99% of the distal nephron (thick ascending limb, DCT, CNT, intercalated cells,
+  median mito fraction 25-45%, normal for those cells), i.e. the tumour's normal counterpart.
+  `run_qc` is now adaptive per sample (median + n MADs, mito threshold floored at 20% and capped at
+  50%; the lower gene bound stays fixed because an adaptive one cuts low-complexity minority
+  lineages) and reports the fraction of each annotated type removed, warning when a lineage loses
+  more than half of its cells.
+* **A state split across clusters fails the composition test piecewise.** Malignant cells partition
+  by patient: clusters 0/2/3 were each ~97% tumour and present in every tumour library, yet each
+  missed the per-sample enrichment test (p 0.05-0.10) because every library's cells fall mostly in
+  one piece. `differential_abundance` now reports `split_state_candidates` and `merge_clusters`
+  tests their union (the mirror of `subcluster`). The scripted model merges automatically; the
+  analyst prompt (v3) says when to.
+* **Dissociation-stress clusters masquerade as disease states.** A 370-cell heat-shock cluster
+  (DNAJB1, HSPA1A, HSPA6, BAG3, ATF3, JUN) topped the enrichment ranking. `find_markers` flags
+  clusters whose top markers are dominated by the immediate-early / heat-shock programme
+  (`stress_artifact_suspect`); the scripted model skips them; the prompt names the trap.
+* **Ranking candidate states by fold-ratio alone favours small extreme clusters** (600 and 370
+  cells) over the large consistent ones (2,000 cells). The scripted model now orders by
+  log2 ratio x log10(cells); the prompt says the same in words.
+
+Also from this dataset: the GEO `tissue` characteristics were swapped for four of thirteen
+libraries (confirmed by CA9/NDUFA4L2); the builder takes tissue from the authors' annotation
+files and keeps the GEO value for the record. The composition route, as a design, favours
+infiltrates that are consistent across patients (every tumour has TAMs; benign kidney has few)
+over malignant cells that partition by patient: the agent run characterised macrophage and T-cell
+clusters, and the critic correctly refused both as lineage-wide. That bias is now stated.
+

@@ -206,14 +206,23 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
 @tool(
     name="run_qc",
     description="""
-    Standard cell/gene quality control on raw counts: filters cells by number of detected
-    genes and mitochondrial fraction, and genes by minimum number of cells. Returns before/after
-    counts overall and per sample. Skip if the dataset is already QC'd (already_processed_flag).""",
+    Cell/gene quality control on raw counts. mode='adaptive' (default) sets the mitochondrial and
+    gene-count cutoffs PER SAMPLE from the data (median + n_mads median absolute deviations, in
+    log space for counts), bounded by the hard caps given; this is what transfers across tissues
+    - a fixed 10% mitochondrial cutoff removes most healthy kidney tubule or cardiomyocytes, whose
+    normal mitochondrial fraction is 20-45%. mode='fixed' applies the caps as the thresholds.
+    Returns before/after counts overall and per sample, the thresholds actually used, and, when a
+    cell-type annotation exists, the fraction of each annotated type removed (a lineage losing
+    > 50% of its cells is a warning that the thresholds do not fit the tissue). Skip if the dataset
+    is already QC'd (already_processed_flag).""",
     input_schema={
         "properties": {
-            "min_genes": {"type": "integer", "description": "min detected genes per cell", "default": 200},
-            "max_genes": {"type": "integer", "description": "max detected genes per cell (doublet guard)", "default": 8000},
-            "max_mt_pct": {"type": "number", "description": "max % mitochondrial counts", "default": 10.0},
+            "mode": {"type": "string", "enum": ["adaptive", "fixed"], "default": "adaptive"},
+            "n_mads": {"type": "number", "default": 3.0, "description": "adaptive: cutoff = median + n_mads * MAD (per sample)"},
+            "min_genes": {"type": "integer", "description": "hard floor on detected genes per cell", "default": 200},
+            "max_genes": {"type": "integer", "description": "hard cap on detected genes per cell (doublet guard)", "default": 8000},
+            "max_mt_pct": {"type": "number", "description": "hard cap on % mitochondrial counts (fixed mode: the threshold; adaptive mode: the ceiling the per-sample threshold may not exceed)", "default": 50.0},
+            "mt_floor_pct": {"type": "number", "default": 20.0, "description": "adaptive mode: the per-sample mito threshold never falls below this, so a mitochondria-rich lineage that is a minority in a sample is not cut wholesale"},
             "min_cells_per_gene": {"type": "integer", "default": 3},
         },
         "required": [],
@@ -221,14 +230,44 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
     roles=ANALYST,
     mutates_state=True,
 )
-def run_qc(session: AnalysisSession, min_genes: int = 200, max_genes: int = 8000, max_mt_pct: float = 10.0, min_cells_per_gene: int = 3) -> dict[str, Any]:
+def run_qc(session: AnalysisSession, mode: str = "adaptive", n_mads: float = 3.0, min_genes: int = 200, max_genes: int = 8000, max_mt_pct: float = 50.0, mt_floor_pct: float = 20.0, min_cells_per_gene: int = 3) -> dict[str, Any]:
     a = session.require_adata()
     layer = session.cfg.dataset.get("counts_layer")
     layer = layer if layer and layer in a.layers else None
     sc.pp.calculate_qc_metrics(a, qc_vars=["mt"], inplace=True, layer=layer, percent_top=None)
     before = a.n_obs
     before_per_sample = a.obs.groupby(session.sample_key, observed=True).size()
-    keep = (a.obs["n_genes_by_counts"] >= min_genes) & (a.obs["n_genes_by_counts"] <= max_genes) & (a.obs["pct_counts_mt"] <= max_mt_pct)
+    samples = a.obs[session.sample_key].astype(str).to_numpy()
+    ng = a.obs["n_genes_by_counts"].to_numpy().astype(float)
+    mt = a.obs["pct_counts_mt"].to_numpy().astype(float)
+    thresholds: dict[str, dict[str, float]] = {}
+    if mode == "adaptive":
+        keep = np.zeros(a.n_obs, dtype=bool)
+        for smp in np.unique(samples):
+            m = samples == smp
+            lg = np.log1p(ng[m])
+            med_g, mad_g = np.median(lg), np.median(np.abs(lg - np.median(lg))) * 1.4826
+            # lower gene bound stays at the fixed floor: an adaptive lower bound cuts low-complexity
+            # lineages (neutrophils, erythroid, some epithelia) that are a minority in a sample.
+            # The adaptive part is the upper bound (doublet guard) and the mito threshold.
+            lo_g = float(min_genes)
+            hi_g = min(max_genes, float(np.expm1(med_g + n_mads * mad_g)))
+            med_m, mad_m = np.median(mt[m]), np.median(np.abs(mt[m] - np.median(mt[m]))) * 1.4826
+            # floor: a mitochondria-rich lineage that is a MINORITY in a sample does not move the sample's
+            # median/MAD, so without a floor it would be cut wholesale; dying cells sit far above 20%
+            hi_m = float(min(max_mt_pct, max(mt_floor_pct, med_m + n_mads * mad_m)))
+            keep[m] = (ng[m] >= lo_g) & (ng[m] <= hi_g) & (mt[m] <= hi_m)
+            thresholds[str(session.pseudo.to_pseudo(smp))] = {"min_genes": round(lo_g), "max_genes": round(hi_g), "max_mt_pct": round(hi_m, 1)}
+        keep = pd.Series(keep, index=a.obs_names)
+    else:
+        keep = (a.obs["n_genes_by_counts"] >= min_genes) & (a.obs["n_genes_by_counts"] <= max_genes) & (a.obs["pct_counts_mt"] <= max_mt_pct)
+        thresholds = {"all": {"min_genes": min_genes, "max_genes": max_genes, "max_mt_pct": max_mt_pct}}
+    removed_by_type = None
+    ck = session.celltype_key
+    if ck and ck in a.obs:
+        ct = a.obs[ck].astype(str)
+        rem = pd.DataFrame({"type": ct.to_numpy(), "removed": (~keep).to_numpy()}).groupby("type")["removed"].agg(["mean", "size"])
+        removed_by_type = {t: {"frac_removed": round(float(r["mean"]), 3), "n": int(r["size"])} for t, r in rem.iterrows()}
     session.adata = a[keep.to_numpy()].copy()
     a = session.adata
     gene_counts = np.asarray((session.counts() > 0).sum(axis=0)).ravel()
@@ -248,10 +287,74 @@ def run_qc(session: AnalysisSession, min_genes: int = 200, max_genes: int = 8000
         "median_genes_per_cell": float(a.obs["n_genes_by_counts"].median()),
         "median_pct_mt": float(a.obs["pct_counts_mt"].median()),
         "per_sample": per_sample,
-        "params": {"min_genes": min_genes, "max_genes": max_genes, "max_mt_pct": max_mt_pct, "min_cells_per_gene": min_cells_per_gene},
+        "mode": mode,
+        "thresholds_used": thresholds,
+        "removed_by_annotated_type": removed_by_type,
+        "params": {"mode": mode, "n_mads": n_mads, "min_genes": min_genes, "max_genes": max_genes, "max_mt_pct": max_mt_pct, "mt_floor_pct": mt_floor_pct, "min_cells_per_gene": min_cells_per_gene},
     }
+    if removed_by_type:
+        heavy = [t for t, v in removed_by_type.items() if v["frac_removed"] > 0.5 and v["n"] >= 50 and t.lower() not in ("unannotated", "unknown", "ua", "nan")]
+        if heavy:
+            out["warning"] = f"QC removed > 50% of annotated types {heavy}: the thresholds may not fit this tissue (e.g. mitochondria-rich epithelia). Consider mode='adaptive' with a higher max_mt_pct cap."
     session.facts["qc"] = {k: v for k, v in out.items() if k != "per_sample"}
     return out
+
+
+@tool(
+    name="merge_clusters",
+    description="""
+    The mirror of subcluster: register the UNION of several clusters as one cluster, for a disease
+    state that Leiden split into pieces (typically malignant cells partitioning by patient: each
+    piece is disease-dominated and present in every disease sample, but no single piece passes the
+    per-sample abundance test because each sample's cells fall mostly into one piece). Give the
+    clusters to merge; they should share a lineage and each be >= 80% disease cells unless you say
+    otherwise. Writes a new cluster key where the merged clusters carry one label, re-runs
+    differential_abundance on it and reports the merged cluster's row, so you can see whether the
+    union is enriched where the pieces were not. Reversible: the previous key stays in obs.""",
+    input_schema={
+        "properties": {
+            "clusters": {"type": "array", "items": {"type": "string"}, "description": "cluster labels to merge (>= 2)"},
+            "cluster_key": {"type": ["string", "null"]},
+            "min_disease_frac": {"type": "number", "default": 0.8, "description": "each piece must have at least this fraction of disease cells (set 0 to override)"},
+        },
+        "required": ["clusters"],
+    },
+    roles=ANALYST,
+    mutates_state=True,
+)
+def merge_clusters(session: AnalysisSession, clusters: list[str], cluster_key: str | None = None, min_disease_frac: float = 0.8) -> dict[str, Any]:
+    a = session.require_adata()
+    key = cluster_key or session.cluster_key
+    if not key or key not in a.obs:
+        raise ValueError("no cluster key available; run integrate_and_cluster first")
+    clusters = [str(c) for c in clusters]
+    if len(clusters) < 2:
+        raise ValueError("give at least two clusters to merge")
+    labels = a.obs[key].astype(str)
+    conds = a.obs[session.condition_key].astype(str)
+    missing = [c for c in clusters if c not in set(labels)]
+    if missing:
+        raise ValueError(f"clusters not found in {key}: {missing}")
+    fracs = {c: float((conds[labels == c] == session.disease).mean()) for c in clusters}
+    low = [c for c, f in fracs.items() if f < min_disease_frac]
+    if low:
+        return {"error": f"clusters {low} have < {min_disease_frac:.0%} disease cells ({ {c: round(fracs[c], 2) for c in low} }); merging mixed clusters would hide a composition difference. Lower min_disease_frac only with a reason.", "disease_fracs": fracs}
+    merged = "+".join(sorted(clusters, key=lambda x: (len(x), x)))
+    new_key = f"{key}_merged"
+    new_labels = labels.where(~labels.isin(clusters), merged)
+    a.obs[new_key] = new_labels.astype(str)
+    session.cluster_key = new_key
+    a.obs[[new_key]].rename(columns={new_key: "cluster"}).to_csv(session.run_dir / "cluster_assignments.csv")
+    session.facts["clustering"] = {**session.facts.get("clustering", {}), "cluster_key": new_key, "method": f"merged {clusters} into '{merged}' on top of {key}", "n_clusters": int(a.obs[new_key].nunique())}
+    da = differential_abundance(session, cluster_key=new_key)
+    tab = da.get("table")
+    tab = pd.DataFrame(tab) if not isinstance(tab, pd.DataFrame) else tab
+    if "cluster" in tab.columns:
+        row = tab[tab["cluster"].astype(str) == merged]
+    else:
+        row = tab.loc[[merged]] if merged in tab.index else tab.iloc[0:0]
+    rec = row.iloc[0].to_dict() if len(row) else {}
+    return {"cluster_key": new_key, "merged_cluster": merged, "pieces": clusters, "piece_disease_fracs": {c: round(f, 3) for c, f in fracs.items()}, "n_cells": int((a.obs[new_key] == merged).sum()), "merged_abundance": {k: rec.get(k) for k in ("log2_ratio", "mwu_p", "n_disease_samples_present", "enriched") if k in rec}, "note": "The merged label is now the active cluster; characterise it (find_markers / pseudobulk_de against its lineage siblings) like any state. Record the merge reason in your finding."}
 
 
 @tool(
@@ -569,11 +672,17 @@ def differential_abundance(
     )
 
     enriched = df.index[df["disease_enriched"]].tolist()
+    # disease-dominated clusters that are present in most disease samples yet not significantly
+    # enriched: the signature of ONE state split across clusters (e.g. malignant cells partitioning
+    # by patient), where each piece is bimodal across samples. Reported so the model can merge them.
+    near = df[(~df["disease_enriched"]) & (df["frac_cells_from_disease"] >= 0.8) & (df["n_disease_samples_present"] >= max(2, int(0.5 * is_dis.sum()))) & (df["n_cells"] >= min_cluster_cells)]
+    split_candidates = near.index.astype(str).tolist()
     facts_key = "differential_abundance_within_celltype" if within_celltype else "differential_abundance"
     session.facts[facts_key] = {
         "cluster_key": key,
         "within_celltype": bool(within_celltype),
         "disease_enriched_clusters": enriched,
+        "split_state_candidates": split_candidates,
         "table": df.drop(columns=["per_sample_prop_disease", "per_sample_prop_reference"]).reset_index().to_dict(orient="records"),
     }
     return {
@@ -581,6 +690,8 @@ def differential_abundance(
         "within_celltype": bool(within_celltype),
         "n_samples_used": {"disease": int(is_dis.sum()), "reference": int(is_ref.sum())},
         "disease_enriched_clusters": enriched,
+        "split_state_candidates": split_candidates,
+        "split_state_note": (f"Clusters {split_candidates} are >= 80% disease cells and present in most disease samples but NOT significantly enriched: when several such clusters share a lineage this is usually one state split by Leiden (malignant cells partitioning by patient). Test their union with merge_clusters." if len(split_candidates) >= 2 else None),
         "table": df,
         "figure": str(p.relative_to(session.run_dir)),
         "note": f"Small n per group: treat p-values as descriptive; prioritize log2_ratio and n_disease_samples_present. Clusters with < {min_cluster_cells} cells or MWU p >= {max_mwu_p} are never flagged enriched.",
@@ -633,13 +744,19 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
     session.save_table(f"markers_{key}_{cluster}_vs_{'rest' if ref == 'rest' else '-'.join(ref)}", df)
     up = df[(df["log2fc"] > 0)].head(n_top)
     session.facts.setdefault("markers", {})[f"{cluster}_vs_{'rest' if ref == 'rest' else ','.join(ref)}"] = up.head(50).reset_index().to_dict(orient="records")
+    stress = stress_fraction(list(up.head(30).index))
+    if stress >= 0.3:
+        session.facts.setdefault("stress_suspect_clusters", {})[str(cluster)] = round(stress, 2)
     return {
         "cluster": cluster,
         "cluster_key": key,
         "reference": "rest" if ref == "rest" else ref,
         "n_cells_target": int((labels == cluster).sum()),
         "n_cells_reference": int(sub.n_obs - (labels == cluster).sum()),
+        "dissociation_stress_fraction_top30": round(stress, 2),
+        "stress_artifact_suspect": bool(stress >= 0.3),
         "top_markers": up,
+        **({"warning": f"{stress:.0%} of the top 30 markers are immediate-early / heat-shock genes (FOS, JUN, HSPA1A, DNAJB1 ...): this cluster is likely a dissociation-stress artefact, not a disease state. Do not record it as one unless the signal survives after excluding those genes."} if stress >= 0.3 else {}),
     }
 
 
@@ -859,6 +976,16 @@ def label_lineages(session: AnalysisSession, group_key: str | None = None) -> di
         out[g] = {"label": best[0], "confidence": round(conf, 3), "score": round(best[1], 3), "runner_up": second[0], "supporting_markers": support.get(best[0], [])}
     session.facts.setdefault("lineage_labels", {})[key] = out
     return {"group_key": key, "labels": out, "note": "Interpretation only. Confidence is the margin over the runner-up label; below ~0.3 report the group by its id."}
+
+
+# van den Brink et al. 2017 / Denisenko 2020: dissociation-induced immediate-early / heat-shock programme
+STRESS_GENES = {"FOS", "FOSB", "JUN", "JUNB", "JUND", "ATF3", "EGR1", "EGR2", "IER2", "IER3", "IER5", "KLF2", "KLF4", "KLF6", "DUSP1", "DUSP2", "ZFP36", "NR4A1", "NR4A2", "HSPA1A", "HSPA1B", "HSPA6", "HSPA8", "HSPB1", "HSPH1", "HSP90AA1", "HSPE1", "HSPD1", "DNAJB1", "DNAJA1", "BAG3", "PPP1R15A", "SOCS3", "CEBPD", "GADD45B", "BTG2", "MCL1", "NFKBIA", "CXCL2", "RHOB"}
+
+
+def stress_fraction(genes: list[str]) -> float:
+    """Fraction of a gene list that belongs to the dissociation-stress programme (case-insensitive)."""
+    g = [str(x).upper() for x in genes]
+    return float(sum(1 for x in g if x in STRESS_GENES) / max(1, len(g)))
 
 
 def compartment_mask(session: AnalysisSession, cluster: str, key: str, shared_only: bool = True) -> np.ndarray:

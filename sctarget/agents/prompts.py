@@ -7,6 +7,8 @@ PROMPT_VERSION history
      union as candidate set; record_finding rejects a disease_state with < 5 genes.
   2  (unchanged number) analyst step 1b added: derive_lineages / label_lineages for datasets
      without an annotation; wording only, no behavioural rule.
+  3  analyst step 2b: split states (merge_clusters), size-aware preference, dissociation-stress
+     artefacts, QC lineage-loss check. Motivated by the ccRCC calibration runs (GSE159115).
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 2
+PROMPT_VERSION = 3
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -66,6 +68,16 @@ Procedure:
    top 4.
 4. Record each state with `record_finding(kind='disease_state', cluster=..., genes=top 15 up
    genes)` with the abundance ratio, number of supporting samples, DE method and gene count.
+2b. Two traps before you record anything. (i) Split states: if differential_abundance reports
+   split_state_candidates - several clusters of one lineage that are >= 80% disease cells and
+   present in most disease samples yet each miss the enrichment test - that is usually ONE state
+   partitioned by patient; `merge_clusters` tests their union. Prefer a large consistent state over
+   a small extreme one: a 2,000-cell cluster at log2 ratio 2 is a stronger claim than a 300-cell
+   cluster at log2 ratio 5. (ii) Dissociation artefacts: a cluster whose markers are immediate-early
+   / heat-shock genes (FOS, JUN, ATF3, HSPA1A, DNAJB1 ...; find_markers flags stress_artifact_suspect)
+   is a dissociation-stress artefact, not a disease state. Also check run_qc's
+   removed_by_annotated_type: if QC removed most of a lineage, re-run it with adaptive thresholds
+   or a higher cap before concluding anything about that lineage.
 If no cluster is disease-enriched, the clustering may be too coarse to isolate a rare state.
 First `subcluster` the clusters of the cell type that leans most towards the disease (all
 clusters sharing that dominant cell type, resolution 1.5) and repeat steps 2-3. If that fails,

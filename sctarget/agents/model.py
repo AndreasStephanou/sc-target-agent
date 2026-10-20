@@ -9,6 +9,8 @@ the reasoning of a real model.
 from __future__ import annotations
 
 import json
+
+import numpy as np
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -128,8 +130,30 @@ class ScriptedModel:
         f = self._facts()
         da = f.get("differential_abundance", {})
         comp = {r["cluster"]: r for r in f.get("cluster_composition", [])}
-        enriched = sorted(da.get("disease_enriched_clusters", []), key=lambda c: -next((r.get("log2_ratio") or 0) for r in da.get("table", []) if r["cluster"] == c))[:2]
+        rows = {r["cluster"]: r for r in da.get("table", [])}
         steps: list[ToolUse | str] = []
+        # split states: several disease-dominated near-miss clusters of one lineage -> test their union once
+        split = [str(c) for c in da.get("split_state_candidates", [])]
+        if len(split) >= 2 and not self._step.get("merged"):
+            by_lin: dict[str, list[str]] = {}
+            for c in split:
+                by_lin.setdefault(str(comp.get(c, {}).get("dominant_celltype") or "?"), []).append(c)
+            groups = [g for g in by_lin.values() if len(g) >= 2]
+            if groups:
+                group = max(groups, key=lambda g: sum(comp.get(c, {}).get("n_cells", 0) for c in g))
+                self._step["merged"] = True
+                steps.append(ToolUse("record_finding", {"kind": "summary", "title": f"Merging split clusters {', '.join(group)}", "detail": "These clusters are each >= 80% disease cells and present in most disease samples but none passes the per-sample enrichment test on its own (bimodal across samples): the pattern of one state partitioned by patient. Testing their union.", "confidence": "medium"}))
+                steps.append(ToolUse("merge_clusters", {"clusters": group}))
+                steps.append(ToolUse("cluster_composition", {}))
+                steps.append("__analyst_characterise__")
+                return steps
+        # size-aware ordering: effect x log10(cells), so a large consistent state outranks a tiny extreme one;
+        # dissociation-stress suspects are skipped
+        stress = set(map(str, f.get("stress_suspect_clusters", {}).keys()))
+        def prio(c):
+            r = rows.get(c, {})
+            return -((r.get("log2_ratio") or 0) * np.log10(max(10, r.get("n_cells") or 10)))
+        enriched = [c for c in sorted(da.get("disease_enriched_clusters", []), key=prio) if str(c) not in stress][:2]
         if not enriched:
             retries = self._step.get("analyst_recluster", 0)
             da_thr = float(self.session.cfg.get("analysis.differential_abundance.enrichment_log2fc", 1.0))
@@ -193,6 +217,9 @@ class ScriptedModel:
 
     def _analyst_enrich(self, cl: str) -> list[ToolUse | str]:
         f = self._facts()
+        stress = f.get("stress_suspect_clusters", {})
+        if str(cl) in stress:
+            return [ToolUse("record_finding", {"kind": "summary", "title": f"Cluster {cl} not recorded: dissociation-stress artefact", "detail": f"{int(100*stress[str(cl)])}% of its top 30 markers are immediate-early / heat-shock genes (FOS, JUN, HSPA1A, DNAJB1 ...), the dissociation-induced programme; its enrichment in disease samples reflects sample handling, not biology.", "cluster": cl, "confidence": "medium"})]
         pb = f.get("pseudobulk_de", {}).get(f"{cl}:cluster_vs_reference_clusters", {})
         from ..tools.targets import excluded_gene
 

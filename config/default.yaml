@@ -18,9 +18,12 @@ dataset:
 
 analysis:
   qc:
-    min_genes: 200
-    max_genes: 8000
-    max_mt_pct: 10.0
+    mode: adaptive                          # per-sample median + n_mads MADs (transfers across tissues); 'fixed' = the caps below are the thresholds
+    n_mads: 3.0
+    min_genes: 200                          # hard floor
+    max_genes: 8000                         # hard cap (doublet guard)
+    max_mt_pct: 50.0                        # hard cap on the per-sample mito threshold (fixed mode: the threshold). 10 would delete healthy kidney tubule / cardiomyocytes.
+    mt_floor_pct: 20.0                      # adaptive: per-sample threshold never below this (a mito-rich minority lineage must not be cut wholesale)
     min_cells_per_gene: 3
   integration:
     batch_key: sample
