@@ -263,3 +263,24 @@ Refinements after the second ccRCC calibration run (`runs/ccrcc_dry2`):
 * The merged cluster the merge step produced was never characterised (two-state cap, one slot
   spent on a cluster dropped late as stress). Merged clusters are characterised first; cap 3.
 
+## 16. The disease-wide axis in the hand-off (prompt v4)
+
+In `runs/ccrcc_dry3` the merged tumour cluster matched the key 5/5 by the lenient metric, yet its
+recorded signature and candidate pool held none of the tumour-defining genes, because both came
+from the sibling contrast and the siblings of a tumour cluster were mostly other tumour clusters:
+tumour-vs-other-tumour is flat for CA9 (log2FC -0.06) and NDUFA4L2 (+0.04). The compartment
+contrast (disease vs reference cells within the lineage's shared clusters, already the second
+effect axis of scoring v2) carried them at +12 and +15. The analyst now runs that contrast for
+every composition state and records the union of both top lists; the scripted model does the
+same; the nominator's brief carries the compartment top genes. This is the same kind of hand-off
+rule as prompt v2, and the same gap that lost ERBB4 in the CAA cluster-16 de novo run.
+
+A key lesson: in the same tables EPAS1, the belzutifan target, is up only 2.5-fold on the
+compartment axis (padj 0.09, baseMean 77) while its transcriptional targets are up thousands-
+fold. HIF-2alpha is activated post-translationally (VHL loss), so an expression-based pipeline
+cannot be expected to nominate it; the key's choice of EPAS1 as the expected target was a
+drafting error about what "target" means for this method. The key stays frozen; the result is
+reported with this explanation, and CA9 (acceptable in the key) is the expected expression-level
+hit. For future keys: an expected target must be transcriptionally distinctive in the disease
+state, or the test is of the key rather than the method.
+

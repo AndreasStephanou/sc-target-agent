@@ -216,6 +216,10 @@ class ScriptedModel:
             siblings = [c for c, r in comp.items() if c != cl and dom and r.get("dominant_celltype") == dom] or None
             steps.append(ToolUse("find_markers", {"cluster": cl, "reference_clusters": siblings, "n_top": 30}))
             steps.append(ToolUse("pseudobulk_de", {"cluster": cl, "reference_clusters": siblings, "n_top": 40}))
+            # the disease-wide axis: disease vs reference cells within the lineage's shared clusters.
+            # When a lineage holds several disease sub-states, the sibling contrast only sees what
+            # separates them from each other; this contrast sees what separates disease from normal.
+            steps.append(ToolUse("pseudobulk_de", {"cluster": cl, "contrast": "disease_vs_reference_within_compartment", "n_top": 40}))
             steps.append(f"__analyst_enrich__{cl}")
         return steps
 
@@ -231,6 +235,10 @@ class ScriptedModel:
         if not up:
             mk_key = next((k for k in f.get("markers", {}) if k.startswith(f"{cl}_vs_")), None)
             up = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:40]
+        cp = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_compartment", {})
+        cp_genes = [r["gene"] for r in cp.get("top_up", []) if not excluded_gene(r["gene"])][:40]
+        if cp_genes:  # recorded signature: what defines the state among its siblings AND what separates it from normal
+            up = list(dict.fromkeys(up[:8] + cp_genes[:8] + up[8:] + cp_genes[8:]))
         da_rows = {r["cluster"]: r for r in f.get("differential_abundance", {}).get("table", [])}
         row = da_rows.get(cl, {})
         comp = {r["cluster"]: r for r in f.get("cluster_composition", [])}
@@ -243,7 +251,7 @@ class ScriptedModel:
                 {
                     "kind": "disease_state",
                     "title": f"Cluster {cl}: disease-enriched {dom} state",
-                    "detail": f"Cluster {cl} has log2 abundance ratio {row.get('log2_ratio')} (disease vs reference, per-sample), present in {row.get('n_disease_samples_present')}/{row.get('n_disease_samples_total')} disease samples; {round(100*row.get('frac_cells_from_disease',0))}% of its cells come from the disease condition. Pseudobulk DE vs sibling clusters yields {pb.get('n_sig_up')} significantly up-regulated genes (method: {pb.get('method')}). Top genes: {', '.join(up[:8])}.",
+                    "detail": f"Cluster {cl} has log2 abundance ratio {row.get('log2_ratio')} (disease vs reference, per-sample), present in {row.get('n_disease_samples_present')}/{row.get('n_disease_samples_total')} disease samples; {round(100*row.get('frac_cells_from_disease',0))}% of its cells come from the disease condition. Pseudobulk DE vs sibling clusters yields {pb.get('n_sig_up')} significantly up-regulated genes (method: {pb.get('method')}){'; disease vs reference within the lineage (compartment axis) yields ' + str(cp.get('n_sig_up')) + ' (top: ' + ', '.join(cp_genes[:6]) + ')' if cp_genes else ''}. Top genes: {', '.join(up[:8])}.",
                     "cluster": cl,
                     "genes": up[:15],
                     "confidence": "high" if (row.get("n_disease_samples_present", 0) >= 2 and (row.get("log2_ratio") or 0) >= 2) else "medium",
@@ -310,7 +318,9 @@ class ScriptedModel:
             # the pseudobulk list misses (e.g. receptors expressed in 70% of cells at modest counts)
             mk_key = next((k for k in f.get("markers", {}) if k.startswith(f"{cl}_vs_")), None)
             mk_genes = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:15]
-            genes = list(dict.fromkeys(pb_genes + mk_genes))  # <= 35, markers never truncated away
+            cp = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_compartment", {})
+            cp_genes = [r["gene"] for r in cp.get("top_up", []) if not excluded_gene(r["gene"])][:20]
+            genes = list(dict.fromkeys(pb_genes + mk_genes + cp_genes))  # <= 55; markers and disease-wide genes never truncated away
             steps.append(ToolUse("gene_specificity", {"genes": genes, "cluster": cl}))
             steps.append(ToolUse("condition_attribution", {"genes": genes, "cluster": cl}))
             if species not in ("homo_sapiens", "human"):

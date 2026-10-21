@@ -10,6 +10,10 @@ PROMPT_VERSION history
   3  analyst step 2b: split states (merge_clusters), size-aware preference, dissociation-stress
      artefacts, QC lineage-loss check. Motivated by the ccRCC calibration runs (GSE159115).
   3  (unchanged number) step 1: QC preview before apply; detect_doublets; doublet_suspect clusters.
+  4  analyst runs the compartment (disease-wide) contrast per state and records the union; the
+     nominator's brief carries the compartment top genes. Motivated by ccRCC dry3: tumour vs other
+     tumour sub-states is flat for every tumour-defining gene (CA9 log2FC -0.06), the compartment
+     axis carries them (CA9 +12).
 """
 
 from __future__ import annotations
@@ -17,7 +21,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 3
+PROMPT_VERSION = 4
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -68,7 +72,11 @@ Procedure:
 3. For each disease-enriched cluster (max 3): identify its parent cell type from
    `cluster_composition`, then run `find_markers` and `pseudobulk_de` AGAINST SIBLING CLUSTERS
    OF THE SAME CELL TYPE (reference_clusters), so that you find state-specific genes, not
-   cell-type markers. Run `enrichment` on the top up-regulated genes and `plot_genes` on the
+   cell-type markers. ALSO run `pseudobulk_de(contrast='disease_vs_reference_within_compartment')`
+   for the cluster: when a lineage holds several disease sub-states (common for tumours), the
+   sibling contrast only sees what separates them from each other and is blind to what separates
+   disease from normal; the compartment contrast sees that. Record the state's genes as the union
+   of both top lists. Run `enrichment` on the top up-regulated genes and `plot_genes` on the
    top 4.
 4. Record each state with `record_finding(kind='disease_state', cluster=..., genes=top 15 up
    genes)` with the abundance ratio, number of supporting samples, DE method and gene count.
@@ -174,14 +182,17 @@ def stage_prompt(role: str, facts: dict[str, Any], cfg: dict[str, Any]) -> str:
         return header + (f"Planner's plan: {plan[0]['detail']}\n" if plan else "") + "Carry out the analysis and record disease states."
     if role == "target":
         states = facts.get("findings", {}).get("disease_state", [])
-        pb = {k: {"method": v.get("method"), "n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30]} for k, v in facts.get("pseudobulk_de", {}).items()}
+        pb_all = facts.get("pseudobulk_de", {})
+        pb = {k: {"method": v.get("method"), "n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30]} for k, v in pb_all.items() if "compartment" not in k}
+        cp = {k: {"n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30]} for k, v in pb_all.items() if "compartment" in k}
         mk = {k: [r["gene"] for r in rows][:30] for k, rows in facts.get("markers", {}).items()}
         return (
             header
             + f"Recorded disease states ({len(states)}):\n{_compact(states)}\n\n"
-            + f"Pseudobulk DE summaries (replicate-aware; primary evidence):\n{_compact(pb)}\n\n"
+            + f"Pseudobulk DE vs sibling clusters (what defines the state among its lineage; primary evidence):\n{_compact(pb)}\n\n"
+            + (f"Pseudobulk DE disease vs reference within the lineage's shared clusters (the DISEASE-WIDE axis: what separates disease cells from normal cells of the same lineage; when a lineage holds several disease sub-states the sibling contrast is blind to this):\n{_compact(cp)}\n\n" if cp else "")
             + f"Cell-level marker summaries (find_markers; secondary evidence - genes here but not in the pseudobulk top list are still candidates):\n{_compact(mk)}\n\n"
-            + "Nominate and score druggable targets for each state. Build the candidate set from the union of the state's recorded genes, the pseudobulk top genes and the marker top genes."
+            + "Nominate and score druggable targets for each state. Build the candidate set from the union of the state's recorded genes, the sibling pseudobulk top genes, the disease-wide (compartment) top genes and the marker top genes; score_targets reports which axis carries each gene (target_class)."
         )
     if role == "critic":
         f = {
