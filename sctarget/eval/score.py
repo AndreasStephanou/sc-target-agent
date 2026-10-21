@@ -39,6 +39,7 @@ class EvalResult:
     scoring_version: int = 1
     state_recovery: dict[str, Any] = field(default_factory=dict)
     target_rank: dict[str, int | None] = field(default_factory=dict)
+    acceptable_rank: dict[str, int | None] = field(default_factory=dict)  # acceptable (non-expected) targets: reported, never scored
     target_recall_at_k: float | None = None
     k: int = 5
     drug_recall: float | None = None
@@ -156,6 +157,8 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
     decoys = set(gt["decoy_targets"])
 
     res.target_rank = {g: (order.index(g) + 1 if g in order else None) for g in expected}
+    acc_only = [g for g in gt.get("acceptable_targets", []) if g not in expected]
+    res.acceptable_rank = {g: (order.index(g) + 1 if g in order else None) for g in acc_only}
     if expected:
         res.target_recall_at_k = sum(1 for g in expected if res.target_rank[g] is not None and res.target_rank[g] <= res.k) / len(expected)
     first_hit = min([r for r in res.target_rank.values() if r is not None], default=None)
@@ -223,6 +226,8 @@ def format_eval(res: EvalResult) -> str:
         if "cell_level" in v:
             lines.append(f"    cell-level P/R/F1: {v['cell_level']['precision']}/{v['cell_level']['recall']}/{v['cell_level']['f1']}")
     lines.append(f"target ranks: {res.target_rank}   recall@{res.k}: {res.target_recall_at_k}")
+    if res.acceptable_rank:
+        lines.append(f"acceptable-target ranks (reported, not scored): {res.acceptable_rank}")
     lines.append(f"above first true target: {len(res.false_leads)} not in answer key -> known-wrong decoys: {res.decoys_above_target or 'none'}; novel candidates: {res.novel_above_target or 'none'}")
     lines.append(f"nominated: {res.nominated}  precision: {res.nominated_precision}")
     lines.append(f"decoys nominated - flagged by critic: {res.decoys_nominated_flagged or 'none'}; UNFLAGGED: {res.decoys_nominated_unflagged or 'none'}")
