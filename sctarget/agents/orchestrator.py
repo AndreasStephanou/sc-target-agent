@@ -78,6 +78,29 @@ def _resume_session(session: AnalysisSession, source: Path, keep_findings_from: 
     session.log.stage("resume", "loaded", source=str(source), cluster_key=key, kept_findings=sorted(keep_findings_from))
 
 
+_FINISH_NOTE = (
+    "\n\nFINISHING TURN. Your previous turn ended without recording any disease state and without a "
+    "summary, although differential expression was computed (see the pseudobulk summaries in the "
+    "session). Downstream roles only see what you record. Now either: record each state you consider "
+    "disease-specific with record_finding(kind='disease_state', cluster=..., genes=<top up genes, >= 5>, "
+    "basis=...), citing the numbers; or record a summary finding explaining why no cluster qualifies. "
+    "Then write your brief summary."
+)
+
+
+def _analyst_left_no_conclusion(session: AnalysisSession) -> bool:
+    f = session.facts
+    findings = f.get("findings", {})
+    if findings.get("disease_state"):
+        return False
+    analysed = bool(f.get("pseudobulk_de")) or bool(f.get("markers")) or bool(f.get("disease_programs"))
+    if not analysed:
+        return False
+    # a deliberate "nothing qualifies" conclusion counts as a conclusion
+    titles = " ".join(str(x.get("title", "")).lower() for x in findings.get("summary", []))
+    return not any(k in titles for k in ("no disease", "not found", "none qualif", "no cluster", "blocked"))
+
+
 def run_pipeline(
     cfg: Config,
     *,
@@ -112,6 +135,23 @@ def run_pipeline(
             registry=REGISTRY,
             max_turns=int(cfg.agent.get("max_turns_per_role", 25)),
         )
+        if role == "analyst" and _analyst_left_no_conclusion(session):
+            # finishing guard: contrasts were computed but nothing was concluded. One short extra turn
+            # to record the states (or a summary saying none qualifies); generic, backend-independent.
+            session.log.stage("analyst", "finishing_turn", reason="no disease_state or summary recorded after analysis")
+            rr2 = run_role(
+                role="analyst",
+                system=ROLE_SYSTEM["analyst"],
+                user_prompt=stage_prompt("analyst", session.facts, cfg.raw) + _FINISH_NOTE,
+                session=session,
+                model=model,
+                registry=REGISTRY,
+                max_turns=6,
+            )
+            rr.tool_calls.extend(rr2.tool_calls)
+            rr.n_turns += rr2.n_turns
+            rr.final_text = rr2.final_text or rr.final_text
+            rr.stopped_reason = rr2.stopped_reason
         result.roles[role] = rr
         session.facts.setdefault("role_summaries", {})[role] = rr.final_text
         session.dump_state()

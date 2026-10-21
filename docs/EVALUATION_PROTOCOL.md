@@ -284,3 +284,15 @@ reported with this explanation, and CA9 (acceptable in the key) is the expected 
 hit. For future keys: an expected target must be transcriptionally distinctive in the disease
 state, or the test is of the key rather than the method.
 
+## 17. Finishing guard
+
+In `runs/ccrcc_agent_2` the analyst ran the full procedure (QC preview and apply, doublets,
+clustering, sibling and compartment contrasts for three clusters, the programme route) and then
+returned an empty reply - no tool calls, no text - which the backend took as "done". No state
+was recorded; the nominator still ranked CA9 first from the tables, but by the evaluator's rules
+an unrecorded state was never found. Two generic fixes: the Claude Code wrapper treats an empty
+reply as a malformed one (retry with a notice), and the orchestrator gives an analyst that ends
+with contrasts computed but no `disease_state` and no "nothing qualifies" summary one short
+finishing turn (6 turns) that says exactly that. The guard is backend-independent and is logged
+as a stage event.
+

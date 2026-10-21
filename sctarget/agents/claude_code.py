@@ -185,6 +185,9 @@ class ClaudeCodeModel:
                 calls = obj.get("tool_calls") or []
                 if not isinstance(calls, list) or any(not isinstance(c, dict) or "name" not in c for c in calls):
                     problem = "tool_calls must be a list of {\"name\":..., \"input\":{...}} objects"
+                elif not calls and not str(obj.get("text") or "").strip():
+                    # an empty reply is not a decision: the model must either act or write its summary
+                    problem = "your reply had no tool_calls and no text; either call the next tools or write your final summary (and record your findings first)"
             if problem is None:
                 break
             prompt += f"\n\n[SYSTEM NOTICE] {problem}. Reply again with ONLY the JSON object described in the tool protocol."
