@@ -4,10 +4,15 @@ Agentic target discovery from single-cell / single-nucleus RNA-seq.
 Deterministic analysis tools, orchestrated by an auditable LLM tool loop, scored against
 ground truth you already know.
 
-Built for the CoPAIR fellowship project: *can an agent independently rediscover the
-disease-specific epithelial state and the ERBB4 / neratinib vulnerability in canine
-acanthomatous ameloblastoma (CAA) snRNA-seq, and does it make fewer false leads than a
-naive script?*
+Built as a CoPAIR fellowship project at Cornell and validated on two datasets: it rediscovered
+the ERBB4 / neratinib vulnerability of canine acanthomatous ameloblastoma from our own snRNA-seq,
+and the HIF programme (CA9 first) of human clear cell renal cell carcinoma from public scRNA-seq,
+from counts and condition labels alone, with no decoy ever nominated unflagged.
+`docs/REPORT.md` is the write-up; `docs/EVALUATION_PROTOCOL.md` is the method history.
+
+**Works on any species and any two conditions** (disease vs reference, treated vs control,
+knockout vs wild-type). Human data need no ortholog step; a cell-type annotation is optional
+(lineages are derived from the data). Runs on a Claude subscription login (no API key) or the API.
 
 ```
    .h5ad  ──►  planner ──► analyst ──► target nominator ──► critic ──► report.md/.html
@@ -119,6 +124,25 @@ enrichment terms and cluster sizes – never counts or per-cell values. Check th
 yourself: every `tool_call` event in `run.jsonl` has a `result_sent` field that is exactly
 what the model saw. Confirm this fits Cornell's data policy for your dataset before the
 first live run; `SCTARGET_OFFLINE=1` keeps even gene-symbol lookups local.
+
+## Your own dataset in four commands
+
+```bash
+python scripts/sctarget.py inspect   data/my.h5ad --name mydata          # guesses sample/condition/species, writes config/mydata.yaml + a key template
+#   -> edit config/mydata.yaml; verify condition labels against a marker you trust (public metadata is wrong more often than you think)
+#   -> if you KNOW a target for this disease, fill data/ground_truth/mydata.yaml now and commit it (frozen before any run)
+python scripts/sctarget.py calibrate --config config/mydata.yaml         # scripted procedure, no tokens: QC per lineage, states, doublet/stress flags
+python scripts/sctarget.py run       --config config/mydata.yaml         # the agent (Claude Code login by default; --model <api model> with a key)
+python scripts/sctarget.py report    --ground-truth data/ground_truth/mydata.yaml runs/mydata_*   # results table from the run directories
+```
+
+Read `runs/<run>/report.md` section 5 (critic flags) before section 4 (ranking). Every number in
+it traces to a line in `runs/<run>/run.jsonl`. Nothing per-cell ever reaches the model.
+
+**Using Claude Code?** Copy `skills/sc-target-agent/` into your project's `.claude/skills/` and
+Claude will walk through the steps above with the lessons from both validation datasets built in
+(what to check in QC, how to read a thin reference pool, why an expression method cannot nominate
+a protein-level target, and so on).
 
 ## What is in the box
 

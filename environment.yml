@@ -8,6 +8,7 @@ dependencies:
   - pandas
   - scipy
   - scikit-learn
+  - scikit-image
   - matplotlib
   - pyyaml
   - requests

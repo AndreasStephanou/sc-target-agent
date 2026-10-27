@@ -1,0 +1,8 @@
+nohup: ignoring input
+run dir : runs/ccrcc_denovo_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=16 tools=36 errors=0  stop=end_turn
+  target   turns= 8 tools=24 errors=0  stop=end_turn
+  critic   turns= 6 tools=17 errors=0  stop=end_turn
+report  : runs/ccrcc_denovo_1/report.md
+elapsed : 883.0s

@@ -42,6 +42,8 @@ sctarget-run = "scripts.run_pipeline:main"
 sctarget-eval = "scripts.run_eval:main"
 sctarget-baseline = "scripts.run_baseline:main"
 sctarget-synth = "scripts.make_synthetic:main"
+sctarget = "scripts.sctarget:main"
+sctarget-report = "scripts.collect_results:main"
 
 [tool.setuptools.packages.find]
 include = ["sctarget*", "scripts*"]
