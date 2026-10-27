@@ -3,7 +3,7 @@ dataset:
   species: homo_sapiens                  # no ortholog step
   sample_key: sample                     # GSM library (patient SS_2014 contributes cortex + medulla as two benign libraries)
   condition_key: condition
-  celltype_key: author_celltype          # authors' annotation collapsed to Epithelial/Endothelial/Mesenchymal/Immune; set analysis.lineages.ignore_annotation: true for the annotation-free arm
+  celltype_key: author_celltype          # authors' annotation collapsed to Epithelial/Endothelial/Mesenchymal/Immune; set analysis.lineages.ignore_annotation: false for the annotation-free arm
   # provenance: GEO 'tissue' labels for the four matched-pair patients are swapped relative to the authors'
   # annotation files and to the data (CA9); the builder uses the annotation files and keeps obs['geo_tissue']
   disease: ccRCC
