@@ -14,3 +14,5 @@ dist/
 ._*
 *.patch
 data/synthetic_program/
+data/ccrcc/
+data/*.h5ad
