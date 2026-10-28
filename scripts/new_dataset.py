@@ -100,7 +100,7 @@ dataset:
   reference: {reference}
   condition_descriptions:
     {disease}: "DESCRIBE"
-  counts_layer: {counts_layer or 'null'}
+  counts_layer: {counts_layer or 'null'}            # null = counts are in X; the loader copies them to layer 'counts' before normalising
   already_processed: {'true' if clusterings or adata.obsm.keys() else 'false'}
   reuse_clustering: {clusterings[0] if clusterings else 'null'}
   forbidden_obs_columns: []                     # anything identifying (names, dates, IDs)

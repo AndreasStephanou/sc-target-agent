@@ -152,6 +152,29 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
     if "mt" not in a.var:
         a.var["mt"] = a.var_names.str.upper().str.startswith("MT-")
 
+    # Preserve raw counts BEFORE anything normalises X. With counts in X and no counts_layer configured
+    # (the common case for a freshly built .h5ad), the first clustering call used to log-normalise X in
+    # place and every pseudobulk / compartment / scoring call then failed with "needs raw counts"
+    # (HCC review run, 2026-10-28). The choice is recorded in the summary and the run facts.
+    counts_note = None
+    layer = ds.get("counts_layer")
+    if layer and layer not in a.layers:
+        counts_note = f"configured counts_layer '{layer}' not in the object; layers: {list(a.layers)}"
+        layer = None
+    if not layer:
+        if _looks_like_counts(a.X):
+            a.layers["counts"] = a.X.copy()
+            ds["counts_layer"] = "counts"
+            counts_note = (counts_note + "; " if counts_note else "") + "X held raw counts: copied to layer 'counts' and set dataset.counts_layer='counts'"
+        else:
+            cand = [k for k in a.layers if _looks_like_counts(a.layers[k])]
+            if cand:
+                ds["counts_layer"] = cand[0]
+                counts_note = (counts_note + "; " if counts_note else "") + f"layer '{cand[0]}' holds integer counts: set dataset.counts_layer='{cand[0]}'"
+            else:
+                counts_note = (counts_note + "; " if counts_note else "") + "WARNING: no raw counts found in X or any layer; pseudobulk DE and scoring will not run"
+    session.facts["counts_layer_used"] = ds.get("counts_layer")
+
     conds = a.obs[session.condition_key].value_counts()
     samples_per_cond = (
         a.obs.groupby(session.condition_key, observed=True)[session.sample_key].nunique().to_dict()
@@ -191,6 +214,8 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
         "embeddings": list(a.obsm.keys()),
         "layers": list(a.layers.keys()),
         "x_looks_like_raw_counts": _looks_like_counts(a.X),
+        "counts_layer_used": ds.get("counts_layer"),
+        "counts_note": counts_note,
         "already_processed_flag": bool(ds.get("already_processed", False)),
         "n_mt_genes": int(a.var["mt"].sum()),
     }

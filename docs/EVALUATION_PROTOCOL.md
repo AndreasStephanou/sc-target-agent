@@ -344,3 +344,20 @@ generic defects, none visible on the two earlier datasets:
 None of these changes the analysis; prompt and scoring versions are unchanged. The HCC
 calibration is re-run on the identical object and key after the environment is rebuilt from the
 pinned file, and its result is reported in `docs/results_hcc.md` whatever it is.
+
+### 18b. Raw counts in X were destroyed by normalisation
+
+The second HCC calibration (pinned environment) clustered, merged a patient-split tumour pair and
+found five enriched clusters, three of them tumour hepatocytes present in all ten patients, but
+every pseudobulk, compartment-contrast and scoring call failed with "pseudobulk_de needs raw
+counts". Cause: the object held counts in `X` with `counts_layer: null` (what the scaffold writes
+when `X` looks like counts), and `_ensure_lognorm` kept a raw copy only when a layer was
+configured; the first clustering call normalised `X` in place. Both earlier datasets had a counts
+layer, so the path was never exercised. The analyst then recorded the tumour clusters from
+cell-level markers only: proliferation genes for the cycling sub-state, housekeeping and plasma-
+protein genes for the others, 0/5 overlap with the key.
+
+Fix: `load_dataset` stashes `X` into `layers['counts']` (and sets `dataset.counts_layer`) when `X`
+holds integer counts and no layer is configured, picks an integer layer if one exists, and warns
+loudly if no raw counts exist anywhere; the choice is in the load summary and the run facts.
+Tested. The analysis itself is unchanged; the third calibration runs on the identical object.
