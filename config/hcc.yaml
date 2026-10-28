@@ -1,0 +1,25 @@
+dataset:
+  path: data/hcc/hcc.h5ad
+  species: homo_sapiens
+  sample_key: sample                     # GSE149614 library; 10 tumour / 8 non-tumour (PVTT and lymph-node libraries excluded at build)
+  condition_key: condition
+  celltype_key: author_celltype          # authors' 6-class annotation; 'Hepatocyte' covers both normal and malignant hepatocytes
+  # provenance: per-library GPC3 check agrees with the deposited labels for 17/18 libraries; HCC04N (labelled
+  # Normal) has GPC3 in 77% of hepatocyte-class cells vs 2% in HCC04T. Left as deposited; see protocol doc.
+  disease: Tumor
+  reference: [Normal]
+  condition_descriptions:
+    Tumor: "hepatocellular carcinoma, primary tumour (10 patients, HBV-associated)"
+    Normal: "non-tumour liver adjacent to the tumour (8 patients)"
+  counts_layer: null
+  already_processed: false
+  reuse_clustering: null
+  forbidden_obs_columns: [patient, stage, virus, site, celltype, res.3]
+analysis:
+  lineages:
+    ignore_annotation: false
+targets:
+  objective: target
+  scoring_version: 2
+agent:
+  max_turns_per_role: 60
