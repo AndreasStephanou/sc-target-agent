@@ -16,7 +16,9 @@ You do not re-implement the analysis; you drive the repository's scripts.
 Ask for (or find in the object) these; nothing works without them.
 
 1. **Where the raw counts are.** A `.h5ad` with integer counts in `X` or a layer, or per-sample
-   10x matrices (then build an .h5ad first; `scripts/build_ccrcc.py` is a worked example).
+   10x matrices, or GEO's "one dense count matrix + metadata table" deposit (then
+   `python scripts/build_from_matrix.py --dry-run ...` to see the columns, and build; `scripts/build_ccrcc.py`
+   is the worked example for 10x directories).
 2. **The sample column.** One value per library/biological replicate. At least 3 samples per
    condition, or the per-sample tests are weak and you must say so.
 3. **The condition column** and which value is the case (disease/treated) and which are reference.
@@ -24,6 +26,17 @@ Ask for (or find in the object) these; nothing works without them.
 
 A cell-type annotation is optional (lineages are derived from the data otherwise). If one exists,
 note that it came from the original analysis and may inherit its choices.
+
+## Step 0: check the environment
+
+```bash
+python scripts/sctarget.py check-env
+```
+
+This runs the sparse, large-data tool chain (approximate neighbours, Leiden, Scrublet, Harmony,
+DESeq2) on a 9k-cell synthetic object. A fresh install once passed every test and the demo yet
+could not cluster any real dataset (a library-version conflict); this catches that in a minute
+instead of after a 10-minute run. If it fails, rebuild from the pinned `environment.yml`.
 
 ## Step 1: inspect and scaffold
 
@@ -135,4 +148,4 @@ treat the top 3-5 per state as the real list.
 
 `docs/EVALUATION_PROTOCOL.md` is the method history (every rule and the failure that motivated
 it). `docs/REPORT.md` is the write-up of the two validation datasets (canine ameloblastoma,
-human ccRCC). `tests/` (64 tests, `pytest -q`) must pass after any change.
+human ccRCC). `tests/` (`pytest -q`) must pass after any change.

@@ -18,6 +18,10 @@ dependencies:
   - pip:
       - anndata>=0.10
       - scanpy>=1.10
+      # pynndescent 0.7 returns scipy csr_array; scanpy<=1.11 calls .getnnz() on it and every
+      # approximate-neighbours call (>8k cells, and Scrublet) fails. Pin until scanpy adapts.
+      - pynndescent>=0.5.11,<0.7
+      - umap-learn>=0.5.5,<0.6
       - anthropic>=0.40
       - pydeseq2>=0.4
       - harmonypy>=0.0.9

@@ -76,7 +76,7 @@ knockout vs wild-type). Human data need no ortholog step; a cell-type annotation
 
 ```bash
 conda env create -f environment.yml && conda activate sctarget     # or: pip install -e ".[full,dev]"
-python scripts/sctarget.py demo        # generates a synthetic dataset with a planted answer, runs the scripted
+python scripts/sctarget.py demo        # environment check + offline synthetic demo        # generates a synthetic dataset with a planted answer, runs the scripted
                                        # pipeline and the naive baseline offline, scores both (no key, no network)
 SCTARGET_OFFLINE=1 pytest -q           # 66 tests, ~4 minutes
 ```

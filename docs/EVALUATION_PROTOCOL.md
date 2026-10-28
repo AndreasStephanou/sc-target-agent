@@ -296,3 +296,51 @@ with contrasts computed but no `disease_state` and no "nothing qualifies" summar
 finishing turn (6 turns) that says exactly that. The guard is backend-independent and is logged
 as a stage event.
 
+
+## 18. Reviewer run on a third dataset (HCC, GSE149614): environment and false-negative guards
+
+Before publishing, the author re-cloned the repository from GitHub into a fresh directory and a
+fresh conda environment and followed only the README and the skill, on a dataset the method had
+never seen: hepatocellular carcinoma, 10 primary-tumour and 8 non-tumour liver libraries (PVTT
+and lymph-node libraries excluded at build), human, authors' six-class annotation in which
+`Hepatocyte` covers normal and malignant cells alike. The key (`data/ground_truth/hcc.yaml`,
+tag `hcc-key-frozen`) was written from the literature before any run: expected target GPC3
+(absent from adult hepatocytes, re-expressed in most HCC, codrituzumab / CAR-T target, and
+transcriptionally distinctive, the lesson of section 16); acceptable AFP, MDK; decoys spanning
+proliferation, hepatocyte lineage, endothelium, cholangiocyte and EGFR.
+
+Label check before the run (the skill's step 2): GPC3 in 25-98% of hepatocyte-class cells in
+tumour libraries, 0-5% in non-tumour, for 17 of 18 libraries. HCC04N (labelled non-tumour) has
+GPC3 77%, AKR1B10 60%, SPINK1 91%, MDK 57% while HCC04T is a GPC3-negative tumour. Unlike the
+ccRCC swap (section 13) there is no second authors' file to settle it, so the data stay as
+deposited and the anomaly is recorded here; an arm without patient 4 is the disclosed follow-up
+if the result hinges on it.
+
+The first calibration run produced "no disease-specific state found" with 7 tool errors. Three
+generic defects, none visible on the two earlier datasets:
+
+1. **Install not reproducible for real data.** `pynndescent 0.7.0` (released after the ccRCC
+   runs) returns scipy `csr_array`; `scanpy 1.11.5` calls `.getnnz()` on it. The failure is only on
+   the approximate-neighbours path (> ~8k cells) and inside Scrublet (which doubles each sample
+   with simulated doublets), so the dense 2k-cell synthetic demo and all 66 tests passed on an
+   install that could not cluster any real dataset. Fix: `pynndescent<0.7` and `umap-learn<0.6`
+   pinned in `environment.yml` and `pyproject.toml`; a new `sctarget.envcheck` module
+   (`python scripts/sctarget.py check-env`, also run first by `demo`) builds a sparse 9k-cell
+   dataset and runs normalise, HVG, PCA, neighbours, Leiden, Scrublet, Harmony and DESeq2 through
+   the installed packages; a `slow` test does the same.
+2. **A crashed tool read as a negative result.** The scripted analyst treats an errored tool like
+   an empty one and continued through subclustering, re-clustering and the programme route,
+   narrating "no cluster is enriched". The calibration report read as a clean biological negative.
+   Fix: `ScriptedModel` aborts the role when a critical tool (`load_dataset`, `run_qc`,
+   `integrate_and_cluster`, `differential_abundance`, `merge_clusters`, `derive_lineages`) returns
+   an error, records a "Run aborted: tool X failed" finding with the error text, and ends with an
+   explicit abort message. Tested. (The agent backends already read the error and act on it.)
+3. **No generic builder for the common GEO deposit.** The repository had only the ccRCC-specific
+   builder; a reviewer with a "one dense count matrix + metadata table" deposit has to write code
+   before step 1 of the skill. Fix: `scripts/build_from_matrix.py` (orientation detection, join on
+   cell id, site filter, integer check, `sample`/`condition`/`author_celltype` columns), with a
+   test, and referenced from the skill.
+
+None of these changes the analysis; prompt and scoring versions are unchanged. The HCC
+calibration is re-run on the identical object and key after the environment is rebuilt from the
+pinned file, and its result is reported in `docs/results_hcc.md` whatever it is.

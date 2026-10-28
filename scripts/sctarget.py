@@ -1,6 +1,7 @@
 """sc-target-agent: one command for a new dataset.
 
-    python scripts/sctarget.py demo                                          # offline demo on synthetic data: proves the install
+    python scripts/sctarget.py demo                                          # offline demo on synthetic data: env check + proves the install
+    python scripts/sctarget.py check-env                                     # just the environment check (sparse, >8k cells, Scrublet, Harmony, DESeq2)
     python scripts/sctarget.py inspect   data/my.h5ad --name mydata          # guess columns, write config + key template
     python scripts/sctarget.py calibrate --config config/mydata.yaml         # scripted model, no tokens; checks QC, states, decoys
     python scripts/sctarget.py run       --config config/mydata.yaml         # agent run (Claude Code login by default)
@@ -47,6 +48,11 @@ def cmd_demo(a):
     import os
 
     os.environ["SCTARGET_OFFLINE"] = "1"
+    # the dense synthetic data below never exercises the sparse / approximate-neighbours code paths a real
+    # dataset hits; check those first so a broken install fails here, not 500 s into a run
+    rc = _run([PY, "-m", "sctarget.envcheck"])
+    if rc:
+        print("\nFix the environment before running on real data (see above). The synthetic demo continues anyway.")
     if not (ROOT / "data" / "synthetic" / "synthetic.h5ad").exists():
         rc = _run([PY, "scripts/make_synthetic.py", "--out", "data/synthetic"])
         if rc:
@@ -117,7 +123,8 @@ def cmd_report(a):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("demo", help="offline demo on synthetic data (no key, no network): generate, calibrate, evaluate"); p.set_defaults(fn=cmd_demo)
+    p = sub.add_parser("demo", help="offline demo on synthetic data (no key, no network): environment check, generate, calibrate, evaluate"); p.set_defaults(fn=cmd_demo)
+    p = sub.add_parser("check-env", help="exercise the sparse / large-data code paths (neighbours, Leiden, Scrublet, Harmony, DESeq2) without a dataset"); p.set_defaults(fn=lambda a: _run([PY, "-m", "sctarget.envcheck"]))
     p = sub.add_parser("inspect", help="inspect an .h5ad and scaffold config + key template"); p.add_argument("h5ad"); p.add_argument("--name", required=True); p.add_argument("--force", action="store_true"); p.set_defaults(fn=cmd_inspect)
     p = sub.add_parser("calibrate", help="scripted run (no tokens) + optional eval"); p.add_argument("--config", required=True); p.add_argument("--run-dir"); p.add_argument("--ground-truth"); p.set_defaults(fn=cmd_calibrate)
     p = sub.add_parser("run", help="agent run"); p.add_argument("--config", required=True); p.add_argument("--model", default="claude-code", help="claude-code (subscription login, default) or a Claude API model id (needs ANTHROPIC_API_KEY)"); p.add_argument("--run-dir"); p.add_argument("--scoring-version", type=int, choices=[1, 2], default=2); p.set_defaults(fn=cmd_run)

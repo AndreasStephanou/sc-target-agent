@@ -435,11 +435,43 @@ class ScriptedModel:
         return steps
 
     # ---- Model protocol -----------------------------------------------------
+    # a failure in one of these leaves nothing for the rest of the plan to work on; the script must say so
+    # rather than carry on and narrate "no state found" (HCC review run, 2026-10-28: clustering crashed on a
+    # library version conflict and the calibration report read as a clean negative)
+    CRITICAL_TOOLS = {"load_dataset", "run_qc", "integrate_and_cluster", "differential_abundance", "merge_clusters", "derive_lineages"}
+
+    def _last_tool_errors(self, messages: list[dict[str, Any]]) -> list[tuple[str, str]]:
+        """(tool name, error text) for errored tool_result blocks in the most recent user message."""
+        if not messages or messages[-1].get("role") != "user" or not isinstance(messages[-1].get("content"), list):
+            return []
+        # map tool_use ids to names from the preceding assistant turn
+        names: dict[str, str] = {}
+        if len(messages) >= 2 and isinstance(messages[-2].get("content"), list):
+            for b in messages[-2]["content"]:
+                if b.get("type") == "tool_use":
+                    names[b["id"]] = b["name"]
+        out = []
+        for b in messages[-1]["content"]:
+            if b.get("type") == "tool_result" and b.get("is_error"):
+                out.append((names.get(b.get("tool_use_id"), "?"), str(b.get("content"))[:300]))
+        return out
+
     def create(self, *, system: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]], role: str) -> ModelResponse:
         if role not in self._queue:
             self._queue[role] = self._plan(role)
         q = self._queue[role]
         allowed = {t["name"] for t in tools}
+        critical = [(n, e) for n, e in self._last_tool_errors(messages) if n in self.CRITICAL_TOOLS]
+        if critical and not self._step.get(f"{role}_aborted"):
+            self._step[f"{role}_aborted"] = True
+            name, err = critical[0]
+            q.clear()
+            q.extend([
+                ToolUse("record_finding", {"kind": "summary", "title": f"Run aborted: tool '{name}' failed",
+                                           "detail": f"The scripted procedure stopped because a required tool failed; downstream results would be meaningless. Error: {err}. This is an environment or data-format problem, not a biological negative: fix it (python scripts/sctarget.py check-env) and re-run.",
+                                           "confidence": "high"}),
+                f"Scripted {role} aborted: {name} failed ({err[:120]}). Nothing below this point is a result.",
+            ])
         while q:
             item = q.pop(0)
             if isinstance(item, str) and item.startswith("__"):
