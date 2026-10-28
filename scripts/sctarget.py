@@ -80,7 +80,10 @@ def cmd_calibrate(a):
         print(f"dataset file not found: {missing} (from {a.config}). Put the data there, or for the synthetic demo run: python scripts/sctarget.py demo")
         return 2
     run_dir = a.run_dir or f"runs/{Path(a.config).stem}_calibrate"
-    rc = _run([PY, "scripts/run_pipeline.py", "--config", a.config, "--model", "scripted", "--run-dir", run_dir])
+    args = [PY, "scripts/run_pipeline.py", "--config", a.config, "--model", "scripted", "--run-dir", run_dir]
+    if a.scoring_version:
+        args += ["--scoring-version", str(a.scoring_version)]
+    rc = _run(args)
     if rc:
         return rc
     print("\nCalibration run finished. Before an agent run, look at:")
@@ -126,8 +129,8 @@ def main(argv=None):
     p = sub.add_parser("demo", help="offline demo on synthetic data (no key, no network): environment check, generate, calibrate, evaluate"); p.set_defaults(fn=cmd_demo)
     p = sub.add_parser("check-env", help="exercise the sparse / large-data code paths (neighbours, Leiden, Scrublet, Harmony, DESeq2) without a dataset"); p.set_defaults(fn=lambda a: _run([PY, "-m", "sctarget.envcheck"]))
     p = sub.add_parser("inspect", help="inspect an .h5ad and scaffold config + key template"); p.add_argument("h5ad"); p.add_argument("--name", required=True); p.add_argument("--force", action="store_true"); p.set_defaults(fn=cmd_inspect)
-    p = sub.add_parser("calibrate", help="scripted run (no tokens) + optional eval"); p.add_argument("--config", required=True); p.add_argument("--run-dir"); p.add_argument("--ground-truth"); p.set_defaults(fn=cmd_calibrate)
-    p = sub.add_parser("run", help="agent run"); p.add_argument("--config", required=True); p.add_argument("--model", default="claude-code", help="claude-code (subscription login, default) or a Claude API model id (needs ANTHROPIC_API_KEY)"); p.add_argument("--run-dir"); p.add_argument("--scoring-version", type=int, choices=[1, 2], default=2); p.set_defaults(fn=cmd_run)
+    p = sub.add_parser("calibrate", help="scripted run (no tokens) + optional eval"); p.add_argument("--config", required=True); p.add_argument("--run-dir"); p.add_argument("--ground-truth"); p.add_argument("--scoring-version", type=int, choices=[1, 2, 3]); p.set_defaults(fn=cmd_calibrate)
+    p = sub.add_parser("run", help="agent run"); p.add_argument("--config", required=True); p.add_argument("--model", default="claude-code", help="claude-code (subscription login, default) or a Claude API model id (needs ANTHROPIC_API_KEY)"); p.add_argument("--run-dir"); p.add_argument("--scoring-version", type=int, choices=[1, 2, 3], default=3); p.set_defaults(fn=cmd_run)
     p = sub.add_parser("report", help="results table from run directories"); p.add_argument("--ground-truth", required=True); p.add_argument("--out", default="docs/results.md"); p.add_argument("run_dirs", nargs="+"); p.set_defaults(fn=cmd_report)
     a = ap.parse_args(argv)
     sys.exit(a.fn(a))

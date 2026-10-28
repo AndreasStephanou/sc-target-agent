@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--run-dir", default=None, help="output directory (default: runs/<auto>)")
     ap.add_argument("--stages", nargs="+", default=None, choices=STAGES)
     ap.add_argument("--seed", type=int, default=None)
-    ap.add_argument("--scoring-version", type=int, default=None, choices=[1, 2], help="override targets.scoring_version (2 = add the disease-vs-reference-within-compartment effect axis)")
+    ap.add_argument("--scoring-version", type=int, default=None, choices=[1, 2, 3], help="override targets.scoring_version (2 = shared-cluster lineage axis; 3 = all-cells lineage contrast when the shared one is unrepresentative, plus proliferation flag)")
     ap.add_argument("--no-report", action="store_true")
     ap.add_argument("--resume-from", default=None, help="reuse an earlier run directory's analysis (state.json, tables) and run only --stages (default: target critic)")
     args = ap.parse_args(argv)

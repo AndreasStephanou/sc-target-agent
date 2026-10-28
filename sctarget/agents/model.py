@@ -220,6 +220,11 @@ class ScriptedModel:
             # When a lineage holds several disease sub-states, the sibling contrast only sees what
             # separates them from each other; this contrast sees what separates disease from normal.
             steps.append(ToolUse("pseudobulk_de", {"cluster": cl, "contrast": "disease_vs_reference_within_compartment", "n_top": 40}))
+            if int(self.session.cfg.targets.get("scoring_version", 1)) >= 3:
+                # scoring v3: the plain lineage contrast (all disease cells of the lineage vs all reference
+                # cells). In tumours most disease cells sit in the enriched clusters, so the shared-cluster
+                # contrast above compares an atypical minority; this one compares tumour with normal.
+                steps.append(ToolUse("pseudobulk_de", {"cluster": cl, "contrast": "disease_vs_reference_within_lineage", "n_top": 40}))
             steps.append(f"__analyst_enrich__{cl}")
         return steps
 
@@ -237,8 +242,11 @@ class ScriptedModel:
             up = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:40]
         cp = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_compartment", {})
         cp_genes = [r["gene"] for r in cp.get("top_up", []) if not excluded_gene(r["gene"])][:40]
-        if cp_genes:  # recorded signature: what defines the state among its siblings AND what separates it from normal
-            up = list(dict.fromkeys(up[:8] + cp_genes[:8] + up[8:] + cp_genes[8:]))
+        ln = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_lineage", {})
+        ln_genes = [r["gene"] for r in ln.get("top_up", []) if not excluded_gene(r["gene"])][:40]
+        if cp_genes or ln_genes:  # recorded signature: what defines the state among its siblings AND what separates it from normal
+            up = list(dict.fromkeys(up[:8] + ln_genes[:8] + cp_genes[:8] + up[8:] + ln_genes[8:] + cp_genes[8:]))
+        cycling = f.get("cycling_clusters", {}).get(str(cl))
         da_rows = {r["cluster"]: r for r in f.get("differential_abundance", {}).get("table", [])}
         row = da_rows.get(cl, {})
         comp = {r["cluster"]: r for r in f.get("cluster_composition", [])}
@@ -251,7 +259,7 @@ class ScriptedModel:
                 {
                     "kind": "disease_state",
                     "title": f"Cluster {cl}: disease-enriched {dom} state",
-                    "detail": f"Cluster {cl} has log2 abundance ratio {row.get('log2_ratio')} (disease vs reference, per-sample), present in {row.get('n_disease_samples_present')}/{row.get('n_disease_samples_total')} disease samples; {round(100*row.get('frac_cells_from_disease',0))}% of its cells come from the disease condition. Pseudobulk DE vs sibling clusters yields {pb.get('n_sig_up')} significantly up-regulated genes (method: {pb.get('method')}){'; disease vs reference within the lineage (compartment axis) yields ' + str(cp.get('n_sig_up')) + ' (top: ' + ', '.join(cp_genes[:6]) + ')' if cp_genes else ''}. Top genes: {', '.join(up[:8])}.",
+                    "detail": f"Cluster {cl} has log2 abundance ratio {row.get('log2_ratio')} (disease vs reference, per-sample), present in {row.get('n_disease_samples_present')}/{row.get('n_disease_samples_total')} disease samples; {round(100*row.get('frac_cells_from_disease',0))}% of its cells come from the disease condition. Pseudobulk DE vs sibling clusters yields {pb.get('n_sig_up')} significantly up-regulated genes (method: {pb.get('method')}){'; disease vs reference within the shared clusters of the lineage yields ' + str(cp.get('n_sig_up')) + ' (top: ' + ', '.join(cp_genes[:6]) + ')' if cp_genes else ''}{'; disease vs reference across the whole lineage yields ' + str(ln.get('n_sig_up')) + ' (top: ' + ', '.join(ln_genes[:6]) + ')' if ln_genes else ''}.{' CYCLING SUB-STATE: ' + str(int(100*cycling)) + '% of its top markers are cell-cycle genes; they describe proliferation, not disease identity.' if cycling else ''} Top genes: {', '.join(up[:8])}.",
                     "cluster": cl,
                     "genes": up[:15],
                     "confidence": "high" if (row.get("n_disease_samples_present", 0) >= 2 and (row.get("log2_ratio") or 0) >= 2) else "medium",
@@ -320,7 +328,9 @@ class ScriptedModel:
             mk_genes = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:15]
             cp = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_compartment", {})
             cp_genes = [r["gene"] for r in cp.get("top_up", []) if not excluded_gene(r["gene"])][:20]
-            genes = list(dict.fromkeys(pb_genes + mk_genes + cp_genes))  # <= 55; markers and disease-wide genes never truncated away
+            ln = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_lineage", {})
+            ln_genes = [r["gene"] for r in ln.get("top_up", []) if not excluded_gene(r["gene"])][:20]
+            genes = list(dict.fromkeys(pb_genes + mk_genes + cp_genes + ln_genes))  # <= 75; markers and disease-wide genes never truncated away
             steps.append(ToolUse("gene_specificity", {"genes": genes, "cluster": cl}))
             steps.append(ToolUse("condition_attribution", {"genes": genes, "cluster": cl}))
             if species not in ("homo_sapiens", "human"):
@@ -403,6 +413,8 @@ class ScriptedModel:
                 continue
             if "low_specificity" in rec["flags"] or "shared_across_conditions" in rec["flags"]:
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: not specific to the disease state", "detail": f"log2 specificity {rec['log2_specificity']} - expression is comparable in other clusters/conditions, so {g} looks like a cell-type or pan-tumour marker rather than a disease-state target.", "cluster": cl, "genes": [g], "severity": "major"}))
+            if "proliferation_marker" in rec["flags"]:
+                steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: cell-cycle gene, not a disease-specific target", "detail": f"{g} is a proliferation (S / G2-M) programme gene. It marks that the cells of cluster {cl} divide, which is true of every tumour and of regenerating tissue; it says nothing about what makes this state disease-specific and would score in any cancer dataset. Treat the cycling sub-state's identity genes (lineage contrast) as the candidates instead.", "cluster": cl, "genes": [g], "severity": "major"}))
             if "inconsistent_across_samples" in rec["flags"]:
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"{g}: inconsistent across disease samples", "detail": f"Detected in >=10% of state cells in only {rec['sample_consistency']} of disease samples.", "cluster": cl, "genes": [g], "severity": "major"}))
             if rec.get("attribution") == "reference_driven":

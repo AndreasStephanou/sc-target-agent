@@ -361,3 +361,50 @@ Fix: `load_dataset` stashes `X` into `layers['counts']` (and sets `dataset.count
 holds integer counts and no layer is configured, picks an integer layer if one exists, and warns
 loudly if no raw counts exist anywhere; the choice is in the load summary and the run facts.
 Tested. The analysis itself is unchanged; the third calibration runs on the identical object.
+
+## 19. Scoring v3 and prompts v5: the whole-lineage contrast and the proliferation flag
+
+The third HCC calibration (`runs/hcc_calibrate_3`, pinned environment, counts preserved) ran the
+full chain with no errors: adaptive QC kept 97% of cells, three tumour-hepatocyte clusters were
+enriched in all ten patients (15: cycling; 18; 14), a patient-split pair (13+22) was merged, a
+doublet cluster was flagged, tumour-endothelium and T/NK programmes were recorded. GPC3 was never
+scored and TOP2A was nominated without a flag - the first unflagged decoy in three datasets.
+
+**Why GPC3 was missed.** The sibling contrast is flat (-0.13: the siblings are other tumour
+clusters, as in ccRCC). The compartment contrast of scoring v2 compares disease with reference
+cells *within the lineage's shared, non-enriched clusters*; its result had GPC3 at +2.4 log2 but
+padj 0.36, because in a tumour 90-100% of the malignant cells sit in the enriched clusters and the
+disease side of that contrast was the atypical 9% (about 1,400 of 16,000 hepatocyte-class tumour
+cells) that co-clustered with normal hepatocytes, against about 450 reference cells. The
+attribution tool saw the thin reference pool (`too_thin, 11 cells` in cluster 15) but had no
+other lineage-level contrast to fall back on. The tumour-vs-normal-hepatocyte comparison a
+hepatologist would run first was never computed. In the same run GPC3, MDK and NDUFA4L2 appear
+"up in disease" inside T-cell, myeloid and B clusters: tumour ambient RNA, the right genes in the
+wrong cells.
+
+**Why TOP2A got through.** Cluster 15 is a cycling tumour sub-state; its markers against the
+other tumour clusters are cell-cycle genes, and neither scoring nor the critic had a notion of a
+proliferation programme.
+
+**Changes (scoring v3, prompts v5), all generic, no gene from any key named in code:**
+
+1. `pseudobulk_de(contrast='disease_vs_reference_within_lineage')`: all disease cells of the
+   lineage vs all its reference cells, enriched clusters included. Both lineage-level contrasts
+   now report `lineage_coverage` (what fraction of the lineage's disease cells they used).
+2. Scoring v3 takes the lineage axis from the shared-cluster contrast when it is representative
+   (>= 25% of the lineage's disease cells and >= 3 reference replicates) and from the whole-lineage
+   contrast otherwise; `lineage_axis_source` is recorded per gene and the decision with its
+   reasons in the score_targets result. `target_class` semantics are unchanged.
+3. A bundled cell-cycle list (Tirosh et al. 2016 S and G2/M genes plus recurrent cycling markers,
+   135 genes) gives: `find_markers` -> `cell_cycle_fraction_top20` and `cycling_substate` (>= 50%),
+   recorded in facts (`cycling_clusters`), markers NOT stripped (they are that sub-state's
+   biology); `score_targets` -> `proliferation_marker` flag with penalty 0.5; the scripted critic
+   and the critic prompt flag such candidates as "cell-cycle gene, not a disease-specific target".
+4. The scripted analyst runs the whole-lineage contrast under scoring v3 and records the union of
+   the sibling, whole-lineage and shared-cluster top lists; the nominator's pool and brief carry
+   all three. Prompts v5 say the same to the agent.
+
+**Regression protocol.** Before any HCC result is reported under v3, the scripted calibration is
+re-run on ccRCC and CAA with `--scoring-version 3` and the ranks of CA9 and ERBB4 compared with the
+v2 runs. All three results go in `docs/results_*.md`, whatever they show. The `config/ccrcc.yaml`
+and the earlier runs keep `scoring_version: 2` as the record of that arm.

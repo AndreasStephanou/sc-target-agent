@@ -14,6 +14,12 @@ PROMPT_VERSION history
      nominator's brief carries the compartment top genes. Motivated by ccRCC dry3: tumour vs other
      tumour sub-states is flat for every tumour-defining gene (CA9 log2FC -0.06), the compartment
      axis carries them (CA9 +12).
+  5  analyst also runs `disease_vs_reference_within_lineage` (all cells of the lineage) per state and
+     records the union of all three lists; find_markers' cycling_substate flag is explained; the
+     critic checks the proliferation_marker flag. Motivated by the HCC review run (GSE149614):
+     90-100% of malignant hepatocytes sat in enriched clusters, so the shared-cluster contrast
+     compared an atypical 9% of them (GPC3 +2.4 log2, padj 0.36, never scored); a cycling tumour
+     sub-state put TOP2A through unflagged.
 """
 
 from __future__ import annotations
@@ -21,7 +27,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 4
+PROMPT_VERSION = 5
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -75,8 +81,17 @@ Procedure:
    cell-type markers. ALSO run `pseudobulk_de(contrast='disease_vs_reference_within_compartment')`
    for the cluster: when a lineage holds several disease sub-states (common for tumours), the
    sibling contrast only sees what separates them from each other and is blind to what separates
-   disease from normal; the compartment contrast sees that. Record the state's genes as the union
-   of both top lists. Run `enrichment` on the top up-regulated genes and `plot_genes` on the
+   disease from normal; the compartment contrast sees that. ALSO run
+   `pseudobulk_de(contrast='disease_vs_reference_within_lineage')`: all disease cells of the
+   lineage vs all its reference cells. In tumours nearly every disease cell of the lineage sits in
+   the enriched clusters, so the shared-cluster (compartment) contrast compares only the atypical
+   few that co-cluster with normal cells and can miss the genes that most distinguish the disease
+   cells from their normal counterpart; the within-lineage contrast is that plain comparison (its
+   result reports what fraction of the lineage's disease cells each contrast used). Record the
+   state's genes as the union of the three top lists. If find_markers reports
+   `cycling_substate: true`, the cluster is a proliferating sub-state: record it if it is
+   disease-specific, but take its identity genes from the lineage contrasts, not from the
+   cell-cycle markers. Run `enrichment` on the top up-regulated genes and `plot_genes` on the
    top 4.
 4. Record each state with `record_finding(kind='disease_state', cluster=..., genes=top 15 up
    genes)` with the abundance ratio, number of supporting samples, DE method and gene count.
@@ -146,6 +161,9 @@ them. For every disease state and candidate target recorded:
 - Is each candidate gene specific to the state (`gene_specificity`), or is it a cell-type /
   pan-condition marker? Is it consistent across disease samples?
 - Does the effect size rest only on a cell-level test (effect_size_source = find_markers)?
+- Is the candidate a cell-cycle gene (score_targets flags proliferation_marker; the state may be
+  flagged cycling_substate)? Proliferation genes mark that cells divide, which every tumour does;
+  they are not disease-specific targets and would be nominated in any cancer dataset. Flag them.
 - Run `condition_attribution` on every nominated gene. A `reference_driven` gene is a blocking
   flag: the signal comes from reference-condition cells inside the cluster. Check the dot
   plots the same way - is the gene's expression in the disease rows of the cluster?
@@ -184,7 +202,7 @@ def stage_prompt(role: str, facts: dict[str, Any], cfg: dict[str, Any]) -> str:
         states = facts.get("findings", {}).get("disease_state", [])
         pb_all = facts.get("pseudobulk_de", {})
         pb = {k: {"method": v.get("method"), "n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30]} for k, v in pb_all.items() if "compartment" not in k}
-        cp = {k: {"n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30]} for k, v in pb_all.items() if "compartment" in k}
+        cp = {k: {"n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30], "lineage_coverage": v.get("lineage_coverage")} for k, v in pb_all.items() if "compartment" in k or "within_lineage" in k}
         mk = {k: [r["gene"] for r in rows][:30] for k, rows in facts.get("markers", {}).items()}
         return (
             header
@@ -192,7 +210,7 @@ def stage_prompt(role: str, facts: dict[str, Any], cfg: dict[str, Any]) -> str:
             + f"Pseudobulk DE vs sibling clusters (what defines the state among its lineage; primary evidence):\n{_compact(pb)}\n\n"
             + (f"Pseudobulk DE disease vs reference within the lineage's shared clusters (the DISEASE-WIDE axis: what separates disease cells from normal cells of the same lineage; when a lineage holds several disease sub-states the sibling contrast is blind to this):\n{_compact(cp)}\n\n" if cp else "")
             + f"Cell-level marker summaries (find_markers; secondary evidence - genes here but not in the pseudobulk top list are still candidates):\n{_compact(mk)}\n\n"
-            + "Nominate and score druggable targets for each state. Build the candidate set from the union of the state's recorded genes, the sibling pseudobulk top genes, the disease-wide (compartment) top genes and the marker top genes; score_targets reports which axis carries each gene (target_class)."
+            + "Nominate and score druggable targets for each state. Build the candidate set from the union of the state's recorded genes, the sibling pseudobulk top genes, the disease-wide top genes (both the shared-cluster compartment contrast and the whole-lineage contrast) and the marker top genes; score_targets reports which axis carries each gene (target_class, lineage_axis_source). Cell-cycle genes are flagged proliferation_marker: they are not targets."
         )
     if role == "critic":
         f = {

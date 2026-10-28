@@ -887,6 +887,14 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
         session.facts.setdefault("stress_suspect_clusters", {})[str(cluster)] = round(stress, 2)
     else:
         session.facts.get("stress_suspect_clusters", {}).pop(str(cluster), None)
+    # cycling sub-state: proliferation genes dominate the markers. Not an artefact (the cells are real
+    # and often the most disease-specific ones) but their markers describe proliferation, not identity.
+    cycling = cell_cycle_fraction(list(up_all.head(20).index))
+    is_cycling = bool(cycling >= 0.5)
+    if is_cycling:
+        session.facts.setdefault("cycling_clusters", {})[str(cluster)] = round(cycling, 2)
+    else:
+        session.facts.get("cycling_clusters", {}).pop(str(cluster), None)
     out = {
         "cluster": cluster,
         "cluster_key": key,
@@ -896,8 +904,12 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
         "dissociation_stress_fraction_top30": round(stress, 2),
         "n_strong_markers_excluding_stress_genes": strong_clean,
         "stress_artifact_suspect": suspect,
+        "cell_cycle_fraction_top20": round(cycling, 2),
+        "cycling_substate": is_cycling,
         "top_markers": up,
     }
+    if is_cycling:
+        out["note"] = "cycling sub-state: >= 50% of the top markers are cell-cycle genes. Record it if it is disease-specific, but its proliferation genes are not targets in themselves; look at the disease-vs-reference lineage contrast for what distinguishes these disease cells from normal."
     if stress >= 0.3 and not suspect:
         out["note"] = f"{stress:.0%} of the raw top-30 markers are dissociation-stress genes (FOS, JUN, HSPA1A, DNAJB1 ...); they were removed from top_markers and {strong_clean} strong markers remain, so this is a real population carrying a stress response (handling differs between conditions). Do not nominate the stress genes."
     if suspect:
@@ -921,6 +933,11 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
         compartment (same dominant cell type, excluding the disease-enriched clusters), disease vs
         reference samples. Finds disease-wide genes of that lineage: up in disease cells of the
         ordinary, condition-shared clusters too, not only in the disease-specific state.
+      - 'disease_vs_reference_within_lineage': ALL cells of the cluster's lineage (enriched clusters
+        included), disease samples vs reference samples: the plain "disease cells of this lineage vs
+        their normal counterpart" contrast. Use it when most disease cells of the lineage sit in the
+        enriched clusters (tumours), where the shared-cluster contrast compares only an atypical
+        minority of disease cells. The result reports how representative each contrast is.
     Returns top up-regulated genes ranked by test statistic among genes with
     baseMean >= min_base_mean (so rare, barely-expressed genes do not dominate), plus the number
     of pseudobulk replicates per side. Requires >=2 replicates per side.""",
@@ -928,7 +945,7 @@ def find_markers(session: AnalysisSession, cluster: str, cluster_key: str | None
         "properties": {
             "cluster": {"type": "string"},
             "cluster_key": {"type": ["string", "null"]},
-            "contrast": {"type": "string", "enum": ["cluster_vs_reference_clusters", "disease_vs_reference_within_cluster", "disease_vs_reference_within_compartment"], "default": "cluster_vs_reference_clusters"},
+            "contrast": {"type": "string", "enum": ["cluster_vs_reference_clusters", "disease_vs_reference_within_cluster", "disease_vs_reference_within_compartment", "disease_vs_reference_within_lineage"], "default": "cluster_vs_reference_clusters"},
             "reference_clusters": {"type": ["array", "null"], "items": {"type": "string"}},
             "min_cells_per_pseudobulk": {"type": "integer", "default": 10},
             "n_top": {"type": "integer", "default": 40},
@@ -1127,6 +1144,25 @@ def label_lineages(session: AnalysisSession, group_key: str | None = None) -> di
 STRESS_GENES = {"FOS", "FOSB", "JUN", "JUNB", "JUND", "ATF3", "EGR1", "EGR2", "IER2", "IER3", "IER5", "KLF2", "KLF4", "KLF6", "DUSP1", "DUSP2", "ZFP36", "NR4A1", "NR4A2", "HSPA1A", "HSPA1B", "HSPA6", "HSPA8", "HSPB1", "HSPH1", "HSP90AA1", "HSPE1", "HSPD1", "DNAJB1", "DNAJA1", "BAG3", "PPP1R15A", "SOCS3", "CEBPD", "GADD45B", "BTG2", "MCL1", "NFKBIA", "CXCL2", "RHOB"}
 
 
+# Cell-cycle programme (Tirosh et al. 2016 S and G2/M lists, plus a few recurrent cycling markers).
+# A cluster whose markers are these genes is a CYCLING sub-state of its lineage; its markers describe
+# proliferation, not disease identity, and are not targets in themselves. Motivated by the HCC review
+# run (2026-10-28): a cycling tumour sub-state put TOP2A through unflagged.
+CELL_CYCLE_GENES = {
+    # S phase
+    "MCM5", "PCNA", "TYMS", "FEN1", "MCM2", "MCM4", "RRM1", "UNG", "GINS2", "MCM6", "CDCA7", "DTL", "PRIM1", "UHRF1", "MLF1IP", "CENPU", "HELLS", "RFC2", "RPA2", "NASP", "RAD51AP1", "GMNN", "WDR76", "SLBP", "CCNE2", "UBR7", "POLD3", "MSH2", "ATAD2", "RAD51", "RRM2", "CDC45", "CDC6", "EXO1", "TIPIN", "DSCC1", "BLM", "CASP8AP2", "USP1", "CLSPN", "POLA1", "CHAF1B", "BRIP1", "E2F8",
+    # G2/M
+    "HMGB2", "CDK1", "NUSAP1", "UBE2C", "BIRC5", "TPX2", "TOP2A", "NDC80", "CKS2", "NUF2", "CKS1B", "MKI67", "TMPO", "CENPF", "TACC3", "FAM64A", "PIMREG", "SMC4", "CCNB2", "CKAP2L", "CKAP2", "AURKB", "BUB1", "KIF11", "ANP32E", "TUBB4B", "GTSE1", "KIF20B", "HJURP", "CDCA3", "HN1", "JPT1", "CDC20", "TTK", "CDC25C", "KIF2C", "RANGAP1", "NCAPD2", "DLGAP5", "CDCA2", "CDCA8", "ECT2", "KIF23", "HMMR", "AURKA", "PSRC1", "ANLN", "LBR", "CKAP5", "CENPE", "CTCF", "NEK2", "G2E3", "GAS2L3", "CBX5", "CENPA",
+    # recurrent cycling markers outside the Tirosh lists
+    "CCNA2", "CCNB1", "PTTG1", "PLK1", "MAD2L1", "ASPM", "DEPDC1", "SGO2", "SGOL2", "PCLAF", "KIAA0101", "STMN1", "SPC24", "SPC25", "KIF18A", "KIF4A", "KIF14", "KIF15", "CIT", "BUB1B", "CENPW", "CENPM", "ZWINT", "TK1", "H2AFZ", "H2AZ1", "HMGN2", "TUBA1B", "CDKN3", "PBK", "MELK", "ESCO2", "NCAPG", "SMC2", "TOP2B",
+}
+
+
+def cell_cycle_fraction(genes: list[str]) -> float:
+    g = [str(x).upper() for x in genes]
+    return float(sum(1 for x in g if x in CELL_CYCLE_GENES) / max(1, len(g)))
+
+
 def stress_fraction(genes: list[str]) -> float:
     """Fraction of a gene list that belongs to the dissociation-stress programme (case-insensitive)."""
     g = [str(x).upper() for x in genes]
@@ -1184,15 +1220,22 @@ def _run_pseudobulk(
     if not _looks_like_counts(X):
         raise ValueError("pseudobulk_de needs raw counts; set dataset.counts_layer to the layer holding them")
 
+    lineage_cov: dict[str, Any] | None = None
     if contrast == "cluster_vs_reference_clusters":
         ref = _parse_cluster_list(reference_clusters)
         in_target = labels == cluster
         in_ref = (labels != cluster) if ref == "rest" else np.isin(labels, list(ref))
         group = np.where(in_target, "target", np.where(in_ref, "reference", None))
-    elif contrast == "disease_vs_reference_within_compartment":
-        # the cluster plus every cluster of the same dominant cell type (its lineage / compartment):
-        # disease samples' compartment cells vs reference samples' compartment cells
-        in_cp = compartment_mask(session, cluster, key)
+    elif contrast in ("disease_vs_reference_within_compartment", "disease_vs_reference_within_lineage"):
+        # compartment: the lineage's SHARED clusters only (enriched ones excluded); lineage: every cell of
+        # the lineage. Disease samples' cells vs reference samples' cells in either case.
+        in_cp = compartment_mask(session, cluster, key, shared_only=(contrast == "disease_vs_reference_within_compartment"))
+        in_all = compartment_mask(session, cluster, key, shared_only=False)
+        n_dis_all = int((in_all & (conds == session.disease)).sum())
+        n_dis_used = int((in_cp & (conds == session.disease)).sum())
+        lineage_cov = {"disease_cells_in_lineage": n_dis_all, "disease_cells_in_contrast": n_dis_used,
+                       "frac_of_lineage_disease_cells_in_contrast": round(n_dis_used / max(1, n_dis_all), 3),
+                       "reference_cells_in_contrast": int((in_cp & np.isin(conds, session.reference)).sum())}
         group = np.where(in_cp & (conds == session.disease), "target", np.where(in_cp & np.isin(conds, session.reference), "reference", None))
     else:
         in_cl = labels == cluster
@@ -1289,12 +1332,14 @@ def _run_pseudobulk(
             "n_sig_up": int(len(sig_up)),
             "n_sig_down": int(len(sig_down)),
             "top_up": sig_up.head(50).reset_index().to_dict(orient="records"),
+            "lineage_coverage": lineage_cov,
         }
     return {
         "cluster": cluster,
         "contrast": contrast,
         "method": method,
         "blocked_by_sample": blocked,
+        "lineage_coverage": lineage_cov,
         "replicates": {"target": n_t, "reference": n_r, "pseudobulk_cells": {str(session.pseudo.to_pseudo(s)) + "|" + l: int(n) for s, l, n in zip(meta["sample"], meta["label"], meta["n_cells"])}},
         "n_sig_up": int(len(sig_up)),
         "n_sig_down": int(len(sig_down)),

@@ -47,7 +47,11 @@ def state_basis(session: AnalysisSession, cluster: str) -> str:
 SCORING_VERSIONS = {
     1: "effect size = cluster vs sibling clusters (composition states) or disease vs reference within cluster (program states)",
     2: "as v1, plus a second effect axis for composition states: disease vs reference within the SHARED clusters of the state's compartment (its lineage minus the disease-enriched clusters); the larger axis is used and recorded as target_class state_specific | disease_wide (disease_wide requires lineage log2FC >= 1 and > the state log2FC)",
+    3: "as v2, with the lineage axis taken from the ALL-cells lineage contrast (disease vs reference cells of the whole lineage, enriched clusters included) whenever the shared-cluster contrast is unrepresentative (it holds < 25% of the lineage's disease cells, or < 3 reference replicates, or failed); the source is recorded per gene (lineage_axis_source). Plus a proliferation_marker flag (penalty 0.5) for cell-cycle genes. Motivated by the HCC review run: 90-100% of malignant hepatocytes sat in enriched clusters, so the shared-cluster contrast compared an atypical 9% of them and GPC3 (log2FC +2.4) did not reach significance; TOP2A from a cycling sub-state was nominated unflagged",
 }
+
+LINEAGE_SHARED_MIN_FRAC = 0.25
+LINEAGE_MIN_REF_REPLICATES = 3
 
 
 def scoring_version(session: AnalysisSession) -> int:
@@ -86,18 +90,49 @@ def _effect_size(session: AnalysisSession, gene: str, cluster: str, basis: str =
     return None, "missing"
 
 
-def _ensure_compartment_de(session: AnalysisSession, cluster: str) -> bool:
-    """Scoring v2: make sure the disease-vs-reference-within-compartment pseudobulk exists for this
-    cluster (computed once, cached in facts like any pseudobulk_de result)."""
-    key = f"{cluster}:disease_vs_reference_within_compartment"
+def _ensure_compartment_de(session: AnalysisSession, cluster: str, contrast: str = "disease_vs_reference_within_compartment") -> bool:
+    """Scoring v2/v3: make sure the lineage-level pseudobulk exists for this cluster (computed once,
+    cached in facts like any pseudobulk_de result)."""
+    key = f"{cluster}:{contrast}"
     if key in session.facts.get("pseudobulk_de", {}):
         return True
     if session.adata is None:
         return False
     from .analysis import _run_pseudobulk
 
-    r = _run_pseudobulk(session, cluster, None, "disease_vs_reference_within_compartment", None, 10, 0.05, 10.0, record=True)
-    return "error" not in r
+    try:
+        r = _run_pseudobulk(session, cluster, None, contrast, None, 10, 0.05, 10.0, record=True)
+    except Exception as e:  # noqa: BLE001 - a failed contrast is recorded as unavailable, not fatal
+        session.facts.setdefault("pseudobulk_de_errors", {})[key] = f"{type(e).__name__}: {str(e)[:200]}"
+        return False
+    if "error" in r:
+        session.facts.setdefault("pseudobulk_de_errors", {})[key] = str(r["error"])[:200]
+        return False
+    return True
+
+
+def lineage_axis_source(session: AnalysisSession, cluster: str) -> tuple[str | None, dict[str, Any]]:
+    """Scoring v3: which lineage-level contrast carries the disease-wide axis for this cluster, and why.
+    The shared-cluster contrast is preferred (it separates 'disease-wide programme' from 'the state
+    itself'), but only when it is representative: >= 25% of the lineage's disease cells and >= 3
+    reference replicates. Otherwise the all-cells lineage contrast is used. Both are attempted."""
+    pb = session.facts.get("pseudobulk_de", {})
+    have_shared = _ensure_compartment_de(session, cluster, "disease_vs_reference_within_compartment")
+    have_all = _ensure_compartment_de(session, cluster, "disease_vs_reference_within_lineage")
+    shared = pb.get(f"{cluster}:disease_vs_reference_within_compartment", {}) if have_shared else {}
+    cov = shared.get("lineage_coverage") or {}
+    frac = cov.get("frac_of_lineage_disease_cells_in_contrast")
+    n_ref = (shared.get("replicates") or {}).get("reference", 0)
+    why = {"shared_available": have_shared, "all_available": have_all, "shared_frac_of_lineage_disease_cells": frac, "shared_reference_replicates": n_ref}
+    if have_shared and (frac is None or frac >= LINEAGE_SHARED_MIN_FRAC) and n_ref >= LINEAGE_MIN_REF_REPLICATES:
+        return "disease_vs_reference_within_compartment", why
+    if have_all:
+        why["reason"] = "shared-cluster contrast unrepresentative or unavailable" + (f" ({frac:.0%} of lineage disease cells, {n_ref} reference replicates)" if frac is not None else "")
+        return "disease_vs_reference_within_lineage", why
+    if have_shared:
+        why["reason"] = "all-cells lineage contrast unavailable; using the shared-cluster contrast despite low coverage"
+        return "disease_vs_reference_within_compartment", why
+    return None, why
 
 
 @tool(
@@ -149,8 +184,14 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
     excluded = [g for g in dict.fromkeys(genes) if excluded_gene(g, patterns)]
     basis = state_basis(session, str(cluster))
     sv = scoring_version(session)
-    use_lineage_axis = sv >= 2 and basis == "composition" and _ensure_compartment_de(session, str(cluster))
+    lin_contrast, lin_why = None, {}
+    if sv >= 3 and basis == "composition":
+        lin_contrast, lin_why = lineage_axis_source(session, str(cluster))
+    elif sv == 2 and basis == "composition" and _ensure_compartment_de(session, str(cluster)):
+        lin_contrast = "disease_vs_reference_within_compartment"
+    use_lineage_axis = lin_contrast is not None
     session.facts["scoring_version"] = sv
+    from .analysis import CELL_CYCLE_GENES
     rows = []
     for g in dict.fromkeys(genes):
         if g in excluded:
@@ -160,7 +201,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
         eff, eff_src = _effect_size(session, g, str(cluster), basis)
         eff_lin, target_class = None, ("program" if basis == "program" else "state_specific")
         if use_lineage_axis:
-            eff_lin, _ = _effect_size(session, g, str(cluster), basis, contrast="disease_vs_reference_within_compartment")
+            eff_lin, _ = _effect_size(session, g, str(cluster), basis, contrast=lin_contrast)
             # the larger axis carries the effect component; which one won is recorded, not hidden.
             # disease_wide needs a real lineage effect (>= 1 log2) that beats the state effect.
             if eff_lin is not None and eff_lin >= 1.0 and (eff is None or eff_lin > eff):
@@ -235,6 +276,9 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
             penalty *= 0.2  # wrong condition's cells, or sample background: not a cell-intrinsic disease signal
         if "shared_with_reference" in flags or "weak" in flags:
             penalty *= 0.5
+        if sv >= 3 and hs.upper() in CELL_CYCLE_GENES:
+            flags.append("proliferation_marker")
+            penalty *= 0.5  # describes that the cells divide, not what the disease is; a decoy in every key
         # disease_wide is informational only: a disease-wide gene is still a legitimate target
         score *= penalty
         rows.append(
@@ -246,6 +290,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
                 "effect_size_log2fc": None if eff is None else round(eff, 3),
                 "effect_size_source": eff_src,
                 "lineage_log2fc_disease_vs_reference": None if eff_lin is None else round(eff_lin, 3),
+                "lineage_axis_source": lin_contrast,
                 "target_class": target_class,
                 "log2_specificity": None if sp is None else sp.get("log2_specificity"),
                 "log2_disease_vs_reference_within_cluster": None if sp is None else sp.get("log2_disease_vs_reference_within_cluster"),
@@ -262,7 +307,7 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
     df["rank"] = np.arange(1, len(df) + 1)
     session.save_table(f"ranked_targets_{cluster}", df)
     session.facts.setdefault("ranked_targets", {})[str(cluster)] = df.reset_index().to_dict(orient="records")
-    return {"cluster": str(cluster), "state_basis": basis, "scoring_version": sv, "objective": objective, "effect_axes": (["cluster_vs_siblings", "disease_vs_reference_within_compartment"] if use_lineage_axis else ["cluster_vs_siblings" if basis == "composition" else "disease_vs_reference_within_cluster"]), "specificity_component": ("within-cluster disease vs reference log2FC" if basis == "program" else "cluster vs max other cluster log2 ratio"), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
+    return {"cluster": str(cluster), "state_basis": basis, "scoring_version": sv, "objective": objective, "lineage_axis": lin_why | {"used": lin_contrast}, "effect_axes": (["cluster_vs_siblings", lin_contrast] if use_lineage_axis else ["cluster_vs_siblings" if basis == "composition" else "disease_vs_reference_within_cluster"]), "specificity_component": ("within-cluster disease vs reference log2FC" if basis == "program" else "cluster vs max other cluster log2 ratio"), "weights": {"effect_size": w_eff, "specificity": w_spec, "druggability": w_drug, "known_compounds": w_cmp, "consistency": w_cons}, "excluded_unnamed_genes": excluded, "ranking": df}
 
 
 MIN_STATE_GENES = 5  # a disease_state finding without its signature cannot be acted on downstream

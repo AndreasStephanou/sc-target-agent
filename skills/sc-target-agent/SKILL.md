@@ -112,6 +112,12 @@ Start with **section 5, the critic flags**, then **section 4, the ranking**. For
 
 * `target_class`: `state_specific` (defines this state among its lineage) or `disease_wide`
   (up in disease cells across the lineage). Both can be targets; they are different claims.
+  `lineage_axis_source` says which lineage contrast carried it: the shared-cluster one (a
+  programme in unchanged cell states) or the whole-lineage one (disease cells vs their normal
+  counterpart; used when nearly all disease cells sit in the enriched clusters, as in tumours).
+* `proliferation_marker`: a cell-cycle gene. It marks that the cells divide, which every tumour
+  does; the critic flags it and the score halves. A `cycling_substate` cluster is real biology,
+  but its identity genes come from the lineage contrasts, not its cell-cycle markers.
 * `attribution`: `reference_driven` or `ambient_like` means the signal is not from these cells;
   `shared_with_reference` means a lineage or pan-condition gene; `reference_pool_in_cluster`
   says whether the in-cluster reference comparison was even usable.
