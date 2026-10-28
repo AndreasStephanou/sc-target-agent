@@ -16,3 +16,5 @@ dist/
 data/synthetic_program/
 data/ccrcc/
 data/*.h5ad
+._*
+.DS_Store
