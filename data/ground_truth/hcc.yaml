@@ -1,0 +1,12 @@
+# Frozen before any run. HCC (GSE149614): primary tumour vs non-tumour liver.
+# Expected target GPC3: glypican-3, absent from adult hepatocytes, re-expressed in ~70% of HCC;
+# target of codrituzumab (GC33) and GPC3 CAR-T programmes. Transcriptionally distinctive, so a fair test.
+expected_states:
+  - name: HCC_malignant_hepatocyte
+    marker_genes: [GPC3, AFP, MDK, SPINK1, AKR1B10, PEG10, IGF2, DLK1, H19, CAP2, REG3A, LGALS1, S100A6, TKT]
+    min_marker_overlap: 5
+expected_targets: [GPC3]
+acceptable_targets: [AFP, MDK]
+expected_drugs: [codrituzumab]
+decoy_targets: [MKI67, TOP2A, ALB, APOA1, APOC3, KDR, FLT1, KRT19, EPCAM, EGFR]
+per_cell_truth: null
