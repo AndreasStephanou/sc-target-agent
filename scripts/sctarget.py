@@ -1,5 +1,6 @@
 """sc-target-agent: one command for a new dataset.
 
+    python scripts/sctarget.py demo                                          # offline demo on synthetic data: proves the install
     python scripts/sctarget.py inspect   data/my.h5ad --name mydata          # guess columns, write config + key template
     python scripts/sctarget.py calibrate --config config/mydata.yaml         # scripted model, no tokens; checks QC, states, decoys
     python scripts/sctarget.py run       --config config/mydata.yaml         # agent run (Claude Code login by default)
@@ -31,6 +32,34 @@ def _config_ok(path: str) -> list[str]:
     return bad
 
 
+def _dataset_exists(config_path: str) -> str | None:
+    import yaml
+
+    cfg = yaml.safe_load(Path(config_path).read_text()) or {}
+    path = (cfg.get("dataset") or {}).get("path")
+    if path and not (ROOT / path).exists() and not Path(path).exists():
+        return path
+    return None
+
+
+def cmd_demo(a):
+    """Offline, no key, no network: generate the synthetic dataset and run the scripted calibration + eval."""
+    import os
+
+    os.environ["SCTARGET_OFFLINE"] = "1"
+    if not (ROOT / "data" / "synthetic" / "synthetic.h5ad").exists():
+        rc = _run([PY, "scripts/make_synthetic.py", "--out", "data/synthetic"])
+        if rc:
+            return rc
+    rc = _run([PY, "scripts/run_pipeline.py", "--config", "config/synthetic.yaml", "--model", "scripted", "--run-dir", "runs/demo_scripted"])
+    if rc:
+        return rc
+    _run([PY, "scripts/run_baseline.py", "--config", "config/synthetic.yaml", "--run-dir", "runs/demo_baseline"])
+    rc = _run([PY, "scripts/run_eval.py", "--ground-truth", "data/ground_truth/synthetic.yaml", "runs/demo_scripted", "runs/demo_baseline"])
+    print("\nExpected: the scripted run finds the planted state, ranks ERBB4 first with neratinib/afatinib, nominates no decoys and PASSes; the baseline finds the state but lets decoys through. Open runs/demo_scripted/report.html.")
+    return rc
+
+
 def cmd_inspect(a):
     return _run([PY, "scripts/new_dataset.py", a.h5ad, "--name", a.name] + (["--force"] if a.force else []))
 
@@ -39,6 +68,10 @@ def cmd_calibrate(a):
     bad = _config_ok(a.config)
     if bad:
         print(f"config still has placeholders {bad}: edit {a.config} first")
+        return 2
+    missing = _dataset_exists(a.config)
+    if missing:
+        print(f"dataset file not found: {missing} (from {a.config}). Put the data there, or for the synthetic demo run: python scripts/sctarget.py demo")
         return 2
     run_dir = a.run_dir or f"runs/{Path(a.config).stem}_calibrate"
     rc = _run([PY, "scripts/run_pipeline.py", "--config", a.config, "--model", "scripted", "--run-dir", run_dir])
@@ -57,6 +90,10 @@ def cmd_run(a):
     bad = _config_ok(a.config)
     if bad:
         print(f"config still has placeholders {bad}: edit {a.config} first")
+        return 2
+    missing = _dataset_exists(a.config)
+    if missing:
+        print(f"dataset file not found: {missing} (from {a.config}). Put the data there, or for the synthetic demo run: python scripts/sctarget.py demo")
         return 2
     gt = Path("data/ground_truth") / f"{Path(a.config).stem}.yaml"
     if not gt.exists() or gt.stat().st_size < 50:
@@ -80,6 +117,7 @@ def cmd_report(a):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("demo", help="offline demo on synthetic data (no key, no network): generate, calibrate, evaluate"); p.set_defaults(fn=cmd_demo)
     p = sub.add_parser("inspect", help="inspect an .h5ad and scaffold config + key template"); p.add_argument("h5ad"); p.add_argument("--name", required=True); p.add_argument("--force", action="store_true"); p.set_defaults(fn=cmd_inspect)
     p = sub.add_parser("calibrate", help="scripted run (no tokens) + optional eval"); p.add_argument("--config", required=True); p.add_argument("--run-dir"); p.add_argument("--ground-truth"); p.set_defaults(fn=cmd_calibrate)
     p = sub.add_parser("run", help="agent run"); p.add_argument("--config", required=True); p.add_argument("--model", default="claude-code", help="claude-code (subscription login, default) or a Claude API model id (needs ANTHROPIC_API_KEY)"); p.add_argument("--run-dir"); p.add_argument("--scoring-version", type=int, choices=[1, 2], default=2); p.set_defaults(fn=cmd_run)

@@ -75,23 +75,14 @@ knockout vs wild-type). Human data need no ortholog step; a cell-type annotation
 ## Quick start (5 minutes, offline)
 
 ```bash
-# 1. environment
 conda env create -f environment.yml && conda activate sctarget     # or: pip install -e ".[full,dev]"
-
-# 2. synthetic CAA-like dataset with a planted answer (ERBB4/PEG3 state, decoys EGFR/KRAS/...)
-python scripts/make_synthetic.py --out data/synthetic
-
-# 3. run the agent pipeline with the deterministic stand-in model, and the naive baseline
-export SCTARGET_OFFLINE=1
-python scripts/run_pipeline.py --config config/synthetic.yaml --model scripted --run-dir runs/agent
-python scripts/run_baseline.py --config config/synthetic.yaml --run-dir runs/baseline
-
-# 4. score both against the ground truth
-python scripts/run_eval.py --ground-truth data/ground_truth/synthetic.yaml runs/agent runs/baseline
-
-# 5. tests
-pytest -q
+python scripts/sctarget.py demo        # generates a synthetic dataset with a planted answer, runs the scripted
+                                       # pipeline and the naive baseline offline, scores both (no key, no network)
+SCTARGET_OFFLINE=1 pytest -q           # 66 tests, ~4 minutes
 ```
+
+The individual steps behind `demo` are `scripts/make_synthetic.py`, `scripts/run_pipeline.py --model scripted`,
+`scripts/run_baseline.py` and `scripts/run_eval.py`; see `scripts/sctarget.py --help`.
 
 Open `runs/agent/report.html`. On the synthetic data the agent ranks ERBB4 first with
 neratinib/afatinib/lapatinib, nominates no decoys, and passes; the baseline also finds the
@@ -138,6 +129,11 @@ python scripts/sctarget.py report    --ground-truth data/ground_truth/mydata.yam
 
 Read `runs/<run>/report.md` section 5 (critic flags) before section 4 (ranking). Every number in
 it traces to a line in `runs/<run>/run.jsonl`. Nothing per-cell ever reaches the model.
+
+Cost guide (one node, no GPU): the scripted calibration takes ~10 minutes for 30k cells and
+~65 minutes for 200k cells (QC, Harmony, Leiden, pseudobulk DESeq2 per state). An agent run adds
+20-90 minutes and 0.6-1.7M input tokens on the subscription backend. Run agent runs one at a time:
+the druggability databases rate-limit.
 
 **Using Claude Code?** Copy `skills/sc-target-agent/` into your project's `.claude/skills/` and
 Claude will walk through the steps above with the lessons from both validation datasets built in
