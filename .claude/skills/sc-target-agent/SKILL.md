@@ -50,7 +50,9 @@ fewer than 3 samples in a condition, no counts found, more than two condition le
 **Do not trust public metadata.** GEO/ArrayExpress sample labels have been wrong before (in the
 ccRCC test set, tumour/benign were swapped for 4 of 13 libraries). Verify condition labels
 against a marker the researcher knows (`CA9` for ccRCC, a known disease gene for theirs) per
-library before any run.
+library before any run. The critic also runs `check_reference_libraries`, a marker-free version
+(within each lineage, does any library resemble the opposite condition?); in the HCC test set a
+"normal" library that expressed the tumour programme hid the known target until it was excluded.
 
 ## Step 2: decide whether there is an answer key
 

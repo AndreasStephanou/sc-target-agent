@@ -1975,3 +1975,104 @@ def plot_genes(session: AnalysisSession, genes: list[str], cluster_key: str | No
         out["dotplot_figure"] = str(p.relative_to(session.run_dir))
         del a.obs["_cl_cond"]
     return out
+
+
+@tool(
+    name="check_reference_libraries",
+    description="""
+    Marker-free label check: within each lineage, build one pseudobulk per library (log-CPM over the
+    lineage's most variable genes) and ask whether any REFERENCE library resembles the disease
+    libraries more than the other reference libraries (and the reverse for disease libraries). A
+    library whose nearest neighbours mostly carry the opposite condition label is flagged. No gene
+    name or prior biology is used; it tests the deposited labels against the data's own structure
+    (swapped labels and tumour-contaminated 'normal' samples both show up this way). Run it before
+    trusting any disease-vs-reference contrast; a flagged library is a reason to look, and if it
+    cannot be resolved, to run a second arm with dataset.exclude_samples and a written reason.""",
+    input_schema={
+        "properties": {
+            "min_cells_per_library": {"type": "integer", "default": 50, "description": "libraries with fewer lineage cells are not judged"},
+            "n_top_genes": {"type": "integer", "default": 1000},
+            "k": {"type": "integer", "default": 3, "description": "nearest libraries considered"},
+            "margin": {"type": "number", "default": 0.05, "description": "a library is flagged only if its mean correlation with the opposite label exceeds that with its own label by at least this much; a lineage is judged only if within-label correlation exceeds between-label correlation by at least this much (otherwise the labels are not testable there)"},
+            "lineages": {"type": ["array", "null"], "items": {"type": "string"}, "description": "restrict to these lineages (default: all)"},
+        },
+        "required": [],
+    },
+    roles=ANALYST,
+    mutates_state=False,
+)
+def check_reference_libraries(session: AnalysisSession, min_cells_per_library: int = 50, n_top_genes: int = 1000, k: int = 3, margin: float = 0.05, lineages: list[str] | None = None) -> dict[str, Any]:
+    a = session.require_adata()
+    X = session.counts()
+    samples = a.obs[session.sample_key].astype(str).to_numpy()
+    conds = a.obs[session.condition_key].astype(str).to_numpy()
+    ck = _lineage_key(session)
+    lin = a.obs[ck].astype(str).to_numpy() if ck and ck in a.obs else np.array(["all"] * a.n_obs)
+    cond_of = dict(zip(samples, conds))
+    out_lineages: dict[str, Any] = {}
+    flagged: list[dict[str, Any]] = []
+    for L in sorted(set(lin)):
+        if lineages and L not in lineages:
+            continue
+        m = lin == L
+        libs = sorted(set(samples[m]))
+        pb, ok_libs = [], []
+        for s_ in libs:
+            idx = np.where(m & (samples == s_))[0]
+            if len(idx) < min_cells_per_library:
+                continue
+            v = np.asarray(X[idx].sum(axis=0)).ravel().astype(float)
+            pb.append(np.log1p(v / max(1.0, v.sum()) * 1e6))
+            ok_libs.append(s_)
+        if len(ok_libs) < 4:
+            out_lineages[L] = {"judged_libraries": len(ok_libs), "note": "too few libraries with enough cells to judge"}
+            continue
+        M = np.vstack(pb)
+        var = M.var(axis=0)
+        top = np.argsort(var)[::-1][: min(n_top_genes, M.shape[1])]
+        Z = M[:, top]
+        Z = (Z - Z.mean(axis=0)) / (Z.std(axis=0) + 1e-9)
+        C = np.corrcoef(Z)
+        labels = np.array([cond_of[s_] for s_ in ok_libs])
+        is_dis = labels == session.disease
+        # is there condition structure in this lineage at all? (mean within-label r vs between-label r,
+        # off-diagonal). Without it the labels cannot be tested here and no library is judged.
+        iu = np.triu_indices(len(ok_libs), 1)
+        same_pair = (is_dis[iu[0]] == is_dis[iu[1]])
+        r_within = float(np.mean(C[iu][same_pair])) if same_pair.any() else float("nan")
+        r_between = float(np.mean(C[iu][~same_pair])) if (~same_pair).any() else float("nan")
+        structure = float(r_within - r_between) if np.isfinite(r_within) and np.isfinite(r_between) else float("nan")
+        if not (structure >= margin):
+            out_lineages[L] = {"judged_libraries": len(ok_libs), "n_disease": int(is_dis.sum()), "n_reference": int((~is_dis).sum()),
+                               "condition_structure": None if not np.isfinite(structure) else round(structure, 3),
+                               "note": "no condition structure in this lineage's pseudobulks (within-label r is not above between-label r); labels not testable here"}
+            continue
+        rows = []
+        for i, s_ in enumerate(ok_libs):
+            others = [j for j in range(len(ok_libs)) if j != i]
+            same = [j for j in others if is_dis[j] == is_dis[i]]
+            opp = [j for j in others if is_dis[j] != is_dis[i]]
+            if not same or not opp:
+                continue
+            kk = min(k, len(others))
+            nn = sorted(others, key=lambda j: -C[i, j])[:kk]
+            frac_opp = float(np.mean([is_dis[j] != is_dis[i] for j in nn]))
+            r_same = float(np.mean([C[i, j] for j in same]))
+            r_opp = float(np.mean([C[i, j] for j in opp]))
+            # flagged when the library's nearest neighbours are mostly the other condition AND it is, on
+            # average, closer to the other condition than to its own
+            flag = bool(frac_opp > 0.5 and (r_opp - r_same) >= margin)
+            row = {"library": str(session.pseudo.to_pseudo(s_)), "label": str(labels[i]), "n_cells": int((m & (samples == s_)).sum()),
+                   "frac_nearest_opposite_label": round(frac_opp, 2), "mean_r_same_label": round(r_same, 3), "mean_r_opposite_label": round(r_opp, 3), "flag": flag}
+            rows.append(row)
+            if flag:
+                flagged.append({"lineage": L, **row})
+        out_lineages[L] = {"judged_libraries": len(ok_libs), "n_disease": int(is_dis.sum()), "n_reference": int((~is_dis).sum()), "condition_structure": round(structure, 3), "libraries": rows}
+    n_judged = sum(1 for v in out_lineages.values() if "libraries" in v)
+    session.facts["reference_library_check"] = {"flagged": flagged, "n_lineages_judged": n_judged, "n_lineages_total": len(out_lineages)}
+    note = (
+        ("No library resembles the opposite condition in any lineage with condition structure." if n_judged else "No lineage shows condition structure at the pseudobulk level, so library labels could not be tested this way.") if not flagged else
+        f"{len(flagged)} library/lineage pair(s) resemble the OPPOSITE condition: " + "; ".join(f"{f['library']} (labelled {f['label']}) in {f['lineage']}" for f in flagged)
+        + ". A reference library that looks like disease (or the reverse) inflates the reference dispersion of every disease-vs-reference contrast and can hide real disease genes. Verify the label; if it cannot be resolved, run a second arm with dataset.exclude_samples and record the reason."
+    )
+    return {"lineages": out_lineages, "flagged": flagged, "note": note}

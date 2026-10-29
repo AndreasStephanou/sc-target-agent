@@ -161,6 +161,11 @@ them. For every disease state and candidate target recorded:
 - Is each candidate gene specific to the state (`gene_specificity`), or is it a cell-type /
   pan-condition marker? Is it consistent across disease samples?
 - Does the effect size rest only on a cell-level test (effect_size_source = find_markers)?
+- Run `check_reference_libraries` once: within each lineage it asks, with no gene names, whether any
+  library resembles the opposite condition. A reference library that looks like disease (swapped
+  label, or tumour cells in a "normal" sample) inflates the reference dispersion and can hide real
+  disease genes. Flag any such library (major) and say that an arm with dataset.exclude_samples is
+  the disclosed way to test its influence.
 - Is the candidate a cell-cycle gene (score_targets flags proliferation_marker; the state may be
   flagged cycling_substate)? Proliferation genes mark that cells divide, which every tumour does;
   they are not disease-specific targets and would be nominated in any cancer dataset. Flag them.

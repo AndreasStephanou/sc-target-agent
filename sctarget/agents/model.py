@@ -385,6 +385,8 @@ class ScriptedModel:
     def _critic_dynamic(self) -> list[ToolUse | str]:
         f = self._facts()
         steps: list[ToolUse | str] = [ToolUse("differential_abundance", {"within_celltype": True})]
+        # marker-free label check: does any library resemble the opposite condition within its lineage?
+        steps.append(ToolUse("check_reference_libraries", {}))
         steps.append("__critic_review__")
         return steps
 
@@ -393,6 +395,10 @@ class ScriptedModel:
         steps: list[ToolUse | str] = []
         da_rows = {r["cluster"]: r for r in f.get("differential_abundance", {}).get("table", [])}
         da_within = {r["cluster"]: r for r in f.get("differential_abundance_within_celltype", {}).get("table", [])}
+        for fl in f.get("reference_library_check", {}).get("flagged", []):
+            steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"Library {fl['library']} (labelled {fl['label']}) resembles the opposite condition in lineage {fl['lineage']}",
+                                                     "detail": f"Its {fl['n_cells']} {fl['lineage']} cells correlate more with the opposite-condition libraries (mean r {fl['mean_r_opposite_label']}) than with its own label (mean r {fl['mean_r_same_label']}); {int(100*fl['frac_nearest_opposite_label'])}% of its nearest libraries carry the other label. Either the label is wrong or the sample is contaminated with the other condition. Every disease-vs-reference contrast in this lineage is weakened by it. Verify the label; if unresolved, run a second arm with dataset.exclude_samples and a recorded reason.",
+                                                     "severity": "major"}))
         for st in f.get("findings", {}).get("disease_state", []):
             cl = st["cluster"]
             row = da_rows.get(cl, {})

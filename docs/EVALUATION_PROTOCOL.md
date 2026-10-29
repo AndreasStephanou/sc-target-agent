@@ -432,3 +432,30 @@ disclosed config choice rather than a rebuilt dataset, `dataset.exclude_samples`
 `dataset.exclude_samples_reason` were added to the loader; the exclusion is recorded in the load
 summary, the run facts and the report header. The primary (all-libraries) result stands and is
 reported alongside.
+
+### 19c. The arm without patient 4, and a marker-free label check
+
+`runs/hcc_nop4_calibrate` (scoring v3, `dataset.exclude_samples: [HCC04N, HCC04T]`, identical key
+and method): GPC3 is first in the tumour-vs-normal hepatocyte contrast (log2 6.45, padj 8e-12;
+with the pair in: 2.63, padj 0.20), ranked 4th overall behind CA2, RAMP1 and PGF (none a decoy),
+nominated by the scripted model, codrituzumab found (drug recall 1.0), zero decoys nominated,
+TOP2A flagged. The state criterion still reads "missed": the recorded signature (cholesterol
+synthesis SQLE / FDPS / IDI1, NDUFA4L2, CYP17A1 - consistent across patients) shares only GPC3
+with the key's literature marker list (AFP, MDK, SPINK1, AKR1B10 ... are patient-heterogeneous
+here and never significant). As with EPAS1, the key stays frozen and the lesson is recorded: a
+key's state markers should be genes expected to be consistent across patients, not the textbook
+list.
+
+The exclusion was identified before the first run with a marker check that used the expected
+target itself (GPC3), as CA9 was used for ccRCC. That is a weakness for a blind test and
+unusable when no marker is known. A marker-free check was therefore added:
+`check_reference_libraries` builds one pseudobulk per library within each lineage (log-CPM over
+the 1,000 most variable genes), first asks whether the lineage shows any condition structure
+(mean within-label correlation exceeds between-label by >= 0.05; otherwise the labels are not
+testable there and it says so), and then flags any library whose nearest libraries mostly carry
+the other condition and whose mean correlation with the other condition exceeds that with its own
+by >= 0.05. No gene names. The scripted critic runs it once per run and records a major flag per
+library; the critic prompt asks the agent to do the same. Tests: no flags on the clean synthetic
+(no lineage-level structure, reported as such); a disease library relabelled as reference, in a
+synthetic with an injected condition-wide programme, is flagged and the critic records it. The
+HCC result of this check is reported in `docs/results_hcc.md`.
