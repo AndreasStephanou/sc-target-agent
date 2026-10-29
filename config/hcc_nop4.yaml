@@ -16,7 +16,7 @@ dataset:
   reuse_clustering: null
   forbidden_obs_columns: [patient, stage, virus, site, celltype, res.3]
   exclude_samples: [HCC04N, HCC04T]
-  exclude_samples_reason: "pre-registered arm (protocol 18/19b): HCC04N, labelled non-tumour, has GPC3 in 77% / AKR1B10 60% / SPINK1 91% of hepatocyte-class cells and HCC04T is GPC3-negative; label or contamination cannot be resolved from the deposit, so the patient is dropped as a pair" 
+  exclude_samples_reason: "pre-registered arm (protocol 18/19b/19c). HCC04N, labelled non-tumour, failed the pre-run label check (GPC3 in 77%, AKR1B10 60%, SPINK1 91% of hepatocyte-class cells; HCC04T is GPC3-negative) and is independently flagged by the marker-free check_reference_libraries in the T/NK lineage (borderline in hepatocytes: closer to tumour libraries by 0.03, under the 0.05 margin). Label or contamination cannot be resolved from the deposit; the patient is dropped as a pair. The all-libraries run is the primary result." 
 analysis:
   lineages:
     ignore_annotation: false
