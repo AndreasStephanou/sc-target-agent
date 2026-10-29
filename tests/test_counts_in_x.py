@@ -37,3 +37,18 @@ def test_missing_configured_layer_is_reported(synthetic_dir, tmp_path_factory):
     summary = load_dataset(s)
     assert "not in the object" in summary["counts_note"]
     assert summary["counts_layer_used"] == "counts"  # the real counts layer was found and used
+
+
+def test_exclude_samples_is_applied_and_recorded(synthetic_dir, tmp_path_factory):
+    import anndata as ad
+
+    a = ad.read_h5ad(synthetic_dir / "synthetic.h5ad")
+    drop = sorted(a.obs["sample"].astype(str).unique())[:1]
+    cfg = load_config(ROOT / "config" / "synthetic.yaml", overrides={"dataset": {"path": str(synthetic_dir / "synthetic.h5ad"), "exclude_samples": drop + ["not_a_sample"], "exclude_samples_reason": "test"}, "output": {"run_dir": str(tmp_path_factory.mktemp("runs_ex"))}})
+    s = AnalysisSession.create(cfg, tmp_path_factory.mktemp("run_ex"))
+    summary = load_dataset(s)
+    ex = summary["excluded_samples"]
+    assert ex["n_samples_excluded"] == 1 and ex["not_found"] == ["not_a_sample"] and ex["reason"] == "test"
+    assert drop[0] not in set(s.adata.obs["sample"].astype(str))
+    assert s.facts["excluded_samples"]["n_samples"] == 1
+    assert sum(summary["samples_per_condition"].values()) == a.obs["sample"].nunique() - 1

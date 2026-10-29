@@ -104,6 +104,8 @@ dataset:
   already_processed: {'true' if clusterings or adata.obsm.keys() else 'false'}
   reuse_clustering: {clusterings[0] if clusterings else 'null'}
   forbidden_obs_columns: []                     # anything identifying (names, dates, IDs)
+  exclude_samples: []                           # libraries to drop, with exclude_samples_reason; a disclosed choice recorded in every run
+  exclude_samples_reason: null
 targets:
   objective: target                             # or marker for a perturbation / response study
 agent:

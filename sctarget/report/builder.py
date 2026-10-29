@@ -71,6 +71,11 @@ def build_markdown(session: AnalysisSession) -> str:
         f"- samples per condition: {', '.join(f'{k}: {v}' for k, v in ds.get('samples_per_condition', {}).items())} (pseudonymized S01…)\n"
         f"- lineages: {('annotation `' + ds['celltype_key'] + '`') if ds.get('celltype_key') and not f.get('lineages') else ('derived from the data (coarse Leiden r' + str(f.get('lineages', {}).get('resolution')) + ', ' + str(len(f.get('lineages', {}).get('groups', {}))) + ' groups)' if f.get('lineages') else 'none')}; clustering used: `{f.get('clustering', {}).get('cluster_key', '–')}` ({f.get('clustering', {}).get('method', '–')}, harmony={f.get('clustering', {}).get('harmony_used')})\n"
     )
+    if f.get("excluded_samples"):
+        ex = f["excluded_samples"]
+        md.append(f"- **Samples excluded by config:** {ex.get('n_samples')} ({ex.get('n_cells', 0):,} cells). Reason given: {ex.get('reason') or 'none recorded'}. This is a disclosed analysis choice (`dataset.exclude_samples`); compare with the run that keeps them.\n")
+    if f.get("counts_layer_used"):
+        md.append(f"- raw counts: layer `{f['counts_layer_used']}`\n")
     if "qc" in f:
         q = f["qc"]
         md.append(f"- QC: {q['cells_before']:,} → {q['cells_after']:,} cells, {q['genes_before']:,} → {q['genes_after']:,} genes (min_genes={q['params']['min_genes']}, max_mt%={q['params']['max_mt_pct']})\n")

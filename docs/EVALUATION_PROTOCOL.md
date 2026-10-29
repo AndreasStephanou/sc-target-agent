@@ -408,3 +408,27 @@ proliferation programme.
 re-run on ccRCC and CAA with `--scoring-version 3` and the ranks of CA9 and ERBB4 compared with the
 v2 runs. All three results go in `docs/results_*.md`, whatever they show. The `config/ccrcc.yaml`
 and the earlier runs keep `scoring_version: 2` as the record of that arm.
+
+### 19b. HCC under scoring v3, and the pre-registered arm without patient 4
+
+Regression (scripted calibration, `--scoring-version 3`): ccRCC CA9 rank 1, no unflagged decoy
+(unchanged); CAA ERBB4 rank 4 (was 5), drugs 0.75, PASS. HCC (`runs/hcc_calibrate_4`): TOP2A no
+longer nominated (proliferation flag), 20 nominations with zero decoys, SQLE / FDPS / IDI1
+(cholesterol synthesis), NDUFA4L2, CYP17A1 and the tumour-endothelium set (FOLH1, PGF, ESM1,
+THY1) on top; GPC3 still unscored.
+
+The whole-lineage contrast did run as intended (14,366 tumour vs 1,471 normal hepatocyte-class
+cells, 10 vs 7 replicates; the axis decision recorded "shared contrast held 10% of lineage
+disease cells -> whole-lineage used"). In it GPC3 is up 6-fold (log2 2.63, baseMean 764) at padj
+0.20: not significant. AKR1B10 (0.95) and SPINK1 (0.46) are flat. The reason is the one the
+label check found before the first run: HCC04N, labelled non-tumour, expresses GPC3 (77%),
+AKR1B10 (60%) and SPINK1 (91%) and contributes 22% of the reference hepatocyte-class cells,
+while HCC04T is a GPC3-negative tumour. A replicate-aware test correctly refuses to call a gene
+disease-specific when a "normal" replicate expresses it highly. This is a data-label result, not
+a method defect, and it is exactly what the pre-run check predicted.
+
+Pre-registered follow-up (section 18): one arm excluding both patient-4 libraries. To keep this a
+disclosed config choice rather than a rebuilt dataset, `dataset.exclude_samples` and
+`dataset.exclude_samples_reason` were added to the loader; the exclusion is recorded in the load
+summary, the run facts and the report header. The primary (all-libraries) result stands and is
+reported alongside.

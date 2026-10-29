@@ -93,6 +93,9 @@ with the researcher and look for these, in order:
   calibration tells you where (and a fix should be a generic rule, never a gene).
 
 Iterate on config only (thresholds, caps). Do not change code or prompts to fit one dataset.
+A library that fails the label check (step 1) is handled the same way: keep it in the primary
+run, and if the result hinges on it, run a second arm with `dataset.exclude_samples: [...]` and
+`exclude_samples_reason`, both recorded in the run and the report. Decide this before the run.
 
 ## Step 4: run the agent
 

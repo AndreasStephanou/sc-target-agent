@@ -145,6 +145,18 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
             raise ValueError(f"obs column '{key}' not found. Available: {list(a.obs.columns)}")
     a.obs[session.sample_key] = a.obs[session.sample_key].astype(str)
     a.obs[session.condition_key] = a.obs[session.condition_key].astype(str)
+    # Config-level sample exclusion (dataset.exclude_samples, with dataset.exclude_samples_reason): a
+    # disclosed analysis choice, applied before anything else and recorded in the facts and the load
+    # summary, so a run with and without a questionable library differ by one config line.
+    excl = [str(x) for x in (ds.get("exclude_samples") or [])]
+    excluded_note = None
+    if excl:
+        present = sorted(set(excl) & set(a.obs[session.sample_key].unique()))
+        missing = sorted(set(excl) - set(present))
+        n_before = a.n_obs
+        a = a[~a.obs[session.sample_key].isin(present)].copy()
+        excluded_note = {"n_samples_excluded": len(present), "n_cells_excluded": int(n_before - a.n_obs), "not_found": missing, "reason": ds.get("exclude_samples_reason")}
+        session.facts["excluded_samples"] = {"n_samples": len(present), "n_cells": int(n_before - a.n_obs), "reason": ds.get("exclude_samples_reason")}
     from ..privacy import SamplePseudonymizer, check_obs_columns
 
     session.pseudo = SamplePseudonymizer(a.obs[session.sample_key].unique().tolist(), enabled=session.policy.pseudonymize_samples)
@@ -216,6 +228,7 @@ def load_dataset(session: AnalysisSession) -> dict[str, Any]:
         "x_looks_like_raw_counts": _looks_like_counts(a.X),
         "counts_layer_used": ds.get("counts_layer"),
         "counts_note": counts_note,
+        "excluded_samples": excluded_note,
         "already_processed_flag": bool(ds.get("already_processed", False)),
         "n_mt_genes": int(a.var["mt"].sum()),
     }
