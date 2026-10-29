@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..session import AnalysisSession
+from .figures import candidate_evidence_rows
 
 CSS = """
 body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#1c1c1c;line-height:1.45}
@@ -38,6 +39,54 @@ def _table(rows: list[dict[str, Any]], cols: list[tuple[str, str]], nd: int = 3)
     return head + body
 
 
+def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
+    """Replicate-level figures built when the report is rendered (needs the data in memory; a report
+    regenerated from a run directory without the object simply has none)."""
+    out: dict[str, Any] = {"candidate_panels": []}
+    if session.adata is None:
+        return out
+    try:
+        from .figures import library_correlation_heatmaps, library_expression_panel, state_library_bars
+
+        existing = {Path(x["path"]).name for x in session.figures}
+        def _fig(rel):
+            return next((x for x in session.figures if x["path"] == rel), None)
+        if not any("state_library_shares" in n for n in existing):
+            rel = state_library_bars(session)
+            if rel:
+                out["state_shares"] = _fig(rel)
+        if not any("library_correlation" in n for n in existing):
+            rel = library_correlation_heatmaps(session)
+            if rel:
+                out["library_corr"] = _fig(rel)
+        # candidate panels: nominated genes (or top-ranked) per state, 8 per figure; reuse panels the
+        # agent already drew with plot_genes
+        f = session.facts
+        cands = f.get("findings", {}).get("candidate_target", [])
+        rt = f.get("ranked_targets", {})
+        per_state: dict[str, list[str]] = {}
+        for c in cands:
+            if c.get("genes"):
+                per_state.setdefault(str(c.get("cluster")), []).append(c["genes"][0])
+        if not per_state:
+            for cl, rows in rt.items():
+                per_state[str(cl)] = [r["gene"] for r in rows[:6]]
+        for cl, genes in per_state.items():
+            genes = list(dict.fromkeys(genes))[:8]
+            if not genes:
+                continue
+            name = f"library_expression_state{cl}_" + "_".join(genes[:3])
+            if any(name in n for n in existing):
+                out["candidate_panels"].append(next(x for x in session.figures if name in x["path"]))
+                continue
+            rel = library_expression_panel(session, genes, name, title=f"Nominated candidates for state {cl}: per-library pseudobulk expression")
+            if rel:
+                out["candidate_panels"].append(_fig(rel))
+    except Exception as e:  # noqa: BLE001 - figures never break a report
+        session.log.note("report", f"report-time figures skipped: {type(e).__name__}: {e}")
+    return out
+
+
 def build_markdown(session: AnalysisSession) -> str:
     f = session.facts
     ds = f.get("dataset", {})
@@ -49,6 +98,7 @@ def build_markdown(session: AnalysisSession) -> str:
     events = session.log.events()
     model_names = sorted({e.get("model") for e in events if e["type"] == "model_call" and e.get("model")})
     usage = session.log.usage_totals()
+    report_figs = _report_time_figures(session)
     fig_by_name = {Path(x["path"]).name: x for x in session.figures}
 
     md: list[str] = []
@@ -126,6 +176,9 @@ def build_markdown(session: AnalysisSession) -> str:
             if "differential_abundance" in name:
                 md.append(f"\n![{x['caption']}]({x['path']})\n")
                 break
+    if report_figs.get("state_shares"):
+        x = report_figs["state_shares"]
+        md.append(f"\n![{x['caption']}]({x['path']})\n")
     comp = {r["cluster"]: r for r in f.get("cluster_composition", [])}
     for st in states:
         cl = st.get("cluster")
@@ -142,16 +195,18 @@ def build_markdown(session: AnalysisSession) -> str:
             if en.get("top"):
                 md.append("\n**Enrichment (ORA):**\n\n" + _table(en["top"][:6], [("term", "Term"), ("overlap", "Overlap"), ("set_size_in_background", "Set size"), ("padj", "padj"), ("genes", "Genes")]))
                 break
-        for x in session.figures:
-            n = Path(x["path"]).name
-            if "umap_genes" in n or "dotplot" in n:
-                md.append(f"\n![{x['caption']}]({x['path']})\n")
 
     # ---- ranking
     md.append("## 4. Target ranking\n")
     rt = f.get("ranked_targets", {})
     if not rt:
         md.append("_No ranking was produced._\n")
+    ev = candidate_evidence_rows(session)
+    if ev:
+        md.append("**Evidence summary for the nominated candidates** (one row per gene and state; full per-state tables below). `axis` says which lineage contrast carried the lineage log2FC; `drugs` counts compounds but does not know the therapeutic direction - the critic judges that.\n\n")
+        md.append(_table(ev, [("rank", "#"), ("gene", "Gene"), ("state", "State"), ("score", "Score"), ("class", "Class"), ("state_log2fc", "State log2FC"), ("lineage_log2fc", "Lineage log2FC"), ("axis", "Axis"), ("specificity", "log2 spec."), ("consistency", "Consistency"), ("attribution", "Attribution"), ("drugs", "Drugs"), ("top", "Top compounds"), ("flags", "Flags"), ("critic", "Critic")]))
+    for x in report_figs.get("candidate_panels", []):
+        md.append(f"\n![{x['caption']}]({x['path']})\n")
     for cl, rows in rt.items():
         md.append(f"\n**Cluster {cl}** — score = weighted sum of effect size, specificity, druggability, known compounds, sample consistency (weights in `config_used.json`).\n\n")
         md.append(
@@ -170,6 +225,12 @@ def build_markdown(session: AnalysisSession) -> str:
 
     # ---- critic
     md.append("## 5. Critic review\n")
+    chk = f.get("reference_library_check")
+    if chk:
+        md.append(f"Marker-free library label check: {chk.get('n_lineages_judged', 0)} of {chk.get('n_lineages_total', 0)} lineages showed condition structure and were judged; {len(chk.get('flagged', []))} library/lineage pair(s) flagged.\n")
+        if report_figs.get("library_corr"):
+            x = report_figs["library_corr"]
+            md.append(f"\n![{x['caption']}]({x['path']})\n")
     if not flags:
         md.append("_No flags raised._\n")
     for sev in ("blocking", "major", "minor", None):

@@ -459,3 +459,14 @@ library; the critic prompt asks the agent to do the same. Tests: no flags on the
 (no lineage-level structure, reported as such); a disease library relabelled as reference, in a
 synthetic with an injected condition-wide programme, is flagged and the critic records it. The
 HCC result of this check is reported in `docs/results_hcc.md`.
+
+### 19d. Report figures (patch 37, report only)
+
+Feature-plot UMAPs and dot plots were replaced by replicate-level figures, since the pipeline's
+claims are about libraries: per-library pseudobulk expression panels (one point per library, by
+lineage and recorded state, coloured by condition, boxes per condition; `plot_genes` now draws
+these), a per-state bar of library contributions, the library-correlation heatmaps from
+`check_reference_libraries`, and an evidence table for the nominated candidates at the top of the
+ranking section (state and lineage effect sizes with the axis used, specificity, attribution,
+compound counts with the inhibitor caveat, flags, critic notes). No analysis change; no version
+bump. Reports regenerated from an existing run directory without the data object omit the figures.

@@ -113,7 +113,11 @@ exact payload the model saw). Nothing per-cell ever reaches the model.
 
 ## Step 5: read it with the researcher
 
-Start with **section 5, the critic flags**, then **section 4, the ranking**. For each candidate:
+Start with **section 5, the critic flags** (including the marker-free library check and its
+correlation heatmap), then **section 4**: the evidence table first, then the per-library panels -
+one point per library, by lineage and recorded state, coloured by condition. A real target shows
+most disease libraries above the reference ones in its own lineage; a single high library, or a
+shift that appears in every lineage, is a patient effect or ambient RNA. Then for each candidate:
 
 * `target_class`: `state_specific` (defines this state among its lineage) or `disease_wide`
   (up in disease cells across the lineage). Both can be targets; they are different claims.

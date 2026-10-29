@@ -1928,13 +1928,15 @@ def enrichment(session: AnalysisSession, genes: list[str], gmt_path: str | None 
 @tool(
     name="plot_genes",
     description="""
-    Save a figure for a list of genes: UMAP feature plots (if an embedding exists) and a
-    dot plot across clusters split by condition. Returns the figure path. Use to sanity-check
-    candidate genes visually; the figure goes into the report.""",
+    Per-library expression panel for up to 8 genes: one point per library (log-CPM of that library's
+    pseudobulk) within each lineage and each recorded disease state, coloured by condition, boxes per
+    condition. This is the replicate-level view the pipeline's claims rest on: it shows whether a gene
+    is up in disease libraries of its own lineage, how many libraries carry it, outlier libraries, and
+    leakage into other lineages (ambient RNA). Saves a figure for the report.""",
     input_schema={
         "properties": {
             "genes": {"type": "array", "items": {"type": "string"}, "description": "up to 8 genes"},
-            "cluster_key": {"type": ["string", "null"]},
+            "cluster_key": {"type": ["string", "null"], "description": "ignored (kept for compatibility)"},
             "title": {"type": ["string", "null"]},
         },
         "required": ["genes"],
@@ -1943,38 +1945,15 @@ def enrichment(session: AnalysisSession, genes: list[str], gmt_path: str | None 
 )
 def plot_genes(session: AnalysisSession, genes: list[str], cluster_key: str | None = None, title: str | None = None) -> dict[str, Any]:
     a = session.require_adata()
-    _ensure_lognorm(session)
-    key = cluster_key or session.cluster_key
     genes = [g for g in genes if g in a.var_names][:8]
     if not genes:
         return {"error": "no requested genes present in dataset"}
-    import matplotlib
+    from ..report.figures import library_expression_panel
 
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    out = {}
-    if "X_umap" in a.obsm:
-        ncol = min(4, len(genes))
-        nrow = int(np.ceil(len(genes) / ncol))
-        fig, axes = plt.subplots(nrow, ncol, figsize=(3.2 * ncol, 3 * nrow), squeeze=False)
-        for ax, g in zip(axes.ravel(), genes):
-            sc.pl.umap(a, color=g, ax=ax, show=False, frameon=False, colorbar_loc=None, title=g, cmap="viridis")
-        for ax in axes.ravel()[len(genes):]:
-            ax.axis("off")
-        fig.suptitle(title or "Candidate genes (UMAP)", y=1.02)
-        p = session.save_figure("umap_genes_" + "_".join(genes[:3]), fig, f"UMAP feature plots: {', '.join(genes)}.")
-        out["umap_figure"] = str(p.relative_to(session.run_dir))
-    if key and key in a.obs:
-        a.obs["_cl_cond"] = a.obs[key].astype(str) + " | " + a.obs[session.condition_key].astype(str)
-        dp = sc.pl.dotplot(a, var_names=genes, groupby="_cl_cond", show=False, return_fig=True)
-        if hasattr(dp, "make_figure"):
-            dp.make_figure()
-        fig = getattr(dp, "fig", None) or plt.gcf()
-        p = session.save_figure("dotplot_" + "_".join(genes[:3]), fig, f"Dot plot of {', '.join(genes)} by cluster | condition.")
-        out["dotplot_figure"] = str(p.relative_to(session.run_dir))
-        del a.obs["_cl_cond"]
-    return out
+    rel = library_expression_panel(session, genes, "library_expression_" + "_".join(genes[:3]), title=title)
+    if rel is None:
+        return {"error": "could not build the per-library panel (no lineage or too few cells)"}
+    return {"figure": rel, "what_it_shows": "one point per library (pseudobulk log-CPM) per lineage and recorded state, coloured by condition"}
 
 
 @tool(
@@ -2010,6 +1989,7 @@ def check_reference_libraries(session: AnalysisSession, min_cells_per_library: i
     lin = a.obs[ck].astype(str).to_numpy() if ck and ck in a.obs else np.array(["all"] * a.n_obs)
     cond_of = dict(zip(samples, conds))
     out_lineages: dict[str, Any] = {}
+    matrices: dict[str, Any] = {}
     flagged: list[dict[str, Any]] = []
     for L in sorted(set(lin)):
         if lineages and L not in lineages:
@@ -2042,6 +2022,7 @@ def check_reference_libraries(session: AnalysisSession, min_cells_per_library: i
         r_within = float(np.mean(C[iu][same_pair])) if same_pair.any() else float("nan")
         r_between = float(np.mean(C[iu][~same_pair])) if (~same_pair).any() else float("nan")
         structure = float(r_within - r_between) if np.isfinite(r_within) and np.isfinite(r_between) else float("nan")
+        matrices[L] = {"libraries": [str(session.pseudo.to_pseudo(s_)) for s_ in ok_libs], "labels": [str(x) for x in labels], "corr": np.round(C, 3).tolist(), "structure": None if not np.isfinite(structure) else round(structure, 3)}
         if not (structure >= margin):
             out_lineages[L] = {"judged_libraries": len(ok_libs), "n_disease": int(is_dis.sum()), "n_reference": int((~is_dis).sum()),
                                "condition_structure": None if not np.isfinite(structure) else round(structure, 3),
@@ -2068,8 +2049,9 @@ def check_reference_libraries(session: AnalysisSession, min_cells_per_library: i
             if flag:
                 flagged.append({"lineage": L, **row})
         out_lineages[L] = {"judged_libraries": len(ok_libs), "n_disease": int(is_dis.sum()), "n_reference": int((~is_dis).sum()), "condition_structure": round(structure, 3), "libraries": rows}
+        matrices[L] = {"libraries": [str(session.pseudo.to_pseudo(s_)) for s_ in ok_libs], "labels": [str(x) for x in labels], "corr": np.round(C, 3).tolist(), "structure": round(structure, 3)}
     n_judged = sum(1 for v in out_lineages.values() if "libraries" in v)
-    session.facts["reference_library_check"] = {"flagged": flagged, "n_lineages_judged": n_judged, "n_lineages_total": len(out_lineages)}
+    session.facts["reference_library_check"] = {"flagged": flagged, "n_lineages_judged": n_judged, "n_lineages_total": len(out_lineages), "matrices": matrices}
     note = (
         ("No library resembles the opposite condition in any lineage with condition structure." if n_judged else "No lineage shows condition structure at the pseudobulk level, so library labels could not be tested this way.") if not flagged else
         f"{len(flagged)} library/lineage pair(s) resemble the OPPOSITE condition: " + "; ".join(f"{f['library']} (labelled {f['label']}) in {f['lineage']}" for f in flagged)
