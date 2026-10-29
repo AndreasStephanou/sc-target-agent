@@ -162,5 +162,5 @@ treat the top 3-5 per state as the real list.
 ## Where things are
 
 `docs/EVALUATION_PROTOCOL.md` is the method history (every rule and the failure that motivated
-it). `docs/REPORT.md` is the write-up of the two validation datasets (canine ameloblastoma,
-human ccRCC). `tests/` (`pytest -q`) must pass after any change.
+it). `docs/REPORT.md` is the write-up of the three validation datasets (canine ameloblastoma,
+human ccRCC, human HCC as a reviewer run). `tests/` (`pytest -q`) must pass after any change.

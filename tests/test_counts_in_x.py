@@ -52,3 +52,16 @@ def test_exclude_samples_is_applied_and_recorded(synthetic_dir, tmp_path_factory
     assert drop[0] not in set(s.adata.obs["sample"].astype(str))
     assert s.facts["excluded_samples"]["n_samples"] == 1
     assert sum(summary["samples_per_condition"].values()) == a.obs["sample"].nunique() - 1
+
+
+def test_pseudonyms_stable_under_exclusion(synthetic_dir, tmp_path_factory):
+    import anndata as ad
+
+    a = ad.read_h5ad(synthetic_dir / "synthetic.h5ad")
+    libs = sorted(a.obs["sample"].astype(str).unique())
+    base = load_config(ROOT / "config" / "synthetic.yaml", overrides={"dataset": {"path": str(synthetic_dir / "synthetic.h5ad")}, "output": {"run_dir": str(tmp_path_factory.mktemp("r1"))}})
+    s1 = AnalysisSession.create(base, tmp_path_factory.mktemp("p1")); load_dataset(s1)
+    excl = load_config(ROOT / "config" / "synthetic.yaml", overrides={"dataset": {"path": str(synthetic_dir / "synthetic.h5ad"), "exclude_samples": [libs[0]]}, "output": {"run_dir": str(tmp_path_factory.mktemp("r2"))}})
+    s2 = AnalysisSession.create(excl, tmp_path_factory.mktemp("p2")); load_dataset(s2)
+    for l in libs[1:]:
+        assert s1.pseudo.to_pseudo(l) == s2.pseudo.to_pseudo(l)

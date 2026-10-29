@@ -470,3 +470,16 @@ these), a per-state bar of library contributions, the library-correlation heatma
 ranking section (state and lineage effect sizes with the axis used, specificity, attribution,
 compound counts with the inhibitor caveat, flags, critic notes). No analysis change; no version
 bump. Reports regenerated from an existing run directory without the data object omit the figures.
+
+## 20. results-v2
+
+Tag `results-v2` marks the state after the HCC reviewer run: scoring v3, prompts v5, the
+environment check, the counts-in-X guard, the scripted abort, `exclude_samples`,
+`check_reference_libraries`, the GEO matrix builder, replicate-level report figures, and
+deterministic pseudonyms (assigned over the full library set before any exclusion, so S-numbers
+agree across arms of one dataset). `docs/results_hcc.md` holds all seven HCC calibration runs,
+including the two that failed for infrastructure reasons; `docs/REPORT.md` section 5 is the
+write-up. The HCC all-libraries result is a miss and is the primary result; the pre-registered
+arm without patient 4 ranks GPC3 4th with codrituzumab. No agent (model-driven) run has been made
+on HCC yet; that, independent testing by another fellow, and a non-tumour dataset are the next
+tests.

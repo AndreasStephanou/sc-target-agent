@@ -4,10 +4,13 @@ Agentic target discovery from single-cell / single-nucleus RNA-seq.
 Deterministic analysis tools, orchestrated by an auditable LLM tool loop, scored against
 ground truth you already know.
 
-Built as a CoPAIR fellowship project at Cornell and validated on two datasets: it rediscovered
+Built as a CoPAIR fellowship project at Cornell and tested on three datasets: it rediscovered
 the ERBB4 / neratinib vulnerability of canine acanthomatous ameloblastoma from our own snRNA-seq,
-and the HIF programme (CA9 first) of human clear cell renal cell carcinoma from public scRNA-seq,
-from counts and condition labels alone, with no decoy ever nominated unflagged.
+the HIF programme (CA9 first) of human clear cell renal cell carcinoma from public scRNA-seq, and,
+in a reviewer-style run from a fresh clone, GPC3 / codrituzumab in human hepatocellular carcinoma
+once a mislabelled "normal" library was excluded in a pre-registered arm (a miss with it in; both
+reported). From counts and condition labels alone; one decoy nominated unflagged in fifteen runs,
+none since the proliferation flag.
 `docs/REPORT.md` is the write-up; `docs/EVALUATION_PROTOCOL.md` is the method history.
 
 **Works on any species and any two conditions** (disease vs reference, treated vs control,
@@ -78,7 +81,7 @@ knockout vs wild-type). Human data need no ortholog step; a cell-type annotation
 conda env create -f environment.yml && conda activate sctarget     # or: pip install -e ".[full,dev]"
 python scripts/sctarget.py demo        # environment check, then generates a synthetic dataset with a planted answer, runs the scripted
                                        # pipeline and the naive baseline offline, scores both (no key, no network)
-SCTARGET_OFFLINE=1 pytest -q           # 66 tests, ~4 minutes
+SCTARGET_OFFLINE=1 pytest -q           # 82 tests, ~4 minutes
 ```
 
 The individual steps behind `demo` are `scripts/make_synthetic.py`, `scripts/run_pipeline.py --model scripted`,
