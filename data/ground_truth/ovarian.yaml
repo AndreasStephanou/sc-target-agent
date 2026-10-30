@@ -1,0 +1,19 @@
+# Frozen before any run. GSE286057: HGSOC omental metastases (6 tumour libraries, 5 with substantial
+# tumour content) vs omentum (6 distant-omentum libraries from the same patients + 17 control-omentum
+# libraries from 8 non-cancer donors). No epithelium exists in normal omentum, so this is the pure
+# composition case: every epithelial gene will be state-specific. The test is therefore whether FOLR1
+# (folate receptor alpha; mirvetuximab soravtansine, approved for FRalpha-high platinum-resistant
+# ovarian cancer) is found and ranked among the other real ovarian-cancer surface targets, not whether
+# it beats them; those are listed as acceptable. Predictions recorded in advance: MSLN should be
+# classed shared_with_reference (normal mesothelium expresses it) and flagged by the critic; the
+# state should be carried by 5 of 6 tumour libraries (P9_tumor has ~2% epithelial cells); P14_distant
+# carries some tumour cells (EPCAM 10%) and is the declared follow-up exclusion if the result hinges on it.
+expected_states:
+  - name: HGSOC_tumour_epithelium
+    marker_genes: [PAX8, WT1, EPCAM, KRT7, KRT8, KRT18, CLDN4, WFDC2, MUC16, FOLR1, MSLN, CDH1, ESRP1, SOX17, MUC1, CD24]
+    min_marker_overlap: 5
+expected_targets: [FOLR1]
+acceptable_targets: [MUC16, MSLN, TACSTD2, CLDN6, ERBB2, EPCAM]
+expected_drugs: [mirvetuximab soravtansine]
+decoy_targets: [MKI67, TOP2A, KDR, FLT1, PDGFRB, ACTA2, CSF1R]
+per_cell_truth: null

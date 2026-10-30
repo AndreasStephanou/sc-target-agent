@@ -1,0 +1,25 @@
+dataset:
+  path: data/ovarian/ovarian.h5ad
+  species: homo_sapiens
+  sample_key: sample                     # GSE286057 library (GSM); 6 tumour / 23 omentum; peritumoral libraries excluded at build (declared second arm)
+  condition_key: condition
+  celltype_key: null                     # no author annotation: lineages derived from the data
+  # provenance: per-library EPCAM/PAX8/FOLR1 check agrees with the labels; P14_distant (omentum) has EPCAM in 10%
+  # of cells (tumour spill-over), P9_tumor has ~2% epithelial cells. Both kept in the primary run; see key comments.
+  disease: Tumor
+  reference: [Omentum]
+  condition_descriptions:
+    Tumor: "high-grade serous ovarian cancer metastases in the omentum (6 patients)"
+    Omentum: "omentum without tumour: distant omentum from the same 6 patients and omentum from 8 non-cancer donors (several regions each)"
+  counts_layer: null
+  already_processed: false
+  reuse_clustering: null
+  forbidden_obs_columns: [title, patient, region, donor_group]
+analysis:
+  lineages:
+    ignore_annotation: false
+targets:
+  objective: target
+  scoring_version: 3
+agent:
+  max_turns_per_role: 60
