@@ -82,7 +82,7 @@ def rescore(cfg, source: Path, out: Path, recompute_attribution: bool = False, f
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", required=True)
-    ap.add_argument("--scoring-version", type=int, required=True, choices=[1, 2])
+    ap.add_argument("--scoring-version", type=int, required=True, choices=[1, 2, 3])
     ap.add_argument("--suffix", default=None, help="output dir suffix (default _s<version>)")
     ap.add_argument("--recompute-attribution", action="store_true", help="re-run condition_attribution (current rules, e.g. the thin reference-pool guard) before scoring; needs the dataset")
     ap.add_argument("--full-candidates", action="store_true", help="score every gene the nominator examined (its gene_specificity calls), not only the ones it chose to score")
