@@ -99,3 +99,34 @@ def test_runs_inside_the_real_loop(cfg, tmp_path):
     assert rr.stopped_reason == "end_turn" and rr.final_text == "finished" and rr.n_turns == 2
     assert [c["error"] is None for c in rr.tool_calls] == [True, False]  # analyst may not call druggability_lookup
     assert "not available to role" in calls(rec)[1]["prompt"]  # the model was told, as with native tool use
+
+
+def test_transient_cli_error_is_retried(tmp_path, monkeypatch):
+    """First call: the CLI reports a transient OAuth refresh race (is_error envelope). Second: a valid reply.
+    The run must continue, not die (ovarian reviewer run, 2026-10-30)."""
+    import stat as _stat
+
+    q = tmp_path / "q2.json"
+    q.write_text(json.dumps([
+        {"type": "result", "is_error": True, "result": "Failed to refresh OAuth token: another Claude Code process is refreshing it", "usage": {}},
+        {"type": "result", "is_error": False, "result": json.dumps({"text": "done", "tool_calls": []}), "usage": {"input_tokens": 5, "output_tokens": 2}},
+    ]))
+    script = tmp_path / "claude2"
+    script.write_text(f"#!{sys.executable}\nimport sys, json\nq={str(q)!r}\nsys.stdin.read()\nr=json.load(open(q)); e=r.pop(0); json.dump(r, open(q,'w'))\nprint(json.dumps(e))\n")
+    script.chmod(script.stat().st_mode | _stat.S_IEXEC)
+    monkeypatch.setattr("sctarget.agents.claude_code.time.sleep", lambda s: None)
+    m = ClaudeCodeModel(command=str(script), transient_retries=2)
+    r = m.create(system="sys", messages=[{"role": "user", "content": "go"}], tools=TOOLS, role="planner")
+    assert r.text == "done" and r.stop_reason == "end_turn"
+
+
+def test_non_transient_cli_error_is_raised(tmp_path, monkeypatch):
+    import stat as _stat
+
+    script = tmp_path / "claude3"
+    script.write_text(f"#!{sys.executable}\nimport sys, json\nsys.stdin.read()\nprint(json.dumps({{'type':'result','is_error':True,'result':'Invalid model name','usage':{{}}}}))\n")
+    script.chmod(script.stat().st_mode | _stat.S_IEXEC)
+    monkeypatch.setattr("sctarget.agents.claude_code.time.sleep", lambda s: None)
+    m = ClaudeCodeModel(command=str(script), transient_retries=2)
+    with pytest.raises(RuntimeError):
+        m.create(system="sys", messages=[{"role": "user", "content": "go"}], tools=TOOLS, role="planner")

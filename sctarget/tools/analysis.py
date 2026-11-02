@@ -1699,8 +1699,25 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     n_in_c = int(in_c.sum())
     n_ref_in_c = int((in_c & is_r).sum())
     ref_frac_in_c = n_ref_in_c / max(1, n_in_c)
-    ref_pool_ok = ref_frac_in_c >= min_reference_frac
-    ref_pool_status = "ok" if ref_pool_ok else f"too_thin ({n_ref_in_c} cells, {100*ref_frac_in_c:.2f}% of cluster < {100*min_reference_frac:g}%): in-cluster reference comparison not used for the class"
+    # Representativeness guard (ovarian/omentum reviewer run, 2026-10-30): the reference cells inside a
+    # composition-enriched cluster must also be a non-negligible share of the REFERENCE CONDITION. 151
+    # benign epithelial cells (0.16% of 94k reference cells; 59 of them FOLR1+, mostly from one healthy
+    # donor) were 7.5% of a 2,016-cell tumour cluster and made FOLR1 'reference_driven'. A rare
+    # reference population that shares a disease state is real biology worth reporting (on-target
+    # expression in a normal cell type), but it cannot stand for the reference condition; the per-sample
+    # abundance test already says the state is absent from reference libraries.
+    min_ref_frac_of_condition = float(session.cfg.analysis.get("attribution", {}).get("min_reference_frac_of_condition", 0.005))
+    n_ref_total = int(is_r.sum())
+    ref_frac_of_cond = n_ref_in_c / max(1, n_ref_total)
+    thin = ref_frac_in_c < min_reference_frac
+    rare = ref_frac_of_cond < min_ref_frac_of_condition
+    ref_pool_ok = not thin and not rare
+    if ref_pool_ok:
+        ref_pool_status = "ok"
+    elif thin:
+        ref_pool_status = f"too_thin ({n_ref_in_c} cells, {100*ref_frac_in_c:.2f}% of cluster < {100*min_reference_frac:g}%): in-cluster reference comparison not used for the class"
+    else:
+        ref_pool_status = f"rare_in_reference ({n_ref_in_c} cells = {100*ref_frac_of_cond:.2f}% of all {n_ref_total:,} reference cells < {100*min_ref_frac_of_condition:g}%): a rare reference population shares this state; reported per gene as rare_reference_counterpart, not used for the class"
     present = [g for g in genes if g in a.var_names]
     missing = [g for g in genes if g not in a.var_names]
     if not present:
@@ -1760,6 +1777,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
                 "mean_disease_in_cluster": None if a_mean is None else round(a_mean, 3),
                 "mean_reference_in_cluster": None if b_mean is None else round(b_mean, 3),
                 "reference_pool_in_cluster": ref_pool_status,
+                "rare_reference_counterpart": bool(rare and not thin and b_pct is not None and b_pct > 0.2),
                 "ambient_ratio": amb.loc[g, "ambient_ratio"],
                 "ambient_control_lineage": amb.loc[g, "control_lineage"],
                 "pct_in_control_lineage": amb.loc[g, "pct_control"],
@@ -1770,6 +1788,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     df = pd.DataFrame(rows).set_index("gene")
     session.save_table(f"condition_attribution_{key}_{cluster}", df.drop(columns=["n_cells"]))
     session.facts.setdefault("condition_attribution", {}).setdefault(cluster, {}).update({r["gene"]: r["class"] for r in rows})
+    session.facts.setdefault("rare_reference_counterpart", {}).setdefault(cluster, {}).update({r["gene"]: bool(r.get("rare_reference_counterpart")) for r in rows})
     counts = df["class"].value_counts().to_dict()
     return {
         "cluster": cluster,
@@ -1779,7 +1798,7 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
         "class_counts": counts,
         "table": df,
         "missing_genes": missing,
-        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in the SHARED sibling clusters (other disease-enriched states excluded; see pct_disease_in_other_enriched_states for those) >= 0.5x; ambient_like = within disease samples the gene is < threshold-fold higher in these cells than in the least-related lineage of the same samples AND that control lineage is itself elevated (>=1.5x) in disease vs reference samples - the two signatures of sample background rather than cell-intrinsic expression. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster. The in-cluster reference comparison is only used when reference cells are >= min_reference_frac of the cluster (reference_pool_in_cluster column); a thinner pool is reported but cannot decide the class.",
+        "note": "Values are medians over samples (each sample needs >= min_cells cells in the subset; thin subsets are pooled). Classes use mean-expression ratios: reference_driven = reference cells in cluster >= 2x disease cells; shared_with_reference = reference cells (here or in siblings) >= 0.5x; disease_wide = disease cells in the SHARED sibling clusters (other disease-enriched states excluded; see pct_disease_in_other_enriched_states for those) >= 0.5x; ambient_like = within disease samples the gene is < threshold-fold higher in these cells than in the least-related lineage of the same samples AND that control lineage is itself elevated (>=1.5x) in disease vs reference samples - the two signatures of sample background rather than cell-intrinsic expression. reference_driven genes are false positives of cluster-vs-cluster DE: their expression sits in the reference-condition cells that were assigned to this cluster. The in-cluster reference comparison is only used when reference cells are >= min_reference_frac of the cluster AND >= min_reference_frac_of_condition (default 0.5%) of all reference cells (reference_pool_in_cluster column); a thinner or rarer pool is reported but cannot decide the class, and rare_reference_counterpart marks genes that such a rare reference population does express (on-target expression in a normal cell type: a safety note, not a disqualification).",
     }
 
 

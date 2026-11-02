@@ -25,6 +25,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import uuid
 from typing import Any
 
@@ -122,7 +123,9 @@ class ClaudeCodeModel:
         max_parse_retries: int = 2,
         keep_api_key: bool = False,
         extra_args: list[str] | None = None,
+        transient_retries: int = 3,
     ) -> None:
+        self.transient_retries = transient_retries
         self.model = model
         self.name = f"claude-code:{model}" if model else "claude-code"
         self.command = command
@@ -146,7 +149,25 @@ class ClaudeCodeModel:
             env.pop("ANTHROPIC_AUTH_TOKEN", None)
         return env
 
+    TRANSIENT = ("oauth", "refresh", "rate limit", "rate_limit", "overloaded", "529", "503", "502", "timed out", "timeout", "econnreset", "temporarily")
+
     def _call(self, system: str, prompt: str) -> tuple[str, dict[str, int]]:
+        """One CLI turn. Transient failures (token refresh race, rate limit, overload, network) are
+        retried with a pause instead of ending a multi-hour run on the first one (ovarian reviewer run:
+        the very first call died on 'another Claude Code process is refreshing the OAuth token')."""
+        last = ""
+        for attempt in range(self.transient_retries + 1):
+            try:
+                return self._call_once(system, prompt)
+            except RuntimeError as e:
+                last = str(e)
+                if attempt < self.transient_retries and any(k in last.lower() for k in self.TRANSIENT):
+                    time.sleep(min(30.0 * (attempt + 1), 120.0))
+                    continue
+                raise
+        raise RuntimeError(last)
+
+    def _call_once(self, system: str, prompt: str) -> tuple[str, dict[str, int]]:
         proc = subprocess.run(self._argv(system), input=prompt, capture_output=True, text=True, timeout=self.timeout_s, cwd=self._cwd, env=self._env())
         if proc.returncode != 0:
             raise RuntimeError(f"claude CLI exited {proc.returncode}: {(proc.stderr or proc.stdout)[-800:]}")

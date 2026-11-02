@@ -238,6 +238,8 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
             flags.append("missing_evidence:attribution")
         elif attr in ("reference_driven", "ambient_like", "shared_with_reference", "disease_wide", "weak"):
             flags.append(attr)
+        if session.facts.get("rare_reference_counterpart", {}).get(str(cluster), {}).get(g):
+            flags.append("rare_reference_counterpart")  # informational: no penalty; the critic reports it
 
         d = drug_rows.get(hs) or drug_rows.get(g)
         if d is None:

@@ -483,3 +483,55 @@ write-up. The HCC all-libraries result is a miss and is the primary result; the 
 arm without patient 4 ranks GPC3 4th with codrituzumab. No agent (model-driven) run has been made
 on HCC yet; that, independent testing by another fellow, and a non-tumour dataset are the next
 tests.
+
+## 21. Fourth dataset (ovarian cancer omental metastases, GSE286057) and the attribution representativeness guard
+
+A second reviewer-style round: fresh clone, fresh environment, a dataset published in 2025 chosen
+from GEO by search, and the first model-driven (Claude Code) runs since scoring v3. Two deposits were
+screened and dropped on composition before any analysis (a 2025 gastric atlas, GSE270680, 47
+libraries: 70% PTPRC+ and 1-2% EPCAM+ cells in both conditions, so no epithelial target can be
+tested there; `inspect` now prints this and warns). The chosen deposit: HGSOC omental metastases,
+6 tumour libraries (5 with substantial tumour content) vs 23 omentum libraries (6 distant omentum
+from the same patients, 17 from 8 non-cancer donors); peritumoral libraries left out as a declared
+second arm. Key frozen before any run: expected FOLR1 (mirvetuximab soravtansine), acceptable
+MUC16, MSLN, TACSTD2, CLDN6, ERBB2, EPCAM, with the written prediction that MSLN would be
+shared_with_reference (mesothelium) and that P14_distant (EPCAM 10%) and P12_distant (3%) were the
+declared exclusion if the result hinged on them.
+
+Runs: scripted calibration (state found 5/5 lenient; FOLR1 significant in the sibling pseudobulk,
+log2 4.8, padj 5e-8, rank 39 of the significant genes, outside the fixed top-20 pool: unscored);
+agent, all libraries (2.0M tokens, 77 calls: state found, strict 3/5, FOLR1 scored and ranked 16th
+but set aside as shared_with_reference; the critic traced the cause to two reference libraries via
+`check_reference_libraries` and asked for the exclusion arm by name - the same two libraries the
+pre-run marker check had identified; no decoy nominated; agonist antibodies flagged for
+direction); scripted no-leak arm (FOLR1 enters the pool, rank 96); agent no-leak arm (1.45M tokens:
+state found and **strict 5/5 for the first time in an agent run**, 8 nominations, precision 0.25,
+no decoys, FOLR1 **blocking** as reference_driven).
+
+The blocking flag was traced on the raw object: 59 FOLR1+ reference cells in 94,235 (0.06%), 26 of
+them from one healthy donor's lesser omentum, KRT19/CLDN3/WFDC2/EPCAM-positive and CALB2/UPK3B-
+negative - a benign Müllerian-type epithelial inclusion, not mesothelium and not tumour spill-over,
+expressing folate receptor alpha as normal Müllerian epithelium does. 151 such reference cells
+were 7.5% of the 2,016-cell tumour cluster (above the 2% thin-pool guard) and expressed FOLR1 more
+highly than the tumour cells, so the in-cluster rule read "the signal comes from reference cells".
+The rule never asked how representative those cells were of the reference condition (0.16%); the
+per-sample abundance test had already said the state is absent from reference libraries.
+
+**Change (attribution rule; prompts v6; no scoring-version change):** `condition_attribution`
+adds a representativeness guard: the in-cluster reference pool decides the class only if it is
+also >= `analysis.attribution.min_reference_frac_of_condition` (default 0.5%) of all reference
+cells. Below that the status reads `rare_in_reference`, the class is decided by the other evidence,
+and `rare_reference_counterpart` marks genes the rare population expresses; score_targets carries
+it as an informational flag (no penalty), the scripted critic and the critic prompt report it as an
+on-target consideration to identify. Tested (synthetic reconstruction of the case; the old
+behaviour returns when the guard is set to 0). The HCC case is unaffected (normal hepatocytes in
+the tumour cluster were ~3% of reference cells). Regression by `scripts/rescore.py
+--recompute-attribution --full-candidates` on all saved runs.
+
+Also from this round: `fetch_geo_10x.py` and `build_from_10x_samples.py` (GEO per-sample 10x
+deposits; substring matching, with a warning that 'tumor' matches 'peritumoral'), the composition
+line in `inspect`, 429 backoff with Retry-After in the knowledge clients (19 druggability failures
+left Open Targets clinical fields empty), transient-error retry in the Claude Code backend (the
+first agent run died on an OAuth token-refresh race before its first tool call), and a sentence in
+the critic prompt that excluding a library is a human, config-level decision to request (the
+critic worked this out unaided; it should not have to).

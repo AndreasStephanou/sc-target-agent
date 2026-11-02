@@ -20,6 +20,11 @@ PROMPT_VERSION history
      90-100% of malignant hepatocytes sat in enriched clusters, so the shared-cluster contrast
      compared an atypical 9% of them (GPC3 +2.4 log2, padj 0.36, never scored); a cycling tumour
      sub-state put TOP2A through unflagged.
+  6  critic reads reference_pool_in_cluster / rare_reference_counterpart (attribution
+     representativeness guard) and is told that excluding a library is a human, config-level decision
+     to request, not a missing tool. Motivated by the ovarian/omentum reviewer run (GSE286057): 151
+     benign epithelial cells (0.16% of reference cells) inside the tumour cluster made FOLR1
+     reference_driven and blocking.
 """
 
 from __future__ import annotations
@@ -27,7 +32,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 5
+PROMPT_VERSION = 6
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -165,12 +170,18 @@ them. For every disease state and candidate target recorded:
   library resembles the opposite condition. A reference library that looks like disease (swapped
   label, or tumour cells in a "normal" sample) inflates the reference dispersion and can hide real
   disease genes. Flag any such library (major) and say that an arm with dataset.exclude_samples is
-  the disclosed way to test its influence.
+  the disclosed way to test its influence. You have no tool to exclude a library, by design: that
+  is a human decision made in the config with a written reason; your job is to name the libraries,
+  the evidence, and what the second arm should test.
 - Is the candidate a cell-cycle gene (score_targets flags proliferation_marker; the state may be
   flagged cycling_substate)? Proliferation genes mark that cells divide, which every tumour does;
   they are not disease-specific targets and would be nominated in any cancer dataset. Flag them.
 - Run `condition_attribution` on every nominated gene. A `reference_driven` gene is a blocking
-  flag: the signal comes from reference-condition cells inside the cluster. Check the dot
+  flag: the signal comes from reference-condition cells inside the cluster. Read the
+  `reference_pool_in_cluster` column first: when it says too_thin or rare_in_reference, the
+  in-cluster reference cells did not decide the class, and a `rare_reference_counterpart` gene is
+  one that a small normal population (< 0.5% of reference cells) also expresses - report it as an
+  on-target consideration (which lineage? which libraries?), not as a disqualification. Check the dot
   plots the same way - is the gene's expression in the disease rows of the cluster?
 - If `disease_programs` reported an ambient_warning, say so: 'disease_wide' labels and any
   program-basis state in an unrelated cell type may be ambient RNA from the dominant state.

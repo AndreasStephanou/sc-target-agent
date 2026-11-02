@@ -38,6 +38,15 @@ DESeq2) on a 9k-cell synthetic object. A fresh install once passed every test an
 could not cluster any real dataset (a library-version conflict); this catches that in a minute
 instead of after a 10-minute run. If it fails, rebuild from the pinned `environment.yml`.
 
+## Step 0b: is the compartment you care about even in the data?
+
+`inspect` prints the fraction of cells positive for immune, epithelial, fibroblast and endothelial
+markers per condition. A deposit can be immune-sorted or lose its epithelium at dissociation (a
+2025 gastric atlas: 70% PTPRC+, 1-2% EPCAM+ in both tumour and normal); a target test aimed at a
+compartment the data barely hold is wasted. For a GEO series with per-sample 10x files, download two
+libraries first (`scripts/fetch_geo_10x.py <GSE> --keep <title substring> ...`, then
+`scripts/build_from_10x_samples.py`) and look, before pulling the whole series.
+
 ## Step 1: inspect and scaffold
 
 ```bash
@@ -129,7 +138,12 @@ shift that appears in every lineage, is a patient effect or ambient RNA. Then fo
   but its identity genes come from the lineage contrasts, not its cell-cycle markers.
 * `attribution`: `reference_driven` or `ambient_like` means the signal is not from these cells;
   `shared_with_reference` means a lineage or pan-condition gene; `reference_pool_in_cluster`
-  says whether the in-cluster reference comparison was even usable.
+  says whether the in-cluster reference comparison was even usable (`too_thin`: too few reference
+  cells in the cluster; `rare_in_reference`: those cells are a negligible share of the reference
+  condition). `rare_reference_counterpart` marks a gene that such a rare normal population also
+  expresses: an on-target consideration to identify (which lineage, which libraries), not a
+  disqualification. In the ovarian/omentum test 59 benign epithelial cells from one healthy donor
+  would otherwise have blocked FOLR1.
 * **Direction.** Druggability counts compounds; it does not know whether inhibiting the target
   helps. The critic has caught this (EGLN3 inhibitors stabilise HIF). Ask it explicitly.
 * **Orthologs.** For non-human data, `assumed_or_unverified` genes rest on a same-name assumption.

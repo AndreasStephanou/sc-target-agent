@@ -132,7 +132,7 @@ class KnowledgeClient:
             return None, "none"
         timeout = timeout or self.timeout
         last_err = ""
-        for attempt in range(self.retries + 1):
+        for attempt in range(self.retries + 3):  # +2 reserved for 429 rate limits
             t0 = time.time()
             try:
                 if method == "GET":
@@ -142,6 +142,19 @@ class KnowledgeClient:
                 if r.status_code >= 400:
                     body = r.text[:400].replace("\n", " ")
                     last_err = f"HTTP {r.status_code}: {body}"
+                    if r.status_code == 429:
+                        # rate limited: honour Retry-After when given, else back off hard (ovarian reviewer
+                        # run: 19 of the druggability lookups failed on 429 and the clinical fields came back empty)
+                        wait = r.headers.get("Retry-After")
+                        try:
+                            wait = float(wait) if wait else 15.0 * (attempt + 1)
+                        except ValueError:
+                            wait = 15.0 * (attempt + 1)
+                        if attempt < self.retries + 2:  # rate limits get two extra attempts
+                            time.sleep(min(wait, 90.0))
+                            last_err = ""
+                            continue
+                        break
                     if 400 <= r.status_code < 500:
                         break  # not transient
                     raise requests.HTTPError(last_err)

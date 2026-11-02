@@ -66,12 +66,34 @@ def main(argv=None):
         if np.allclose(Ld, np.round(Ld)) and Ld.max() > 20:
             counts_layer = layer
             break
+    warn = []
     species = guess_species(list(adata.var_names))
+    # compartment composition: fraction of cells positive for canonical lineage markers, per condition.
+    # A deposit can be immune-sorted or lose its epithelium at dissociation (gastric GSE270680: 70% PTPRC+,
+    # 1-2% EPCAM+ in both conditions); a target test aimed at a compartment the data barely hold is wasted.
+    comp = {}
+    markers = {"immune": ["PTPRC"], "epithelial": ["EPCAM", "KRT8", "KRT18"], "fibroblast": ["COL1A1", "DCN"], "endothelial": ["PECAM1", "VWF"]}
+    if cond_key and looks_counts or counts_layer:
+        try:
+            present = {k: [g for g in gs if g in adata.var_names] for k, gs in markers.items()}
+            genes = sorted({g for gs in present.values() for g in gs})
+            sub = adata[:, genes].to_memory()
+            M = sub.layers[counts_layer] if counts_layer else sub.X
+            M = M.toarray() if sp.issparse(M) else np.asarray(M)
+            pos = {k: (M[:, [genes.index(g) for g in gs]] > 0).any(axis=1) if gs else None for k, gs in present.items()}
+            for cond in conds:
+                m = (obs[cond_key].astype(str) == cond).to_numpy()
+                comp[cond] = {k: round(float(v[m].mean()), 2) for k, v in pos.items() if v is not None}
+        except Exception as e:  # noqa: BLE001 - informational only
+            comp = {"error": str(e)[:120]}
     clusterings = [c for c in obs.columns if re.search(r"leiden|louvain|cluster|seurat_clusters", c, re.I)]
     print(f"\nguesses: sample_key={sample_key}  condition_key={cond_key} {conds}  celltype_key={ct_key}  species={species}")
     print(f"         X looks like counts: {looks_counts}; counts layer: {counts_layer}; existing clusterings: {clusterings}; embeddings: {list(adata.obsm.keys())}")
     print(f"         samples per condition: {n_per}")
-    warn = []
+    if comp:
+        print(f"         compartment composition (fraction of cells positive for canonical markers), per condition: {comp}")
+        if all(isinstance(v, dict) for v in comp.values()) and all(v.get("epithelial", 1) < 0.05 for v in comp.values()):
+            warn.append("fewer than 5% epithelial-marker-positive cells in every condition: an epithelial target cannot be tested here (immune-sorted or epithelium lost at dissociation?)")
     if not sample_key:
         warn.append("no sample column found: per-sample tests need one")
     if cond_key and len(conds) != 2:

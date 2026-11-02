@@ -163,6 +163,47 @@ def test_thin_reference_pool_does_not_decide_class(cfg, tmp_path):
     thin = A.condition_attribution(s, genes=[g], cluster=cl, min_cells=1, min_reference_frac=floor)["table"].loc[g]
     assert str(thin["reference_pool_in_cluster"]).startswith("too_thin")
     assert thin["class"] not in ("shared_with_reference", "reference_driven")
+    s.cfg.raw.setdefault("analysis", {}).setdefault("attribution", {})["min_reference_frac_of_condition"] = 0.0  # both guards off: the pool decides
     full = A.condition_attribution(s, genes=[g], cluster=cl, min_cells=1, min_reference_frac=0.0)["table"].loc[g]
+    s.cfg.raw["analysis"]["attribution"].pop("min_reference_frac_of_condition")
     assert full["reference_pool_in_cluster"] == "ok"
     assert full["class"] in ("shared_with_reference", "reference_driven")  # with the guard off the 5 cells decide
+
+
+def test_rare_reference_counterpart_cannot_drive_the_class(cfg, tmp_path):
+    """Ovarian/omentum case: a handful of reference cells (<0.5% of all reference cells) sit inside a
+    large disease cluster and express the gene MORE than the disease cells. They are a rare normal
+    population that shares the state; they must not make the gene reference_driven, but must be
+    reported as rare_reference_counterpart."""
+    rng = np.random.default_rng(1)
+    n_dis, n_ref_in, n_ref_out = 2000, 150, 60000
+    n = n_dis + n_ref_in + n_ref_out
+    cond = np.array(["Tumor"] * n_dis + ["Omentum"] * (n_ref_in + n_ref_out))
+    sample = np.array([f"T{i % 6}" for i in range(n_dis)] + [f"N{i % 20}" for i in range(n_ref_in + n_ref_out)])
+    cluster = np.array(["S"] * (n_dis + n_ref_in) + ["O"] * n_ref_out)
+    X = rng.poisson(0.05, size=(n, 3)).astype(np.float32)
+    X[:n_dis, 0] = rng.poisson(1.5, size=n_dis)                        # TARGET: 44%-ish of tumour cells
+    X[n_dis:n_dis + n_ref_in, 0] = rng.poisson(6.0, size=n_ref_in)     # ...and HIGH in the 150 rare reference cells inside S
+    X[:n_dis + n_ref_in, 1] = rng.poisson(3.0, size=n_dis + n_ref_in)  # STATE gene: everyone in S
+    X[:, 2] = rng.poisson(4, size=n)                                    # HOUSE
+    a = ad.AnnData(X=X, obs=pd.DataFrame({"sample": sample, "condition": cond, "cell_type": np.where(cluster == "S", "epi", "stroma"), "leiden": cluster}, index=[f"c{i}" for i in range(n)]), var=pd.DataFrame(index=["TARGET", "STATE", "HOUSE"]))
+    a.layers["counts"] = a.X.copy()
+    p = tmp_path / "rare.h5ad"
+    a.write_h5ad(p)
+    from sctarget.config import load_config
+    from tests.conftest import ROOT
+
+    c = load_config(ROOT / "config" / "synthetic.yaml", overrides={"dataset": {"path": str(p), "disease": "Tumor", "reference": ["Omentum"], "celltype_key": "cell_type"}, "privacy": {"pseudonymize_samples": True}})
+    s = AnalysisSession.create(c, tmp_path / "run_rare")
+    A.load_dataset(s)
+    A.integrate_and_cluster(s, reuse_existing="leiden")
+    out = A.condition_attribution(s, genes=["TARGET", "STATE", "HOUSE"], cluster="S", min_cells=10)
+    t = out["table"]
+    assert str(t.loc["TARGET", "reference_pool_in_cluster"]).startswith("rare_in_reference"), t.loc["TARGET", "reference_pool_in_cluster"]
+    assert t.loc["TARGET", "class"] != "reference_driven"
+    assert bool(t.loc["TARGET", "rare_reference_counterpart"]) is True
+    assert s.facts["rare_reference_counterpart"]["S"]["TARGET"] is True
+    # with the guard relaxed to 0, the old behaviour returns: the rare pool decides and calls it reference_driven
+    s.cfg.raw.setdefault("analysis", {})["attribution"] = {"min_reference_frac_of_condition": 0.0}
+    out2 = A.condition_attribution(s, genes=["TARGET"], cluster="S", min_cells=10)
+    assert out2["table"].loc["TARGET", "class"] == "reference_driven"
