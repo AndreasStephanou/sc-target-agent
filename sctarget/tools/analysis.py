@@ -1706,18 +1706,25 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
     # reference population that shares a disease state is real biology worth reporting (on-target
     # expression in a normal cell type), but it cannot stand for the reference condition; the per-sample
     # abundance test already says the state is absent from reference libraries.
+    # The criterion is LINEAGE-relative, not cell-relative: a Treg state's 240 in-cluster reference Tregs
+    # are 0.25% of all reference cells yet a perfectly representative comparison, because the reference
+    # condition holds the T-cell lineage in bulk. The in-cluster pool is 'rare' only when the reference
+    # condition barely holds the cluster's LINEAGE at all (reference cells of the lineage < 0.5% of all
+    # reference cells): then whatever reference cells sit in the cluster are a curiosity, not a counterpart.
     min_ref_frac_of_condition = float(session.cfg.analysis.get("attribution", {}).get("min_reference_frac_of_condition", 0.005))
     n_ref_total = int(is_r.sum())
-    ref_frac_of_cond = n_ref_in_c / max(1, n_ref_total)
+    in_lineage = compartment_mask(session, cluster, key, shared_only=False)
+    n_ref_in_lineage = int((in_lineage & is_r).sum())
+    ref_lineage_frac_of_cond = n_ref_in_lineage / max(1, n_ref_total)
     thin = ref_frac_in_c < min_reference_frac
-    rare = ref_frac_of_cond < min_ref_frac_of_condition
+    rare = ref_lineage_frac_of_cond < min_ref_frac_of_condition
     ref_pool_ok = not thin and not rare
     if ref_pool_ok:
         ref_pool_status = "ok"
     elif thin:
         ref_pool_status = f"too_thin ({n_ref_in_c} cells, {100*ref_frac_in_c:.2f}% of cluster < {100*min_reference_frac:g}%): in-cluster reference comparison not used for the class"
     else:
-        ref_pool_status = f"rare_in_reference ({n_ref_in_c} cells = {100*ref_frac_of_cond:.2f}% of all {n_ref_total:,} reference cells < {100*min_ref_frac_of_condition:g}%): a rare reference population shares this state; reported per gene as rare_reference_counterpart, not used for the class"
+        ref_pool_status = f"rare_in_reference (the reference condition holds only {n_ref_in_lineage} cells of this cluster's lineage = {100*ref_lineage_frac_of_cond:.2f}% of all {n_ref_total:,} reference cells < {100*min_ref_frac_of_condition:g}%; {n_ref_in_c} of them sit in the cluster): a rare reference population shares this state; reported per gene as rare_reference_counterpart, not used for the class"
     present = [g for g in genes if g in a.var_names]
     missing = [g for g in genes if g not in a.var_names]
     if not present:

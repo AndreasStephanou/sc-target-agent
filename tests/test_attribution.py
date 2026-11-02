@@ -203,6 +203,20 @@ def test_rare_reference_counterpart_cannot_drive_the_class(cfg, tmp_path):
     assert t.loc["TARGET", "class"] != "reference_driven"
     assert bool(t.loc["TARGET", "rare_reference_counterpart"]) is True
     assert s.facts["rare_reference_counterpart"]["S"]["TARGET"] is True
+    # a sub-state of a lineage the reference holds in bulk is NOT rare: the same 150 cells inside a cluster
+    # whose lineage has 45,000 reference cells are a representative counterpart and decide the class
+    a2 = ad.read_h5ad(p)
+    ct = a2.obs["cell_type"].to_numpy().astype(object)
+    idx_o = np.where((a2.obs["leiden"] == "O").to_numpy())[0][:45000]
+    ct[idx_o] = "epi"  # most of the outside reference cells now share the lineage (cluster O becomes epi-dominant)
+    a2.obs["cell_type"] = ct
+    p2 = tmp_path / "rare2.h5ad"; a2.write_h5ad(p2)
+    c2 = load_config(ROOT / "config" / "synthetic.yaml", overrides={"dataset": {"path": str(p2), "disease": "Tumor", "reference": ["Omentum"], "celltype_key": "cell_type"}, "privacy": {"pseudonymize_samples": True}})
+    s2 = AnalysisSession.create(c2, tmp_path / "run_rare2")
+    A.load_dataset(s2)
+    A.integrate_and_cluster(s2, reuse_existing="leiden")
+    t2 = A.condition_attribution(s2, genes=["TARGET"], cluster="S", min_cells=10)["table"]
+    assert t2.loc["TARGET", "reference_pool_in_cluster"] == "ok" and t2.loc["TARGET", "class"] == "reference_driven"
     # with the guard relaxed to 0, the old behaviour returns: the rare pool decides and calls it reference_driven
     s.cfg.raw.setdefault("analysis", {})["attribution"] = {"min_reference_frac_of_condition": 0.0}
     out2 = A.condition_attribution(s, genes=["TARGET"], cluster="S", min_cells=10)

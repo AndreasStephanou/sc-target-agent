@@ -518,9 +518,15 @@ The rule never asked how representative those cells were of the reference condit
 per-sample abundance test had already said the state is absent from reference libraries.
 
 **Change (attribution rule; prompts v6; no scoring-version change):** `condition_attribution`
-adds a representativeness guard: the in-cluster reference pool decides the class only if it is
-also >= `analysis.attribution.min_reference_frac_of_condition` (default 0.5%) of all reference
-cells. Below that the status reads `rare_in_reference`, the class is decided by the other evidence,
+adds a representativeness guard: the in-cluster reference pool decides the class only if the
+reference condition holds the cluster's LINEAGE at all - reference cells of that lineage must be
+>= `analysis.attribution.min_reference_frac_of_condition` (default 0.5%) of all reference cells.
+(A first, cell-relative version of the guard - in-cluster reference cells as a share of all
+reference cells - was tried and withdrawn the same day: the rescore of the ovarian runs flipped
+Treg-state genes from shared_with_reference to state_specific, because 240 reference Tregs are
+0.25% of reference cells yet a representative counterpart; the reference holds T cells in bulk.
+The lineage-relative criterion keeps the Treg verdicts and still frees FOLR1, whose lineage the
+omentum reference barely holds.) Below that the status reads `rare_in_reference`, the class is decided by the other evidence,
 and `rare_reference_counterpart` marks genes the rare population expresses; score_targets carries
 it as an informational flag (no penalty), the scripted critic and the critic prompt report it as an
 on-target consideration to identify. Tested (synthetic reconstruction of the case; the old
