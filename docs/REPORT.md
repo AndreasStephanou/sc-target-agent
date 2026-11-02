@@ -1,8 +1,8 @@
 # Can an agent rediscover a known drug target from single-cell data, blind?
 
-*sc-target-agent: validation on three datasets. Draft for the CoPAIR fellowship report. Numbers in
+*sc-target-agent: validation on four datasets. Draft for the CoPAIR fellowship report. Numbers in
 the tables are regenerated from the run directories by `scripts/collect_results.py`
-(`docs/results_caa.md`, `docs/results_ccrcc.md`, `docs/results_hcc.md`); the method history is `docs/EVALUATION_PROTOCOL.md`.*
+(`docs/results_caa.md`, `docs/results_ccrcc.md`, `docs/results_hcc.md`, `docs/results_ovarian.md`); the method history is `docs/EVALUATION_PROTOCOL.md`.*
 
 ## 1. Question
 
@@ -12,9 +12,11 @@ would recover a target that was independently validated, rank it above plausible
 consistently, and do it better than a fixed script using the same tools. The known answers were
 ERBB4 in canine acanthomatous ameloblastoma (CAA; our own snRNA-seq, neratinib sensitivity shown
 in vitro), the HIF programme of clear cell renal cell carcinoma (ccRCC; public scRNA-seq,
-CA9 and the belzutifan target HIF-2alpha), and GPC3 in hepatocellular carcinoma (HCC; public
-scRNA-seq, codrituzumab / CAR-T target), the third run as a reviewer would run it: fresh clone,
-fresh environment, README and skill only.
+CA9 and the belzutifan target HIF-2alpha), GPC3 in hepatocellular carcinoma (HCC; public
+scRNA-seq, codrituzumab / CAR-T target), and FOLR1 in ovarian cancer omental metastases (public
+scRNA-seq, 2025; mirvetuximab soravtansine). The third and fourth were run as a reviewer would run
+them: fresh clone, fresh environment, README and skill only; the fourth also carried the first
+model-driven runs since scoring v3.
 
 ## 2. Design
 
@@ -175,7 +177,64 @@ from a tumour-endothelium programme the analyst recorded; SQLE / FDPS / IDI1 / S
 cholesterol and lipid synthesis programme of HCC; MAGEA3 is a cancer-testis antigen. All are
 hypotheses; the critic's direction caveat applies to each.
 
-## 6. What holds across the three datasets
+## 6. Ovarian cancer omental metastases (human, scRNA-seq, GSE286057, 6 tumour / 23 omentum libraries, 145k cells)
+
+Chosen by searching GEO for 2024-2026 deposits with tumour and normal tissue and an approved drug
+with a transcript-level target; a 2025 gastric atlas was downloaded first and dropped on
+composition (70% immune, 1-2% epithelium in both conditions: nothing epithelial to test), which
+`inspect` now reports. Design: 6 HGSOC omental implants (5 with substantial tumour content) vs 23
+omentum libraries (6 distant omentum from the same patients, 17 from 8 non-cancer donors);
+peritumoral libraries left out as a declared second arm. Omentum has no epithelium, so this is the
+pure composition case: every epithelial gene is tumour-specific, and the key said in advance that
+the test was whether FOLR1 is found and ranked among the other real ovarian-cancer surface
+targets (MUC16, MSLN, TACSTD2, CLDN6, ERBB2, EPCAM, all acceptable), not whether it beats them;
+that MSLN should come out shared with the mesothelium; and that two distant-omentum libraries with
+tumour cells (EPCAM 10% and 3%) were the pre-registered exclusion.
+
+| arm | state (lenient / strict) | FOLR1 | nominated / decoys | tokens |
+|---|---|---|---|---|
+| scripted calibration, all libraries | yes (5/5) / no | unscored (sibling log2 4.8, padj 5e-8, 39th of the significant genes, outside the fixed top-20 pool) | 20 / none | 0 |
+| **agent**, all libraries | yes / no (3/5) | **16**; set aside as shared_with_reference | 11 / none | 2.0M |
+| scripted, two leaking libraries excluded | yes / no | 96 | 20 / none | 0 |
+| **agent**, two leaking libraries excluded | yes / **yes (5/5)** | blocked (reference_driven) | 8 / none | 1.45M |
+| **agent**, same arm, prompts v6 | yes / **yes (5/5)** | blocked (reference_driven) | 5 / none | 2.3M |
+
+**What the agent added over the script.** The script found the tumour state and had FOLR1
+significant in its tables but never looked past rank 20. The agent recorded the state with its
+real identity (EPCAM/KRT8/KRT18/KRT19, 84% tumour, 6/6 patients), reached FOLR1 and scored it, set
+it aside as `shared_with_reference`, and the critic then traced the cause: `check_reference_libraries`
+flagged two libraries labelled Omentum as tumour-like in up to six lineages and asked for the
+`exclude_samples` arm by name - the same two libraries the pre-run marker check had identified.
+It also called the macrophage state a composition shift (blocking), the TNFRSF4/9/18 antibodies
+agonists (direction), and EPCAM pan-epithelial. In the exclusion arms it met the strict state
+criterion both times, found a CAF state (INHBA, LOXL2, FAP, MMP11) and a Treg state, and nominated
+no decoy in any of the three runs.
+
+**Why FOLR1 ended blocked, and why we stopped there.** With the two leaking libraries gone, the
+tumour cluster still held 151 reference-labelled cells, which expressed FOLR1 more highly than the
+tumour cells, and the in-cluster rule read that as "the signal comes from reference cells". On the
+raw object those cells are 59 FOLR1+ reference cells in 94,235 (0.06%), 26 from one healthy
+donor's lesser omentum, KRT19/CLDN3/WFDC2/EPCAM-positive and CALB2/UPK3B-negative: a benign
+Müllerian-type epithelial inclusion, which expresses folate receptor alpha as normal Müllerian
+epithelium does. The pipeline was right about the cells and wrong about the verdict. Two generic
+guards were tried (protocol section 21): a representativeness test on the in-cluster reference
+pool, first cell-relative (withdrawn the same day: it also freed Treg genes from a legitimate
+reference comparison), then lineage-relative (correct on rescore, but defeated in the third agent
+run when the coarse derived lineage absorbed mesothelium and so "held" the epithelial lineage).
+A third rule was drafted and not applied. The honest reading is that condition attribution is the
+pipeline's most conservative step, that its verdicts depend on how clean the derived lineages are,
+and that when it sets a known target aside the critic says exactly why - which is what a reviewer
+needs. FOLR1 is reported as found and ranked 16th in the primary run, set aside with a stated
+reason, and blocked in the exclusion arms by a rare benign population; the method stays frozen.
+
+**Other findings of this round, all fixed:** the first agent run died before its first tool call
+on an OAuth token-refresh race (transient CLI errors now retried); 19 druggability lookups failed
+on HTTP 429 and left the Open Targets clinical fields empty (Retry-After backoff); the critic
+reasoned its way to "I have no tool to exclude samples" (it is told now that this is a human,
+config-level decision to request); and two GEO deposits in a row needed a generic per-sample 10x
+fetcher and builder, now in `scripts/`.
+
+## 7. What holds across the four datasets
 
 The tools do most of the work; the model's contribution is visible at the interfaces: whether
 findings carry between roles, whether a merged cluster is examined, whether a thin reference
@@ -188,29 +247,39 @@ tools, thin reference pools and a drug-direction error; the marker-free library 
 doubtful labels. One decoy was nominated unflagged in 15 scripted and agent runs (TOP2A, HCC,
 before the proliferation flag); none since.
 
-The reviewer run on HCC was worth more than either earlier dataset: three of its five findings
-were infrastructure defects that every new user would have hit, and the method change it forced
-(the whole-lineage contrast) is the comparison a biologist would have run first. A dataset with a
-mislabelled or contaminated reference library is probably the common case, not the exception;
-the pipeline now says so when it can see it, and the exclusion arm is a disclosed config choice.
+The two reviewer rounds were worth more than the two development datasets: most of their
+findings were infrastructure defects every new user would have hit, and the method change the
+first forced (the whole-lineage contrast) is the comparison a biologist would have run first. A
+reference set with a mislabelled, contaminated or rare-counterpart library is the common case, not
+the exception; in all three public datasets the known target's fate was decided by what sat in the
+reference. The pipeline now says so when it can see it, the exclusion arm is a disclosed config
+choice, and the remaining limitation is stated rather than patched: attribution verdicts depend on
+how clean the derived lineages are.
 
-## 7. Limitations
+Across the 20-odd runs that reached nomination: the known target was ranked first in CAA and
+ccRCC, fourth in HCC once a mislabelled library was excluded, and sixteenth in the primary ovarian
+run; the agent met the strict state criterion in ccRCC (twice) and ovarian (twice); one decoy was
+ever nominated unflagged (TOP2A, before the proliferation flag).
+
+## 8. Limitations
 
 Expression-based: protein-level targets are invisible. The composition route favours
 infiltrates consistent across patients over malignant cells that partition by patient (mitigated
 by merging, not removed). The nominator over-nominates (precision 0.1-0.3) and never subclusters
 unprompted. The subscription backend has no seed or temperature control; stability is
-behavioural. Three datasets, all tumours; the programme route for non-tumour disease has only
-been exercised on synthetic data. The HCC result depends on excluding one patient whose "normal"
+behavioural. Four datasets, all tumours; the programme route for non-tumour disease has only
+been exercised on synthetic data. Condition attribution is conservative and lineage-dependent: a
+rare benign population expressing the target inside the tumour cluster can set it aside (ovarian),
+and the derived lineages at coarse resolution decide whether the guards against that apply. The HCC result depends on excluding one patient whose "normal"
 library expressed the tumour programme; the all-libraries result is the primary one and is a miss.
 The marker-free label check is sensitive to cell filtering and cannot judge lineages without
 condition structure. Drug knowledge is human-centric; non-human data rest on
 ortholog mapping. All candidates are hypotheses for IHC / functional validation.
 
-## 8. For the CoPAIR community
+## 9. For the CoPAIR community
 
 The repository runs on any two-condition dataset from a four-line config (`scripts/sctarget.py
-check-env / inspect / calibrate / run / report`, plus `build_from_matrix.py` for GEO matrix deposits), needs no API key (Claude Code login), derives lineages when
+check-env / inspect / calibrate / run / report`, plus `build_from_matrix.py`, `fetch_geo_10x.py` and `build_from_10x_samples.py` for GEO deposits), needs no API key (Claude Code login), derives lineages when
 no annotation exists, and ships a skill (`skills/sc-target-agent/SKILL.md`) that walks a Claude
 Code session through a new dataset with the lessons above built in. The protocol document is the
 method history; `tests/` must pass after any change.

@@ -541,3 +541,27 @@ left Open Targets clinical fields empty), transient-error retry in the Claude Co
 first agent run died on an OAuth token-refresh race before its first tool call), and a sentence in
 the critic prompt that excluding a library is a human, config-level decision to request (the
 critic worked this out unaided; it should not have to).
+
+
+### 21b. Third agent run, and the decision to freeze
+
+`runs/ovarian_agent_noleak_2` (prompts v6, lineage-relative guard in place; 2.3M tokens, 85 calls):
+strict state recovery 5/5, four states recorded (tumour epithelium, Treg, pDC - then doubted by the
+critic, CAF), five nominations, no decoys, FOLR1 again dropped as reference_driven. The guard did
+not apply: in this clustering the derived epithelial lineage L1 held reference cells in bulk
+(several reference libraries had 20-46% of their L1 cells in the tumour cluster), i.e. mesothelium
+was absorbed into "epithelial" at resolution 0.2, so the reference "held the lineage" and the 151
+benign cells were judged representative. A third rule (reference_driven requires that disease
+cells in the cluster mostly do not express the gene) was drafted and not applied: three touches to
+one rule in two days, each defeated by a different property of coarse derived lineages, is the
+signal to stop and state the limitation. Rescore regression of the lineage-relative guard on the
+earlier datasets: ccRCC CA9 1 -> 1; CAA de novo ERBB4 1 -> 3 within state (rank 7 overall;
+state_specific -> shared_with_reference under recomputed attribution with full candidates - noted,
+not acted on); no decoy unflagged anywhere.
+
+## 22. results-v3
+
+Tag `results-v3`: four datasets, the attribution representativeness guard (lineage-relative),
+prompts v6, the GEO tools, composition check, 429 backoff and transient-retry. `docs/results_ovarian.md`
+holds all seven ovarian runs including the two rescores; `docs/REPORT.md` section 6 is the write-up.
+Method frozen here pending independent use by another CoPAIR fellow.

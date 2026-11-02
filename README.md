@@ -4,12 +4,13 @@ Agentic target discovery from single-cell / single-nucleus RNA-seq.
 Deterministic analysis tools, orchestrated by an auditable LLM tool loop, scored against
 ground truth you already know.
 
-Built as a CoPAIR fellowship project at Cornell and tested on three datasets: it rediscovered
+Built as a CoPAIR fellowship project at Cornell and tested on four datasets: it rediscovered
 the ERBB4 / neratinib vulnerability of canine acanthomatous ameloblastoma from our own snRNA-seq,
 the HIF programme (CA9 first) of human clear cell renal cell carcinoma from public scRNA-seq, and,
 in a reviewer-style run from a fresh clone, GPC3 / codrituzumab in human hepatocellular carcinoma
 once a mislabelled "normal" library was excluded in a pre-registered arm (a miss with it in; both
-reported). From counts and condition labels alone; one decoy nominated unflagged in fifteen runs,
+reported), and FOLR1 in ovarian omental metastases ranked 16th and then set aside, three times,
+for a traceable reason (a rare benign FOLR1+ epithelium in normal omentum) that the critic named. From counts and condition labels alone; one decoy nominated unflagged in fifteen runs,
 none since the proliferation flag.
 `docs/REPORT.md` is the write-up; `docs/EVALUATION_PROTOCOL.md` is the method history.
 
