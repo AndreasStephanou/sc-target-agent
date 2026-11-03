@@ -1,227 +1,460 @@
 # sc-target-agent
 
-Agentic target discovery from single-cell / single-nucleus RNA-seq.
-Deterministic analysis tools, orchestrated by an auditable LLM tool loop, scored against
-ground truth you already know.
+Auditable, agent-driven drug-target discovery from single-cell or single-nucleus RNA-seq with two
+conditions (disease vs reference, treated vs control, knockout vs wild-type).
 
-Built as a CoPAIR fellowship project at Cornell and tested on four datasets: it rediscovered
-the ERBB4 / neratinib vulnerability of canine acanthomatous ameloblastoma from our own snRNA-seq,
-the HIF programme (CA9 first) of human clear cell renal cell carcinoma from public scRNA-seq, and,
-in a reviewer-style run from a fresh clone, GPC3 / codrituzumab in human hepatocellular carcinoma
-once a mislabelled "normal" library was excluded in a pre-registered arm (a miss with it in; both
-reported), and FOLR1 in ovarian omental metastases ranked 16th and then set aside, three times,
-for a traceable reason (a rare benign FOLR1+ epithelium in normal omentum) that the critic named. From counts and condition labels alone; one decoy nominated unflagged in fifteen runs,
-none since the proliferation flag.
-`docs/REPORT.md` is the write-up; `docs/EVALUATION_PROTOCOL.md` is the method history.
-
-**Works on any species and any two conditions** (disease vs reference, treated vs control,
-knockout vs wild-type). Human data need no ortholog step; a cell-type annotation is optional
-(lineages are derived from the data). Runs on a Claude subscription login (no API key) or the API.
+A four-role agent (planner, analyst, nominator, critic) works only through ~20 deterministic
+single-cell tools; every tool call and the exact payload the model saw are logged; no per-cell
+data or real sample identifier ever leaves your machine. If a target is already known for the
+disease, a frozen answer key lets you score the method blind before trusting it on an open
+question. Built as a CoPAIR fellowship project at Cornell (Communities of Practice for AI-enabled
+Research); the method history is in `docs/EVALUATION_PROTOCOL.md` and the validation write-up in
+`docs/REPORT.md`.
 
 ```
-   .h5ad  ──►  planner ──► analyst ──► target nominator ──► critic ──► report.md/.html
-               (plan)      (states)    (druggable genes)    (flags)    + run.jsonl audit log
-                  │            │              │                │
-                  └────────────┴──────────────┴────────────────┘
-                         18 deterministic tools (scanpy, PyDESeq2, DGIdb, Open Targets …)
-                         only aggregated results ever reach the model
+   .h5ad  ──►  planner ──► analyst ──► nominator ──► critic ──► report.md / report.html
+               (plan)      (states)    (targets)     (flags)    + run.jsonl (every tool call)
+                  │            │            │            │
+                  └────────────┴────────────┴────────────┘
+                     deterministic tools: QC, doublets, Harmony + Leiden, derived lineages,
+                     per-sample differential abundance, pseudobulk DESeq2 (three contrasts),
+                     specificity, condition attribution, ambient check, DGIdb / Open Targets /
+                     PubMed, weighted score  —  only aggregated tables reach the model
 ```
 
-## Why this design
+---
 
-* **Tools, not free-form code.** The model chooses *which* analysis to run and with what
-  parameters; the numbers come from tested Python functions. Every call is logged with its
-  arguments and the exact payload the model saw (`run.jsonl`), so any sentence in the report
-  can be traced to a tool result.
-* **Replicate-aware by default.** Disease states are found by per-*sample* differential
-  abundance; state genes by pseudobulk DESeq2 against *sibling clusters of the same cell
-  type* (so you get state markers, not cell-type markers), **blocked by sample**
-  (`~ sample + label`: a sample's state cells vs the same sample's sibling cells), so the
-  shared background of disease samples cannot inflate the reference dispersion. Specificity is
-  judged against clusters that are mostly reference cells, not against other disease populations. A `gene_specificity` tool and a
-  critic role exist specifically to catch pan-tumour and cell-type decoys.
-* **Where does the signal sit?** `condition_attribution` asks, for every candidate gene, whether
-  its expression in a cluster comes from the disease-condition cells or from reference-condition
-  cells that landed in the same cluster (`reference_driven`: a false positive of cluster-vs-cluster
-  DE that mixed-condition clusters produce), whether it is shared with reference cells of the same
-  cell type (`shared_with_reference`: cell-type marker or pan-condition gene), or whether it is
-  disease-wide rather than state-specific. The scorer penalises the first two and the critic
-  raises them as flags.
-* **Ambient-RNA check.** When one disease population dominates the disease samples, its
-  transcripts sit as background in every nucleus from those samples, so any "disease vs
-  reference" comparison inside a shared cluster finds that population's program in immune,
-  stromal and other epithelial cells alike. Every gene claim gets an *ambient ratio*: its level in
-  the cells of interest vs the least-related lineage in the same disease samples. A gene is
-  `ambient_like` when that ratio is < 3 **and** the control lineage is itself raised in disease vs
-  reference samples (background must show up there too; a gene flat in the control lineage cannot
-  be ambient). The test is symmetric - a TME target in macrophages is checked against epithelium -
-  and never privileges the tumour compartment. `disease_programs` uses the same ratio to strip
-  programs down to `clean_program_genes` and marks mostly-ambient programs `ambient_suspect`.
-  Exercised by `make_synthetic --ambient 0.15`. Upstream decontamination (CellBender / SoupX /
-  decontX) remains the principled fix; this is the safeguard for uncorrected data.
-* **Two routes to a disease state.** *Composition*: a cluster enriched in disease samples
-  (`differential_abundance`, with subclustering / re-clustering fallbacks). *Expression*:
-  a cell type present in every condition that runs a disease-specific program
-  (`disease_programs`: pseudobulk disease-vs-reference *within* each cluster). States carry a
-  `basis` (composition | program) and `score_targets` switches its specificity component
-  accordingly (cluster-vs-cluster for composition, within-cluster disease fold change for
-  program). Both routes are exercised by the synthetic datasets (`make_synthetic --mode state|program`).
-* **Privacy layer.** Raw counts and per-cell values never leave the machine. Tool outputs are
-  truncated, sample IDs pseudonymized, and any per-cell-sized array is rejected before it can
-  be sent (`sctarget/privacy.py`; tested in `tests/test_privacy.py` and the e2e test).
-* **Evaluable.** A `ground_truth.yaml` per dataset plus `scripts/run_eval.py` give state
-  recovery, target rank, drug recall, false leads, decoy handling, and run-to-run stability.
-  A non-agentic baseline (`scripts/run_baseline.py`) uses the same tools with a naive recipe,
-  so the agent's added value is measured, not assumed.
-* **Runs without an API key.** `--model scripted` is a deterministic stand-in that exercises
-  the whole machinery (used in tests/CI). Swap in any Claude model ID for real runs.
+## Contents
 
-## Quick start (5 minutes, offline)
+1. [What you need](#1-what-you-need)
+2. [Install and check](#2-install-and-check)
+3. [Walkthrough: a public dataset from GEO to a ranked target list](#3-walkthrough-a-public-dataset-from-geo-to-a-ranked-target-list)
+4. [Your own dataset](#4-your-own-dataset)
+5. [Choosing the model backend](#5-choosing-the-model-backend)
+6. [Reading the report](#6-reading-the-report)
+7. [The rules that keep a run honest](#7-the-rules-that-keep-a-run-honest)
+8. [Validation so far](#8-validation-so-far)
+9. [What is in the box](#9-what-is-in-the-box)
+10. [How a candidate is scored](#10-how-a-candidate-is-scored)
+11. [Troubleshooting](#11-troubleshooting)
+12. [Limitations](#12-limitations)
+13. [Data handling](#13-data-handling)
+14. [Using it from Claude Code](#14-using-it-from-claude-code)
+15. [Provenance](#15-provenance)
+
+---
+
+## 1. What you need
+
+- **A Linux or macOS machine with conda** (Miniconda or Mambaforge). No GPU. 32 GB RAM is
+  comfortable for 150k cells; 16 GB works to about 60k.
+- **Data**: raw UMI counts for one dataset, as an `.h5ad`, per-sample 10x matrices, or a GEO
+  "one matrix + metadata" deposit; a column that identifies the **library / biological replicate**
+  (at least 3 per condition, or the per-sample tests are weak); a column that identifies the
+  **condition**, with one value as the case and the rest as reference. A cell-type annotation is
+  optional (lineages are derived from the data otherwise).
+- **For the agent run only**: a Claude Code login (the default; no API key) or an Anthropic API
+  key. The calibration run, the offline demo and the tests need neither.
+- **Network** for gene-level lookups (DGIdb, Open Targets, NCBI E-utilities) during real runs;
+  `SCTARGET_OFFLINE=1` keeps everything local with bundled illustrative fixtures.
+
+## 2. Install and check
 
 ```bash
-conda env create -f environment.yml && conda activate sctarget     # or: pip install -e ".[full,dev]"
-python scripts/sctarget.py demo        # environment check, then generates a synthetic dataset with a planted answer, runs the scripted
-                                       # pipeline and the naive baseline offline, scores both (no key, no network)
-SCTARGET_OFFLINE=1 pytest -q           # 82 tests, ~4 minutes
+git clone https://github.com/AndreasStephanou/sc-target-agent
+cd sc-target-agent
+conda env create -f environment.yml
+conda activate sctarget
+
+python scripts/sctarget.py check-env     # 1 minute: exercises the sparse / large-data tool chain
+python scripts/sctarget.py demo          # 5 minutes, offline: synthetic data with a planted answer
+SCTARGET_OFFLINE=1 pytest -q             # 87 tests, ~7 minutes
 ```
 
-The individual steps behind `demo` are `scripts/make_synthetic.py`, `scripts/run_pipeline.py --model scripted`,
-`scripts/run_baseline.py` and `scripts/run_eval.py`; see `scripts/sctarget.py --help`.
+`check-env` matters: a fresh install once passed every test and the demo yet could not cluster any
+real dataset (a dependency drifted). It builds a 9k-cell sparse object and runs approximate
+neighbours, Leiden, Scrublet, Harmony and DESeq2 through the installed packages. If it fails, the
+message says which step and how to rebuild from the pinned `environment.yml`.
 
-Open `runs/agent/report.html`. On the synthetic data the agent ranks ERBB4 first with
-neratinib/afatinib/lapatinib, nominates no decoys, and passes; the baseline also finds the
-state but nominates KRAS and TOP2A (pan-tumour decoys) unflagged and fails.
+`demo` runs the whole pipeline with a deterministic scripted model and a naive baseline on a
+synthetic dataset, then scores both against the planted answer. Expected: the scripted run finds the
+planted state, ranks the planted target first with its drugs, nominates no decoys and PASSes; the
+baseline finds the state but lets decoys through. Open `runs/demo_scripted/report.html`.
 
-## Running on the real CAA data
+## 3. Walkthrough: a public dataset from GEO to a ranked target list
 
-1. Export your processed object as `.h5ad` with: raw UMI counts in a layer (e.g. `counts`),
-   one obs column per animal/library (`sample`), one for condition (`CAA` / `COSCC` /
-   `GINGIVA`), and optionally your cell-type annotation. Existing `leiden`/`X_umap` are reused.
-2. `cp config/caa_template.yaml config/caa.yaml` and edit the column names / species.
-3. Download MSigDB Hallmark (`h.all.*.symbols.gmt`) and point `analysis.enrichment.gene_sets`
-   at it (the bundled `mini_hallmark.gmt` is a test stand-in, not real gene sets).
-4. **Before running:** fill `data/ground_truth/caa_template.yaml` → `caa.yaml` from the
-   published results, commit it, and do not edit it afterwards. That is what makes the blind
-   run honest (see `docs/EVALUATION_PROTOCOL.md`).
-5. Run with a real model:
-   ```bash
-   export ANTHROPIC_API_KEY=sk-ant-...
-   unset SCTARGET_OFFLINE                   # allow live DGIdb / Open Targets / Ensembl / PubMed
-   python scripts/run_pipeline.py --config config/caa.yaml --model claude-sonnet-4-5
-   python scripts/run_baseline.py --config config/caa.yaml
-   python scripts/run_eval.py --ground-truth data/ground_truth/caa.yaml runs/<agent_run> runs/<baseline_run>
-   ```
-   Repeat the agent run 3-5× (different `--seed`, or just rerun) and add `--stability` to
-   `run_eval.py` to measure consistency.
+This is the sequence the skill follows, on a real public deposit. The example is GSE286057
+(ovarian cancer omental metastases vs omentum, 2025, per-sample 10x files); the same steps apply to
+any GEO series with per-sample `matrix.mtx` / `features.tsv` / `barcodes.tsv` files.
 
-Data handling: the model API receives gene symbols, fold changes, p-values, proportions,
-enrichment terms and cluster sizes – never counts or per-cell values. Check the payloads
-yourself: every `tool_call` event in `run.jsonl` has a `result_sent` field that is exactly
-what the model saw. Confirm this fits Cornell's data policy for your dataset before the
-first live run; `SCTARGET_OFFLINE=1` keeps even gene-symbol lookups local.
+### 3.1 Look before you download
 
-## Your own dataset in four commands
+List the samples and check that the compartment you care about is actually in the data. Many
+deposits are immune-sorted or lose their epithelium at dissociation; a target test aimed at a
+compartment the data barely hold is wasted.
 
 ```bash
-python scripts/sctarget.py inspect   data/my.h5ad --name mydata          # guesses sample/condition/species, writes config/mydata.yaml + a key template
-#   -> edit config/mydata.yaml; verify condition labels against a marker you trust (public metadata is wrong more often than you think)
-#   -> if you KNOW a target for this disease, fill data/ground_truth/mydata.yaml now and commit it (frozen before any run)
-python scripts/sctarget.py calibrate --config config/mydata.yaml         # scripted procedure, no tokens: QC per lineage, states, doublet/stress flags
-python scripts/sctarget.py run       --config config/mydata.yaml         # the agent (Claude Code login by default; --model <api model> with a key)
-python scripts/sctarget.py report    --ground-truth data/ground_truth/mydata.yaml runs/mydata_*   # results table from the run directories
+python scripts/fetch_geo_10x.py GSE286057 --out data/ovarian/raw --keep tumor --keep distant --keep proximal --dry-run
 ```
 
-Read `runs/<run>/report.md` section 5 (critic flags) before section 4 (ranking). Every number in
-it traces to a line in `runs/<run>/run.jsonl`. Nothing per-cell ever reaches the model.
+`--keep` is a case-insensitive **substring** match on the GEO sample title (mind that `tumor` also
+matches `peritumoral`; check the printed sheet). Then download two libraries, one per condition,
+build them, and look at the composition:
 
-Cost guide (one node, no GPU): the scripted calibration takes ~10 minutes for 30k cells and
-~65 minutes for 200k cells (QC, Harmony, Leiden, pseudobulk DESeq2 per state). An agent run adds
-20-90 minutes and 0.6-1.7M input tokens on the subscription backend. Run agent runs one at a time:
-the druggability databases rate-limit.
+```bash
+python scripts/fetch_geo_10x.py GSE286057 --out data/ovarian/probe --keep P14_tumor --keep P1_proximal
+python scripts/build_from_10x_samples.py --sheet data/ovarian/probe/samples.csv --out data/ovarian/probe/probe.h5ad
+python scripts/sctarget.py inspect data/ovarian/probe/probe.h5ad --name probe --force
+#  -> read the "compartment composition" line: fraction of cells positive for immune / epithelial /
+#     fibroblast / endothelial markers per condition. <5% epithelium everywhere = no epithelial target here.
+```
 
-**Using Claude Code?** Copy `skills/sc-target-agent/` into your project's `.claude/skills/` and
-Claude will walk through the steps above with the lessons from both validation datasets built in
-(what to check in QC, how to read a thin reference pool, why an expression method cannot nominate
-a protein-level target, and so on).
+### 3.2 Download, build, inspect
 
-## What is in the box
+```bash
+python scripts/fetch_geo_10x.py GSE286057 --out data/ovarian/raw --keep tumor --keep distant --keep proximal --keep distal --keep lesser_omentum
+# edit data/ovarian/raw/samples.csv: set the `condition` column (two values), drop rows you do not want
+python scripts/build_from_10x_samples.py --sheet data/ovarian/raw/samples.csv --out data/ovarian/ovarian.h5ad
+python scripts/sctarget.py inspect data/ovarian/ovarian.h5ad --name ovarian
+```
+
+`inspect` guesses the sample, condition and cell-type columns and the species, reports whether `X`
+holds integer counts, prints samples per condition and the compartment composition, and writes two
+files to edit: `config/ovarian.yaml` and `data/ground_truth/ovarian.yaml` (a template). For a GEO
+"one dense matrix + metadata table" deposit use `scripts/build_from_matrix.py --dry-run` first,
+then build; for an `.h5ad` you already have, skip straight to `inspect`.
+
+### 3.3 Verify the labels before any run
+
+Public metadata is wrong more often than you expect (in one validation set tumour and benign were
+swapped for 4 of 13 libraries). Check each library against a marker you trust, in both directions:
+
+```bash
+python - <<'EOF'
+import anndata as ad, numpy as np, pandas as pd
+a = ad.read_h5ad("data/ovarian/ovarian.h5ad")
+def pos(g): return np.asarray((a.X[:, a.var_names.get_loc(g)] > 0).todense()).ravel()
+m = {g: pos(g) for g in ["PTPRC", "EPCAM", "PAX8", "FOLR1", "MSLN"]}      # your markers here
+rows = []
+for s in sorted(a.obs["sample"].unique()):
+    k = (a.obs["sample"] == s).to_numpy()
+    rows.append({"sample": s, "condition": a.obs.loc[k, "condition"].iloc[0], "cells": int(k.sum()), **{g: round(float(v[k].mean()), 2) for g, v in m.items()}})
+print(pd.DataFrame(rows).sort_values("condition").to_string(index=False))
+EOF
+```
+
+A library that runs against its label is **not** silently dropped or relabelled. Decide now, in
+writing, how it will be handled: keep it in the primary run, and if the result hinges on it, run a
+second arm with `dataset.exclude_samples: [...]` and `dataset.exclude_samples_reason: "..."` in a
+copy of the config. Both arms are reported. (The critic also runs a marker-free version of this
+check, `check_reference_libraries`, during every run.)
+
+### 3.4 Edit the config
+
+`config/ovarian.yaml` after `inspect`, with the fields you will typically touch:
+
+```yaml
+dataset:
+  path: data/ovarian/ovarian.h5ad
+  species: homo_sapiens              # mouse / dog / ... are mapped to human symbols for drug lookups
+  sample_key: sample                 # one value per library
+  condition_key: condition
+  celltype_key: null                 # null -> lineages are derived from the data; or an obs column
+  disease: Tumor                     # the case condition
+  reference: [Omentum]               # one or more reference conditions
+  condition_descriptions:
+    Tumor: "high-grade serous ovarian cancer metastases in the omentum (6 patients)"
+    Omentum: "omentum without tumour: distant omentum from the same patients and 8 non-cancer donors"
+  counts_layer: null                 # null = counts are in X; the loader keeps a copy before normalising
+  forbidden_obs_columns: [title, patient]   # anything identifying: never shown to the model
+  exclude_samples: []                # a disclosed second arm, with exclude_samples_reason
+targets:
+  objective: target                  # or `marker` for a perturbation / response study
+  scoring_version: 3
+```
+
+### 3.5 Write and freeze the answer key (if you know one)
+
+If a target is already known and functionally validated for this disease, write
+`data/ground_truth/ovarian.yaml` **now**, commit it, tag it, and never edit it after the first run.
+If it turns out to be wrong, say so in the write-up; do not fix it.
+
+```yaml
+expected_states:
+  - name: HGSOC_tumour_epithelium
+    marker_genes: [PAX8, WT1, EPCAM, KRT7, KRT8, KRT18, CLDN4, WFDC2, MUC16, FOLR1, MSLN, CDH1]
+    min_marker_overlap: 5
+expected_targets: [FOLR1]                      # mirvetuximab soravtansine
+acceptable_targets: [MUC16, MSLN, TACSTD2, CLDN6, ERBB2, EPCAM]
+expected_drugs: [mirvetuximab soravtansine]
+decoy_targets: [MKI67, TOP2A, KDR, FLT1, PDGFRB, ACTA2, CSF1R]
+per_cell_truth: null
+```
+
+```bash
+git add config/ovarian.yaml data/ground_truth/ovarian.yaml && git commit -m "ovarian: key frozen before any run"
+git tag ovarian-key-frozen
+```
+
+Two lessons from the validation datasets, written into the key before the run: the **expected target
+must be transcriptionally distinctive** in the disease state (a protein-level target such as
+HIF-2alpha/EPAS1 is invisible to an expression method and tests the key, not the method; put it
+under `acceptable_targets`), and the **state markers should be genes you expect to be consistent
+across patients**, not the textbook list. With no known answer, skip the key: the pipeline still
+produces hypotheses with critic flags; only the evaluator does not apply.
+
+### 3.6 Calibrate (free: no model, no tokens)
+
+```bash
+python scripts/sctarget.py calibrate --config config/ovarian.yaml --ground-truth data/ground_truth/ovarian.yaml
+```
+
+A fixed scripted procedure runs through the same tools (10 minutes for 30k cells, about an hour for
+200k). Read `runs/ovarian_calibrate/report.md`, in this order: section 1, QC per lineage (a lineage
+that lost more than half its cells means the thresholds do not fit the tissue; kidney tubule and
+cardiomyocytes run 20–45% mitochondrial reads normally); section 3, which clusters are enriched
+(tiny or immune-only ones mean the composition route is favouring consistent infiltrates over
+patient-split malignant cells; look at `split_state_candidates`), doublet and dissociation-stress
+suspects, and the recorded signatures; then the evaluation line. Iterate on the **config** only
+(thresholds, caps, excluded libraries with a reason). Never change code or prompts to fit one
+dataset.
+
+### 3.7 Run the agent
+
+```bash
+python scripts/sctarget.py run --config config/ovarian.yaml                       # Claude Code login (default)
+python scripts/sctarget.py run --config config/ovarian.yaml --model claude-sonnet-4-5   # API key in ANTHROPIC_API_KEY
+```
+
+Expect 1–2.5 hours and 1.5–2.5M input tokens for 150k cells; 20–90 minutes and 0.6–1.7M for
+30k–200k cells on simpler designs. Run one dataset at a time (the druggability services
+rate-limit). `run` refuses to start while the config still has scaffold placeholders and warns if no
+key is committed. Run it in the background on a cluster:
+
+```bash
+nohup python scripts/sctarget.py run --config config/ovarian.yaml --run-dir runs/ovarian_agent_1 > runs/ovarian_agent_1.log 2>&1 &
+tail -f runs/ovarian_agent_1.log
+```
+
+### 3.8 Score and tabulate
+
+```bash
+python scripts/run_eval.py --ground-truth data/ground_truth/ovarian.yaml runs/ovarian_agent_1
+python scripts/sctarget.py report --ground-truth data/ground_truth/ovarian.yaml --out docs/results_ovarian.md runs/ovarian_*
+```
+
+The table has one row per run, with the arm label read from the run's own recorded configuration
+(model, prompt and scoring versions, lineage source, excluded libraries), so every number in a
+write-up traces to a run directory.
+
+## 4. Your own dataset
+
+The same four commands, from an `.h5ad` with raw counts:
+
+```bash
+python scripts/sctarget.py inspect   data/my.h5ad --name mydata      # columns, species, composition; writes config + key template
+#   edit config/mydata.yaml; verify labels per library (3.3); write and commit the key if you know a target (3.5)
+python scripts/sctarget.py calibrate --config config/mydata.yaml     # no tokens
+python scripts/sctarget.py run       --config config/mydata.yaml     # the agent
+python scripts/sctarget.py report    --ground-truth data/ground_truth/mydata.yaml runs/mydata_*
+```
+
+Export from Seurat or Scanpy with integer counts in `X` or a layer, one obs column per library and
+one per condition; existing `leiden` / `X_umap` are reused if present and `already_processed: true`.
+Non-human species: set `species` and the drug lookups go through human orthologs; unmapped genes
+are marked `assumed_or_unverified` in the report.
+
+## 5. Choosing the model backend
+
+| backend | how | notes |
+|---|---|---|
+| `claude-code` (default) | `claude` CLI logged in to your claude.ai account (`claude auth status`) | No API key; billed to the subscription. Tool calls are emulated through a strict JSON protocol; the CLI's own tools are disabled. No seed or temperature control. Transient CLI errors (token refresh, rate limit) are retried. |
+| API model id, e.g. `--model claude-sonnet-4-5` | `export ANTHROPIC_API_KEY=...` | Native tool use, `--seed`/temperature available. Never put the key in a file or a commit. |
+| `--model scripted` | nothing | Deterministic stand-in used by `calibrate`, the demo and the tests. The floor the agent is compared against. |
+
+Both model backends see identical tools, prompts and payloads; the backend is recorded in every run.
+
+## 6. Reading the report
+
+Open `runs/<run>/report.html` (self-contained) or `report.md`. Read **section 5, the critic's
+flags**, first; then **section 4**, the evidence table and the per-library panels; then the
+per-state tables.
+
+- **Per-library panels**: one point per library (pseudobulk log-CPM), by lineage and recorded state,
+  coloured by condition. A real target shows most disease libraries above the reference ones in its
+  own lineage; a single high library is a patient effect; a shift in every lineage is ambient RNA.
+- **Evidence table** per nominated gene: `State log2FC` (vs sibling clusters of the same lineage),
+  `Lineage log2FC` (disease vs reference cells of the lineage) and `Axis` (which lineage contrast
+  carried it), specificity, consistency across disease libraries, attribution, compounds, flags,
+  critic notes.
+- **`target_class`**: `state_specific` (defines this state among its lineage) or `disease_wide`
+  (up in disease cells across the lineage). Both can be targets; they are different claims.
+- **`attribution`**: `reference_driven` or `ambient_like` means the signal is not from these cells;
+  `shared_with_reference` means a lineage or pan-condition gene; `reference_pool_in_cluster` says
+  whether the in-cluster reference comparison was usable (`too_thin`, `rare_in_reference`) and
+  `rare_reference_counterpart` marks a gene that a small normal population also expresses — an
+  on-target consideration, not a disqualification. Attribution is the most conservative step; when
+  it sets a plausible target aside, read the critic's reason, not just the class.
+- **`proliferation_marker`**: a cell-cycle gene; it marks that cells divide, not what the disease is.
+- **Direction**: druggability counts compounds and does not know whether inhibiting the target
+  helps; the critic has caught agonists and HIF-stabilising "inhibitors" before. Ask it.
+- **Library label check**: the critic's marker-free check of which libraries resemble the opposite
+  condition, with correlation heatmaps per lineage. A flagged library is a prompt to look and, if it
+  cannot be resolved, to run the disclosed exclusion arm.
+- **Novel candidates** above a known target are hypotheses, not errors; two in the ccRCC validation
+  (CD70, FOLH1) turned out to be clinical-stage targets the key had omitted.
+
+Every number traces to `runs/<run>/run.jsonl`, which holds each tool call with the exact
+`result_sent` payload the model saw. `tables/` holds the full result tables; `state.json` the facts.
+
+## 7. The rules that keep a run honest
+
+- The **key is frozen** before the first run and never edited after; a wrong key is reported, not fixed.
+- Every change to prompts, scoring or analysis rules is a **labelled version** (`prompt_version`,
+  `scoring_version`, recorded in `config_used.json`, the report header and the eval line) with a
+  section in `docs/EVALUATION_PROTOCOL.md` naming the failure it fixed. Nothing is changed to make one
+  dataset pass; config-level thresholds and disclosed exclusion arms are the only per-dataset knobs.
+- Comparison arms: a naive baseline (`scripts/run_baseline.py`) and the scripted procedure, so the
+  agent's contribution is measured, not assumed.
+- `scripts/rescore.py --recompute-attribution --full-candidates` re-runs attribution and ranking on
+  saved runs when a rule changes, so regressions are checked without new tokens.
+- Candidates are hypotheses for IHC / functional follow-up. The report says so; so should you.
+
+## 8. Validation so far
+
+Public datasets, each run from the frozen key, with the number of runs and the final-arm outcome.
+Full tables are regenerated from the run directories (`docs/results_*.md`); `docs/REPORT.md` is the
+write-up.
+
+| dataset | design | known target | outcome |
+|---|---|---|---|
+| ccRCC, GSE159115 | 7 tumour / 6 benign kidney libraries, 29k cells | CA9 (HIF programme; EPAS1 is protein-level and was wrongly expected — documented) | CA9 **ranked 1st** in every tumour state, with and without the authors' annotation; strict state recovery met; GEO tissue labels found swapped for 4 libraries and corrected from the authors' files |
+| HCC, GSE149614 | 10 tumour / 8 non-tumour liver, 63k cells; reviewer-style from a fresh clone | GPC3 (codrituzumab) | unscored with all libraries (a "normal" library expressed the tumour programme; padj 0.20); **4th with codrituzumab** once that patient was excluded in a pre-registered arm; three install-time defects found and fixed |
+| Ovarian omental metastases, GSE286057 (2025) | 6 tumour / 23 omentum, 145k cells; reviewer-style, first model-driven runs | FOLR1 (mirvetuximab soravtansine) | agent **ranked FOLR1 16th** in the primary run and set it aside with a stated reason the critic traced to two contaminated reference libraries; blocked in the exclusion arms by 59 benign FOLR1+ epithelial cells in normal omentum; strict state recovery met twice; method frozen with the limitation stated |
+
+Across all runs that reached nomination, one decoy was ever nominated without a critic flag (TOP2A,
+before the proliferation flag). Nobody but the author has run the pipeline yet; that is the next test.
+
+## 9. What is in the box
 
 ```
 sctarget/
-  config.py            config loading (config/default.yaml + per-dataset yaml + env)
-  session.py           AnalysisSession: holds AnnData + results locally; tools operate on it
-  privacy.py           sanitize(): truncation, per-cell rejection, pseudonymization
-  runlog.py            append-only JSONL audit log
+  config.py             config loading (config/default.yaml + per-dataset yaml + env)
+  session.py            AnalysisSession: holds AnnData + results locally; tools operate on it
+  privacy.py            sanitize(): truncation, per-cell rejection, sample pseudonymisation
+  runlog.py             append-only JSONL audit log
+  envcheck.py           the environment check behind `sctarget.py check-env`
   tools/
-    registry.py        @tool decorator -> JSON schema, role permissions, arg validation
-    analysis.py        load_dataset, run_qc, integrate_and_cluster, subcluster, cluster_composition,
-                       differential_abundance, disease_programs, find_markers, pseudobulk_de,
-                       gene_specificity, condition_attribution, enrichment, plot_genes
-    knowledge.py       map_orthologs (Ensembl), druggability_lookup (DGIdb + Open Targets),
-                       literature_count (PubMed) – disk-cached, offline fixture fallback
-    targets.py         score_targets (deterministic, weighted, explainable), record_finding
+    registry.py         @tool decorator -> JSON schema, role permissions, argument validation
+    analysis.py         load_dataset, run_qc (adaptive, preview), detect_doublets, integrate_and_cluster,
+                        derive_lineages / label_lineages, subcluster, merge_clusters, cluster_composition,
+                        differential_abundance (+ split-state candidates), disease_programs, find_markers
+                        (stress + cycling flags), pseudobulk_de (sibling / within-cluster / compartment /
+                        whole-lineage contrasts), gene_specificity, condition_attribution,
+                        check_reference_libraries, enrichment, plot_genes
+    knowledge.py        map_orthologs (Ensembl), druggability_lookup (DGIdb + Open Targets),
+                        literature_count (PubMed); disk-cached, 429 backoff, offline fixture fallback
+    targets.py          score_targets (deterministic, weighted, explainable; scoring v1-v3), record_finding
   agents/
-    model.py           AnthropicModel (SDK tool use) and ScriptedModel (deterministic test double)
-    loop.py            the tool-calling loop: validate -> run -> sanitize -> log -> feed back
-    prompts.py         system prompts for planner / analyst / target / critic + stage prompts
-    orchestrator.py    runs the roles in order, persists state.json, builds the report
-  report/builder.py    report.md + report.html from facts + run log
-  eval/
-    score.py           evaluate_run(): state recovery, target rank, drug recall, false leads, decoys
-    stability.py       top-k Jaccard and nomination overlap across runs
-scripts/               make_synthetic, run_pipeline, run_baseline, run_eval
-config/                default.yaml, synthetic.yaml, caa_template.yaml
-data/ground_truth/     synthetic.yaml, caa_template.yaml
-data/fixtures/         mini_hallmark.gmt (test stand-in), knowledge_fixtures.json (offline DB stand-in)
-tests/                 35 tests: tools, privacy, registry, loop error handling, end-to-end + eval
+    model.py            AnthropicModel (API tool use), ScriptedModel (deterministic floor)
+    claude_code.py      ClaudeCodeModel (subscription login; JSON tool protocol; transient retry)
+    loop.py             the tool loop: validate -> run -> sanitize -> log -> feed back
+    prompts.py          role prompts (PROMPT_VERSION history at the top)
+    orchestrator.py     runs the roles in order, persists state.json, builds the report
+  report/               builder.py (markdown/HTML), figures.py (per-library panels, heatmaps)
+  eval/                 score.py (state recovery, target rank, decoys, novel, drug recall), stability.py
+scripts/
+  sctarget.py           check-env | demo | inspect | calibrate | run | report
+  fetch_geo_10x.py      GEO per-sample 10x files -> sample sheet
+  build_from_10x_samples.py  sample sheet -> .h5ad
+  build_from_matrix.py  GEO dense matrix + metadata -> .h5ad
+  build_ccrcc.py        worked example: the ccRCC validation set (label correction from authors' files)
+  new_dataset.py        behind `inspect`
+  run_pipeline.py, run_baseline.py, run_eval.py, rescore.py, collect_results.py, make_synthetic.py
+config/                 default.yaml, synthetic*.yaml, ccrcc.yaml, hcc*.yaml, ovarian*.yaml
+data/ground_truth/      frozen keys: synthetic, ccrcc, hcc, ovarian
+docs/                   REPORT.md, EVALUATION_PROTOCOL.md (22 sections), results_*.md
+skills/sc-target-agent/ the Claude Code skill (also under .claude/skills/)
+tests/                  87 tests
 ```
 
-Each run directory contains `report.md/.html`, `run.jsonl`, `state.json`, `config_used.json`,
-`tables/*.csv` (full results), `figures/*.png`, `cluster_assignments.csv` (local only).
+Each run directory holds `report.md`, `report.html`, `run.jsonl`, `state.json`, `config_used.json`,
+`tables/*.csv`, `figures/*.png` and `cluster_assignments.csv` (local only). `--resume-from
+runs/<earlier>` reuses an earlier run's analysis and runs only the nominator and critic.
 
-`--resume-from runs/<earlier>` reuses an earlier run's analysis (states, DE tables, clustering)
-and runs only `--stages target critic` by default - re-run a nominator or critic (or try a
-different model for them) without repeating the 15-minute analysis.
+## 10. How a candidate is scored
 
-## Scoring
-
-`score_targets` ranks candidates by a weighted sum (weights in `targets.weights`):
+`score_targets` (scoring v3) ranks candidates by a weighted sum, weights in `targets.weights`:
 
 | component | source | default weight |
 |---|---|---|
-| effect size (log2FC, significance-weighted) | `pseudobulk_de`, else `find_markers` | 0.25 |
-| specificity (log2 target-cluster mean / max other cluster) | `gene_specificity` | 0.25 |
+| effect size: the larger of the state axis (vs sibling clusters) and the lineage axis (disease vs reference cells of the lineage; which contrast is used is recorded as `lineage_axis_source`) | `pseudobulk_de`, else `find_markers` | 0.25 |
+| specificity (log2 target-cluster mean / max other non-disease cluster) | `gene_specificity` | 0.25 |
 | druggability (DGIdb class + Open Targets tractability) | `druggability_lookup` | 0.25 |
 | known compounds (approved inhibitors) | `druggability_lookup` | 0.15 |
-| consistency across disease samples | `gene_specificity` | 0.10 |
+| consistency across disease libraries | `gene_specificity` | 0.10 |
 
-Flags (`low_specificity`, `shared_across_conditions`, `inconsistent_across_samples`,
-`not_druggable`, `no_known_compounds`, `missing_evidence:*`) travel with each gene into the
-report and the critic's review, and the first three also penalise the score (x0.6, x0.6, x0.8),
-so a druggable pan-condition gene cannot outrank a clean state-specific one. Change the weights in the config, not in code, so the
-choice is recorded in `config_used.json`.
+Flags travel with each gene into the report and the critic's review; several also multiply the
+score: `low_specificity` and `shared_across_conditions` ×0.6, `inconsistent_across_samples` ×0.8,
+`reference_driven` and `ambient_like` ×0.2, `shared_with_reference` and `weak` ×0.5,
+`proliferation_marker` ×0.5. `disease_wide` and `rare_reference_counterpart` are informational.
+Change weights in the config, not in code, so the choice is recorded in `config_used.json`.
 
-## Known limitations / next steps
+## 11. Troubleshooting
 
-* The knowledge fixtures were hand-written for tests and are **illustrative only**. In this
-  development sandbox the live APIs were unreachable, so the live clients are implemented
-  and cached but **unverified** – run `druggability_lookup` on a few genes with
-  `SCTARGET_OFFLINE` unset and check the `source` column says `live` the first time and
-  `cache` the second. API schemas (DGIdb v5 GraphQL, Open Targets v4) change occasionally.
-* Differential abundance uses per-sample proportions + Mann-Whitney; with 3 vs 6 samples the
-  p-values are coarse by construction. Swap in scCODA or Milo via a new tool if you want a
-  model-based test – the registry makes that a ~40-line addition.
-* The ScriptedModel is a test double. Its adaptive steps (subcluster the largest cell type,
-  then re-cluster globally) are heuristics; the real model gets the same guidance in
-  `prompts.py` and can do better or worse – that difference is part of what you measure.
-* Not yet implemented: LINCS/CMap signature reversal, DepMap essentiality, a sandboxed
-  free-form code tool. All three fit the same `@tool` pattern.
-* Baseline runs call tools directly (not through the loop), so their `run.jsonl` has no
-  tool-call events; `state.json` is complete.
+| symptom | cause | fix |
+|---|---|---|
+| `check-env` fails at neighbours or Scrublet with `'csr_array' object has no attribute 'getnnz'` | a newer `pynndescent` with an older `scanpy` | `conda env create -f environment.yml` (pinned), or `pip install 'pynndescent<0.7'` |
+| calibration report says "Run aborted: tool X failed" | an environment or data-format problem, not a biological negative | read the error in the finding; `check-env`; check `counts_layer` and the obs columns |
+| `run` says the config still has placeholders | `inspect` scaffold not edited | edit `config/<name>.yaml` (`SAMPLE_COLUMN`, `DISEASE`, `DESCRIBE`...) |
+| `pseudobulk_de needs raw counts` | counts not integer, or not found | ensure `X` or `counts_layer` holds integer UMI counts (the loader stashes `X` automatically when it looks like counts) |
+| the agent run dies at the first call with an OAuth / token-refresh message | two `claude` processes refreshing at once | it is retried automatically now; otherwise wait a minute and rerun |
+| druggability shows `source: none` or empty Open Targets fields | HTTP 429 rate limit | retried with `Retry-After`; run one dataset at a time; rerun the nominator with `--resume-from` |
+| `inspect` warns "fewer than 5% epithelial-marker-positive cells" | the deposit is immune-sorted or lost its epithelium | an epithelial target cannot be tested here; use the dataset for immune/stromal questions or pick another |
+| `fetch_geo_10x.py` selects 0 samples, or too many | `--keep` is a substring match on titles | check the printed titles; `tumor` also matches `peritumoral` |
+| a "normal" library expresses the disease programme | mislabelled or contaminated reference | keep the primary run; declare and run the `exclude_samples` arm with a written reason; report both |
 
-## Citation / provenance
+## 12. Limitations
 
-Target biology this project is benchmarked against: Stephanou et al., *Neuroepithelial
-reprogramming and ERBB vulnerability in canine acanthomatous ameloblastoma*, Mol Ther Oncol
-2026. Knowledge sources: DGIdb, Open Targets Platform, Ensembl, PubMed/NCBI E-utilities,
-MSigDB. Analysis: scanpy, anndata, PyDESeq2, harmonypy, leidenalg.
+- Expression-based: targets regulated post-translationally are invisible.
+- The composition route favours infiltrates consistent across patients over malignant cells that
+  partition by patient; merging mitigates this but does not remove it.
+- Condition attribution is conservative and depends on how clean the derived lineages are: a rare
+  benign population expressing the target inside the tumour cluster can set it aside (ovarian), and
+  coarse derived lineages decide whether the guards against that apply.
+- The nominator over-nominates (precision 0.1–0.3) and rarely subclusters without being asked.
+- The subscription backend has no seed or temperature control; stability is behavioural and should
+  be estimated by repeat runs (`run_eval.py --stability`).
+- Differential abundance uses per-sample proportions and Mann–Whitney; with few replicates the
+  p-values are coarse by construction.
+- Validated so far on tumour datasets only; the programme route for non-tumour disease has only
+  been exercised on synthetic data. Drug knowledge is human-centric.
+
+## 13. Data handling
+
+To the model (Claude Code or API): role prompts, tool descriptions, and tool results — cluster-level
+tables (fold changes, enrichment statistics, marker lists, proportions), gene symbols and drug names.
+Sample identifiers are pseudonymised (`S01`, `S02`, ...; stable across arms of one dataset) before
+anything is sent; columns listed under `forbidden_obs_columns` are never shown. The privacy layer
+rejects any payload the size of a per-cell array. To DGIdb, Open Targets and NCBI E-utilities: gene
+symbols. Nothing else; there are no uploads. Check for yourself: every `tool_call` event in
+`run.jsonl` has a `result_sent` field that is exactly what the model saw. Whether a given dataset may
+be sent to an external AI service is your and your institution's decision; `SCTARGET_OFFLINE=1`
+keeps even gene-symbol lookups local. Never commit datasets, run directories or API keys.
+
+## 14. Using it from Claude Code
+
+Inside a clone, Claude Code picks up `.claude/skills/sc-target-agent/SKILL.md` automatically; in any
+other project, copy `skills/sc-target-agent/` into its `.claude/skills/`. The skill walks a session
+through the steps above with the lessons from the validation datasets built in (what to check in
+QC, how to read a thin or rare reference pool, why an expression method cannot nominate a
+protein-level target, how to pre-register an exclusion arm). The same skill is submitted to the
+Cornell CoPAIR skills incubator (`skills/genomics/sc-target-agent`).
+
+## 15. Provenance
+
+Knowledge sources: DGIdb, Open Targets Platform, Ensembl, PubMed / NCBI E-utilities, MSigDB
+Hallmark. Analysis: scanpy, anndata, PyDESeq2, harmonypy, leidenalg, scrublet. Validation datasets:
+GSE159115 (Zhang et al., ccRCC), GSE149614 (Lu et al., HCC), GSE286057 (ovarian cancer omental
+metastases). Developed by Andreas Stephanou (Cornell University) as a CoPAIR fellowship project.
+MIT licence.
