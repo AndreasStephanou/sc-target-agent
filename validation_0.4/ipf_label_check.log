@@ -1,0 +1,39 @@
+
+fraction of cells with >= 1 count(s), per library:
+condition  sample  MMP7  SPP1  KRT17  COL1A1  ITGB6  EPCAM  PTPRC  n_cells
+  Control THD0001   5.5   1.6    1.1     6.2   44.9   49.5   31.7     2218
+  Control THD0002   5.6   0.5    1.1     5.9   29.2   38.9   35.1     2647
+  Control THD0005   0.6   2.2    0.3     1.5    1.9    6.0   65.8     3494
+  Control VUHD071   1.2   6.1    0.3     1.0    1.2    4.8   48.4     2195
+  Control  VUHD65  10.1   6.4    1.9     6.4   11.8   36.2   34.5     2552
+  Control  VUHD66   9.7   1.4    4.0    10.5   19.9   55.2   22.2     2802
+  Control  VUHD67   3.3   1.4    0.8     1.5   11.9   22.8   62.3     7612
+  Control  VUHD68   1.2   1.4    0.1     0.7    0.7    1.8   72.5     5815
+  Control  VUHD69   0.1   1.5    0.1     0.9    1.1    2.1   80.0      800
+  Control  VUHD70   2.5   0.3    0.9     3.0    3.8   23.9   31.1     1509
+      IPF TILD001   4.2   6.1    2.8    52.6    3.5    8.8   27.3     2128
+      IPF TILD006   8.3  24.7    2.4     6.0    1.9    3.8   44.4     3313
+      IPF TILD010  22.3  23.7   15.3     8.0    9.5   28.5   31.6     1584
+      IPF TILD015   5.7  20.4    2.0     4.2    2.8    6.6   78.6     6402
+      IPF TILD028  11.9  23.1    6.8     5.3    5.2   13.2   51.9     4393
+      IPF VUILD53  16.8  49.2   15.2    10.1   10.7   26.6   28.0     1116
+      IPF VUILD59  16.3   2.5    8.2     9.0   17.1   30.0   38.3    15142
+      IPF VUILD60  16.1  11.8    8.9     4.4   10.4   62.9   19.8     8463
+      IPF VUILD61  27.0   9.6    3.4     4.7   10.4   61.5   15.2     8408
+      IPF VUILD63   5.6  14.9    2.3     2.3    4.5   13.7   65.2     2124
+      IPF VUILD64  17.4   2.0   19.7    16.6   33.9   50.0   13.0     1419
+      IPF VUILD65  34.7  10.8   14.3     4.8   10.3   44.9   26.1     3190
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  MMP7: condition medians differ by only 13.3 points; not an informative marker for the labels
+  SPP1: condition medians differ by only 11.9 points; not an informative marker for the labels
+  KRT17: condition medians differ by only 6.7 points; not an informative marker for the labels
+  COL1A1: condition medians differ by only 3.4 points; not an informative marker for the labels
+  ITGB6: condition medians differ by only 2.1 points; not an informative marker for the labels
+  EPCAM: condition medians differ by only 4.3 points; not an informative marker for the labels
+  PTPRC: condition medians differ by only 11.9 points; not an informative marker for the labels
+  none
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/ipf_label_check.csv

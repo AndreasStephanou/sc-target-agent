@@ -1,0 +1,28 @@
+run dir : runs/ipf_agent_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=14 tools=30 errors=0  stop=end_turn
+  target   turns=10 tools=26 errors=1  stop=end_turn
+  critic   turns= 6 tools=14 errors=1  stop=end_turn
+report  : runs/ipf_agent_1/report.md
+elapsed : 866.6s
+Evaluation of runs/ipf_agent_1 vs ipf.yaml  (prompts v7, scoring v3)
+========================================================================
+state 'aberrant_basaloid_epithelium': missed  (cluster 1, marker overlap 2/5 needed: KRT17, MMP7)
+    strict (agent-recorded genes only): missed  (cluster 1, overlap 2/5, 15 genes recorded)
+state 'SPP1_profibrotic_macrophages': missed  (cluster 1, marker overlap 0/5 needed: )
+    strict (agent-recorded genes only): missed  (cluster 1, overlap 0/5, 15 genes recorded)
+state 'CTHRC1_fibrotic_fibroblasts': missed  (cluster 1, marker overlap 1/4 needed: TNC)
+    strict (agent-recorded genes only): missed  (cluster 1, overlap 1/4, 15 genes recorded)
+target ranks: {'ITGB6': None}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'ITGAV': None, 'PDE4B': None, 'PDGFRA': None, 'PDGFRB': None, 'FGFR1': None, 'LOXL2': None, 'CCN2': None, 'ENPP2': None, 'IL11': None, 'IL11RA': None, 'LRRC15': None, 'FAP': None, 'TGFB1': None, 'TGFBR1': None, 'TGFBR2': None, 'SPP1': None, 'TREM2': None, 'CCL18': None, 'CHI3L1': None, 'GDF15': None}
+above first true target: 87 not in answer key -> known-wrong decoys: ['TP63', 'SFTPC', 'KRT5']; novel candidates: ['MMP1', 'MMP7', 'TNC', 'ITGA2', 'PTPRZ1', 'MUC5B', 'SERPINB5', 'S100A2', 'CLCA2', 'SCTR', 'CAPN13', 'AGTR2', 'DSC3', 'TNS4', 'FAT2', 'FHL2', 'CEMIP', 'ABCA3', 'DMBT1', 'GPR87', 'SLC4A4', 'DUSP23', 'CACNA2D2', 'COL7A1', 'KCNN4', 'PVRL1', 'ALOX15B', 'LRRK2', 'ALPL', 'SFTPA1', 'SCGB3A1', 'CSF3R', 'PLAU', 'SCGB1A1', 'SCD', 'AQP1', 'BPIFB1', 'EGFR', 'TSPAN8', 'S100P', 'BPIFA1', 'IGFBP3', 'NOTCH3', 'CDH3', 'ETV1', 'KRT17', 'ZG16B', 'HSD17B2', 'HHIP', 'WFDC2', 'BMP1', 'SFTPD', 'MFSD2A', 'XBP1', 'SFTPA2', 'NAPSA', 'FAM3D', 'LAMP3', 'SERPINB3', 'VMO1', 'KRT15', 'TNFRSF18', 'LPCAT1', 'SFTPB', 'SPDEF', 'SLPI', 'CTSH', 'SLC34A2', 'PIGR', 'FUT6', 'CLDN18', 'LTBP2', 'PLA2G1B', 'IL33', 'PGC', 'PEBP4', 'ITGA4', 'CYP2F1', 'LCN2', 'IRAK3', 'MSMB', 'TNFSF10', 'NPDC1', 'SLC9A3R2']
+nominated: ['MMP1', 'MMP7', 'TNC', 'ITGA2', 'SCTR', 'AGTR2', 'MUC5B', 'GPR87']  precision: 0.0
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 72 (2 errors)   tokens: {'input_tokens': 1699089, 'output_tokens': 34668}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_pipeline.py --config config/ipf.yaml --model claude-code --run-dir runs/ipf_agent_1 --scoring-version 3
+
+Done. Read runs/ipf_agent_1/report.md: section 5 (critic flags) first, then section 4 (ranking, with target_class and flags). Every number traces to runs/ipf_agent_1/run.jsonl.
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_eval.py --ground-truth data/ground_truth/ipf.yaml runs/ipf_agent_1

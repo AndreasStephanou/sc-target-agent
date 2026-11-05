@@ -1,0 +1,27 @@
+run dir : runs/dox_calibrate_3
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=24 tools=23 errors=0  stop=end_turn
+  target   turns=10 tools= 9 errors=0  stop=end_turn
+  critic   turns= 9 tools= 8 errors=0  stop=end_turn
+report  : runs/dox_calibrate_3/report.md
+elapsed : 327.3s
+Evaluation of runs/dox_calibrate_3 vs dox.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'p53_response_program': missed  (cluster 23, marker overlap 0/4 needed: )
+    strict (agent-recorded genes only): missed  (cluster 23, overlap 0/4, 15 genes recorded)
+target ranks: {'Cdkn1a': None, 'CDKN1A': None}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'Mdm2': None, 'Bax': None, 'Ccng1': None, 'Phlda3': None, 'Eda2r': None, 'Zmat3': None, 'Aen': None, 'Trp53inp1': None, 'Gdf15': None, 'Sesn2': None, 'Ei24': None, 'Fbxo32': None, 'Trim63': None, 'Nppa': None, 'Nppb': None, 'Hmox1': None, 'Nqo1': None, 'MDM2': None, 'BAX': None, 'CCNG1': None, 'PHLDA3': None, 'EDA2R': None, 'ZMAT3': None, 'AEN': None, 'TRP53INP1': None, 'GDF15': None, 'SESN2': None, 'EI24': None, 'FBXO32': None, 'TRIM63': None, 'NPPA': None, 'NPPB': None, 'HMOX1': None, 'NQO1': None}
+above first true target: 20 not in answer key -> known-wrong decoys: none; novel candidates: ['Ces1d', 'Ndufa6', 'Mb', 'Myom2', 'Cish', 'Slc25a4', 'Rhobtb1', 'Cryab', 'Chchd10', 'Irs2', 'Irf2bp2', 'Lmod2', 'Cox8b', 'Cox6a2', 'Txnip', 'Akt1', 'Rorc', 'Hspb7', 'Retreg1', 'S100a1']
+nominated: ['Ces1d', 'Ndufa6', 'Mb']  precision: 0.0
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: None  found: []
+tool calls: 42 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_pipeline.py --config config/dox.yaml --model scripted --run-dir runs/dox_calibrate_3 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/dox_calibrate_3/report.md section 1 (QC: cells kept, per-type removal) and section 3 (which clusters were enriched, split candidates, doublet/stress suspects)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_eval.py --ground-truth data/ground_truth/dox.yaml runs/dox_calibrate_3
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.

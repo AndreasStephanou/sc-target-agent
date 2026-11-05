@@ -1,0 +1,24 @@
+run dir : runs/ccrcc_agent_v04_2
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=16 tools=33 errors=0  stop=end_turn
+  target   turns=19 tools=41 errors=0  stop=end_turn
+  critic   turns= 6 tools=13 errors=0  stop=end_turn
+report  : runs/ccrcc_agent_v04_2/report.md
+elapsed : 678.4s
+Evaluation of runs/ccrcc_agent_v04_2 vs ccrcc.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'ccRCC_tumour_cells': FOUND  (cluster 0+1+2+3, marker overlap 8/5 needed: ANGPTL4, CA9, CP, EGLN3, LOX, NDUFA4L2, NNMT, VIM)
+    strict (agent-recorded genes only): FOUND  (cluster 0+1+2+3, overlap 8/5, 15 genes recorded)
+target ranks (within its state): {'EPAS1': None}  state: {'EPAS1': None}  global: {'EPAS1': None}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'CA9': 1, 'VEGFA': 9}
+above first true target: 112 not in answer key -> known-wrong decoys: none; novel candidates: ['EGLN3', 'NTRK1', 'SLC18A2', 'FOLH1', 'ACE', 'ANGPT2', 'KIT', 'HPGDS', 'TPSAB1', 'CDKN2A', 'GATA2', 'CP', 'SLCO2B1', 'ALOX5AP', 'DUSP6', 'SCARB1', 'GPNMB', 'MMP14', 'COL6A3', 'HDC', 'LOX', 'FN1', 'TNFAIP6', 'NNMT', 'ANGPTL4', 'VCAN', 'APOC1', 'TPSB2', 'TSPAN5', 'CD70', 'LAMB1', 'HMCN1', 'CXCL12', 'LOXL2', 'MS4A2', 'LIPA', 'FYN', 'HPGD', 'LAMA4', 'MMP11', 'CD14', 'DEPTOR', 'PLTP', 'LTC4S', 'APOE', 'HILPDA', 'COL23A1', 'C1QC', 'CPA3', 'SLC45A3', 'VWA5A', 'STC1', 'KCNE3', 'NPTX2', 'CD1D', 'OLFML2B', 'C1QB', 'COL4A2', 'OLFML2A', 'KISS1R', 'C1QA', 'SERPINI1', 'SLC26A2', 'COL8A1', 'PNCK', 'CTHRC1', 'SLC16A3', 'THY1', 'DKK3', 'COL1A2', 'SIGLEC1', 'TREM2', 'COL5A2', 'CCL18', 'RGS13', 'IL18R1', 'CYGB', 'CD276', 'CLU', 'SMYD3', 'POSTN', 'CHST2', 'CTSD', 'TGFBI', 'COL18A1', 'ACTG2', 'BAX', 'AGRN', 'MS4A4A', 'NID1', 'HSF4', 'NDUFA4L2', 'CALB2', 'SEMA3F', 'LPCAT1', 'COL6A2', 'MAGI1', 'FSTL1', 'DLX5', 'POPDC2', 'CAMK2N1', 'NOL3', 'FABP5', 'EHD2', 'ITM2C', 'PLXDC1', 'PLD3', 'BGN', 'HPCAL1', 'CCDC102B', 'PRR16', 'SEPT4']
+nominated: ['CA9', 'EGLN3', 'CD70', 'CP', 'SLCO2B1', 'GPNMB', 'TREM2', 'CD14', 'KIT', 'NTRK1', 'HPGDS', 'FOLH1', 'ANGPT2', 'CD276', 'COL6A3', 'FN1']  precision: 0.0625
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 89 (0 errors)   tokens: {'input_tokens': 2879031, 'output_tokens': 40284}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_pipeline.py --config config/ccrcc.yaml --model claude-code --run-dir runs/ccrcc_agent_v04_2 --scoring-version 3
+
+Done. Read runs/ccrcc_agent_v04_2/report.md: the executive summary, then section 4 (critic flags), then section 3 (ranking, with target_class, attribution and flags). Every number traces to runs/ccrcc_agent_v04_2/run.jsonl.
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_eval.py --ground-truth data/ground_truth/ccrcc.yaml runs/ccrcc_agent_v04_2

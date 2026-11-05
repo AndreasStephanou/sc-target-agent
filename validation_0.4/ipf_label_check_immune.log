@@ -1,0 +1,38 @@
+restricted to 45189 cells with population == 'Immune'
+
+fraction of cells with >= 1 count(s), per library:
+condition  sample  SPP1  TREM2  GPNMB  FABP4  n_cells
+  Control THD0001   3.6   27.9   33.4   15.8      806
+  Control THD0002   1.0   37.3   39.9   13.2     1122
+  Control THD0005   2.0   30.6   31.9   17.1     2505
+  Control VUHD071   6.5   45.4   65.3   94.0     1985
+  Control  VUHD65  12.9   61.4   75.0   43.8     1036
+  Control  VUHD66   4.0   22.4   24.3    4.3      678
+  Control  VUHD67   2.0   33.8   36.1   22.2     5217
+  Control  VUHD68   1.7   71.5   92.3   82.5     4849
+  Control  VUHD69   1.5    1.7    2.7    4.9      657
+  Control  VUHD70   0.5   67.7   82.9   69.1      638
+      IPF TILD001  15.1   22.3   35.5    2.8      740
+      IPF TILD006  30.2   56.7   50.4   24.1     2573
+      IPF TILD010  42.0   63.1   79.7    8.0      834
+      IPF TILD015  21.0   23.2   26.6    4.2     5238
+      IPF TILD028  31.2   45.4   49.5   10.9     2951
+      IPF VUILD53  61.7   45.3   61.3   20.7      444
+      IPF VUILD59   4.2   68.8   83.5   79.9     6408
+      IPF VUILD60  40.0   44.2   47.2    4.6     2027
+      IPF VUILD61  36.9   43.4   51.5    6.1     1596
+      IPF VUILD63  18.4   19.0   19.2   13.1     1531
+      IPF VUILD64  10.9   43.2   49.1   35.5      220
+      IPF VUILD65  28.6   56.6   61.8   11.7     1134
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  SPP1: library TILD001 labelled IPF has 15.1% positive (median IPF 29.4%, median Control 2.0%) -> closer to Control
+  SPP1: library VUILD59 labelled IPF has 4.2% positive (median IPF 29.4%, median Control 2.0%) -> closer to Control
+  SPP1: library VUILD64 labelled IPF has 10.9% positive (median IPF 29.4%, median Control 2.0%) -> closer to Control
+  TREM2: condition medians differ by only 9.1 points; not an informative marker for the labels
+  GPNMB: condition medians differ by only 11.9 points; not an informative marker for the labels
+  FABP4: condition medians differ by only 8.3 points; not an informative marker for the labels
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/ipf_label_check_immune.csv

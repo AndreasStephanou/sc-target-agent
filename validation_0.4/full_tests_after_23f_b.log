@@ -1,0 +1,5 @@
+  /home/as3562/miniconda3/envs/sctarget/lib/python3.11/site-packages/scanpy/plotting/_tools/scatterplots.py:184: PendingDeprecationWarning: The set_bad function will be deprecated in a future version. Use cmap.with_extremes(bad=...) or Colormap(bad=...) instead.
+    cmap.set_bad(na_color)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+88 passed, 1 skipped, 62 warnings in 382.09s (0:06:22)

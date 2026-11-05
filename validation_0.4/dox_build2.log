@@ -1,0 +1,24 @@
+  GSM9059688 [Vehicle] 11,859 barcodes x 19,065 genes
+  GSM9059689 [Vehicle] 15,813 barcodes x 19,065 genes
+  GSM9059690 [Vehicle] 9,003 barcodes x 19,065 genes
+  GSM9059691 [Vehicle] 10,201 barcodes x 32,245 genes
+  GSM9059697 [DOX] 7,801 barcodes x 19,065 genes
+  GSM9059698 [DOX] 8,593 barcodes x 19,065 genes
+  GSM9059699 [DOX] 4,659 barcodes x 19,065 genes
+  GSM9059700 [DOX] 7,880 barcodes x 32,245 genes
+
+genes shared by all libraries: 17,722
+integer fraction of sampled values: 1.000 (should be 1.0)
+
+wrote data/dox/dox.h5ad: 75,809 cells x 17,722 genes
+cells per sample x condition:
+condition    DOX  Vehicle
+sample                   
+GSM9059688     0    11859
+GSM9059689     0    15813
+GSM9059690     0     9003
+GSM9059691     0    10201
+GSM9059697  7801        0
+GSM9059698  8593        0
+GSM9059699  4659        0
+GSM9059700  7880        0

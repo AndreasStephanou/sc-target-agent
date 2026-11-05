@@ -1,0 +1,62 @@
+{
+  "file": "data/ccrcc/ccrcc.h5ad",
+  "n_cells": 29499,
+  "warnings": [
+    "5 donor(s) contribute more than one library (SS_2006: 2, SS_2007: 2, SS_2014: 2, SS_2017: 2, SS_2022: 2): libraries from one donor are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report"
+  ],
+  "counts": {
+    "X": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 2644.0,
+      "nonneg": true,
+      "n_checked": 200000
+    },
+    "layers/counts": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 2644.0,
+      "nonneg": true,
+      "n_checked": 200000
+    }
+  },
+  "condition_levels": [
+    "Benign",
+    "ccRCC"
+  ],
+  "samples_per_condition": {
+    "Benign": 6,
+    "ccRCC": 7
+  },
+  "donors_per_condition": {
+    "Benign": 5,
+    "ccRCC": 7
+  },
+  "libraries_per_donor_max": 2,
+  "paired_donors": [
+    "SS_2006",
+    "SS_2007",
+    "SS_2017",
+    "SS_2022"
+  ],
+  "confounding": {
+    "geo_tissue": {
+      "cramers_v": 0.238,
+      "levels": 2,
+      "levels_exclusive_to_one_condition": 0,
+      "perfectly_confounded": false
+    },
+    "sex": {
+      "cramers_v": 0.461,
+      "levels": 2,
+      "levels_exclusive_to_one_condition": 1,
+      "perfectly_confounded": false
+    }
+  },
+  "aliases": {
+    "library": "one level per sample (alias of the sample column)",
+    "tissue": "same partition as the condition column (alias of the condition)"
+  }
+}

@@ -1,0 +1,27 @@
+run dir : runs/dox_batch2_calibrate_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=27 tools=26 errors=0  stop=end_turn
+  target   turns=20 tools=19 errors=0  stop=end_turn
+  critic   turns=10 tools= 9 errors=0  stop=end_turn
+report  : runs/dox_batch2_calibrate_1/report.md
+elapsed : 775.3s
+Evaluation of runs/dox_batch2_calibrate_1 vs dox.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'p53_response_program': missed  (cluster 17, marker overlap 0/4 needed: )
+    strict (agent-recorded genes only): missed  (cluster 17, overlap 0/4, 15 genes recorded)
+target ranks: {'Cdkn1a': None, 'CDKN1A': None}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'Mdm2': None, 'Bax': None, 'Ccng1': None, 'Phlda3': None, 'Eda2r': None, 'Zmat3': None, 'Aen': None, 'Trp53inp1': None, 'Gdf15': None, 'Sesn2': None, 'Ei24': None, 'Fbxo32': None, 'Trim63': 9, 'Nppa': 51, 'Nppb': None, 'Hmox1': None, 'Nqo1': None, 'MDM2': None, 'BAX': None, 'CCNG1': None, 'PHLDA3': None, 'EDA2R': None, 'ZMAT3': None, 'AEN': None, 'TRP53INP1': None, 'GDF15': None, 'SESN2': None, 'EI24': None, 'FBXO32': None, 'TRIM63': None, 'NPPA': None, 'NPPB': None, 'HMOX1': None, 'NQO1': None}
+above first true target: 68 not in answer key -> known-wrong decoys: ['Ttn', 'Myh6']; novel candidates: ['Lonrf1', 'Ankrd12', 'Tspan4', 'Tsc22d3', 'Selenbp1', 'Rbm3', 'Bdh1', 'Macrod1', 'Lrrc2', 'Hlf', 'Cpeb1', 'Rasd2', 'Cish', 'Slc6a6', 'Trim54', 'Banp', 'Eps8l1', 'Ephx1', 'Ndnf', 'Ckm', 'Dsp', 'Lrrn4cl', 'Tnnt2', 'Pln', 'Il33', 'Apobec2', 'Csrp3', 'Lingo1', 'Smpdl3b', 'Nol3', 'Ndufv3', 'Atp2a2', 'Fbxo40', 'Idh2', 'Pgam2', 'Hspb7', 'Podn', 'Smpx', 'Fabp3', 'Cox7a1', 'Asb2', 'Actn2', 'Epop', 'Fmo2', 'Atp5g1', 'Ccl6', 'Smyd1', 'Ppp1r3a', 'Fhl2', 'Fitm1', 'Car14', 'Sik1', 'Ak1', 'Ppl', 'Adprhl1', 'Eno3', 'Lpcat2', 'Cox6b2', 'Prg2', 'Ccbe1', 'Myl3', 'Actc1', 'Angptl7', 'Cys1', 'Tpm1', 'Fmo1']
+nominated: ['Bdh1', 'Macrod1', 'Trim63', 'Lonrf1', 'Tspan4', 'Tsc22d3', 'Selenbp1']  precision: 0.14285714285714285
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: None  found: []
+tool calls: 56 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_pipeline.py --config config/dox_batch2.yaml --model scripted --run-dir runs/dox_batch2_calibrate_1 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/dox_batch2_calibrate_1/report.md: the executive summary (design, key numbers), section 1 (QC: cells kept, per-type removal) and section 2 (which clusters were enriched, split candidates, doublet/stress suspects, programme clusters)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_eval.py --ground-truth data/ground_truth/dox.yaml runs/dox_batch2_calibrate_1
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.

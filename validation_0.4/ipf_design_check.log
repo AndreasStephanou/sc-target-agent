@@ -1,0 +1,16 @@
+89326 cells; matrices checked: X: integer (max 8403.0); layers/counts: integer (max 8403.0)
+
+condition levels: ['Control', 'IPF']  (case = IPF)
+  Control: 12 samples; cells per sample min/median/max = 800/2206/7612
+  IPF: 19 samples; cells per sample min/median/max = 582/2128/8808
+
+donors per condition: {'Control': 10, 'IPF': 12}; libraries per donor max = 3
+
+columns skipped as aliases: Status: same partition as the condition column (alias of the condition)
+
+sample-level covariates vs condition (one row per sample):
+  Sample_Source: 3 levels, Cramer's V = 0.65, 2 level(s) exclusive to one condition -> ok
+
+WARNING: 8 donor(s) contribute more than one library (THD0005: 3, TILD006: 2, TILD015: 2, TILD028: 2, VUILD59: 2, ...): libraries from one donor are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report
+
+wrote validation_0.4/ipf_design_check.json

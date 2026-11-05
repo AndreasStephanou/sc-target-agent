@@ -1,0 +1,14 @@
+/local/workdir/as3562/CoPAIR/sc-target-agent-v0.4-work/scripts/new_dataset.py:58: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  n_per = obs.groupby(cond_key)[sample_key].nunique().to_dict() if (cond_key and sample_key) else {}
+75809 cells x 17722 genes
+
+categorical obs columns (n unique): sample (8), condition (2), patient (8), title (8)
+
+guesses: sample_key=sample  condition_key=condition ['Vehicle', 'DOX']  celltype_key=None  species=mus_musculus
+         X looks like counts: True; counts layer: None; existing clusterings: []; embeddings: []
+         samples per condition: {'DOX': 4, 'Vehicle': 4}
+         compartment composition (fraction of cells positive for canonical markers), per condition: {'Vehicle': {}, 'DOX': {}}
+
+wrote config/dox.yaml and data/ground_truth/dox.yaml (template). Next: edit both, `git add` + commit the key, then
+  SCTARGET_OFFLINE=1 python scripts/run_pipeline.py --config config/dox.yaml --model scripted --run-dir runs/dox_dry1
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/new_dataset.py data/dox/dox.h5ad --name dox

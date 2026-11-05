@@ -1,0 +1,31 @@
+run dir : runs/ipf_calibrate_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=38 tools=37 errors=0  stop=end_turn
+  target   turns=41 tools=40 errors=0  stop=end_turn
+  critic   turns=18 tools=17 errors=0  stop=end_turn
+report  : runs/ipf_calibrate_1/report.md
+elapsed : 668.7s
+Evaluation of runs/ipf_calibrate_1 vs ipf.yaml  (prompts v7, scoring v3)
+========================================================================
+state 'aberrant_basaloid_epithelium': missed  (cluster 2, marker overlap 1/5 needed: CDKN2A)
+    strict (agent-recorded genes only): missed  (cluster 2, overlap 1/5, 15 genes recorded)
+state 'SPP1_profibrotic_macrophages': missed  (cluster 2, marker overlap 0/5 needed: )
+    strict (agent-recorded genes only): missed  (cluster 2, overlap 0/5, 15 genes recorded)
+state 'CTHRC1_fibrotic_fibroblasts': missed  (cluster 13, marker overlap 2/4 needed: COL8A1, TNC)
+    strict (agent-recorded genes only): missed  (cluster 3+12+14, overlap 1/4, 15 genes recorded)
+target ranks: {'ITGB6': None}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'ITGAV': None, 'PDE4B': None, 'PDGFRA': None, 'PDGFRB': None, 'FGFR1': None, 'LOXL2': None, 'CCN2': None, 'ENPP2': None, 'IL11': None, 'IL11RA': None, 'LRRC15': None, 'FAP': None, 'TGFB1': None, 'TGFBR1': None, 'TGFBR2': None, 'SPP1': None, 'TREM2': None, 'CCL18': None, 'CHI3L1': None, 'GDF15': None}
+above first true target: 129 not in answer key -> known-wrong decoys: ['SFTPC', 'TP63', 'KRT5']; novel candidates: ['MMP1', 'CACNA2D2', 'TNC', 'ALOX15B', 'CSF3R', 'LRRK2', 'SCTR', 'SFTPA1', 'ALPL', 'CX3CL1', 'ITGA2', 'PLAU', 'TFAP2A', 'ABCA3', 'PTPRZ1', 'NPC2', 'AGTR2', 'SERPINA1', 'SERPINB5', 'SFTPD', 'SFTPA2', 'MFSD2A', 'HHIP', 'C4BPA', 'NAPSA', 'LAMP3', 'CHL1', 'TMPRSS4', 'IGFBP6', 'S100A2', 'SFTPB', 'BMP1', 'PCSK1N', 'CDKN2A', 'PROM2', 'LPCAT1', 'DSC3', 'TNS4', 'CTSH', 'FAT2', 'SLC34A2', 'FBLN1', 'FHL2', 'TSPAN11', 'FRMD6', 'GALNT10', 'GPR87', 'VMO1', 'RGS10', 'PVRL1', 'TESC', 'CEMIP', 'KRT16', 'CRABP2', 'TRPV4', 'ADH7', 'PSENEN', 'CLDN18', 'COL7A1', 'ACSL5', 'IGFBP2', 'PGC', 'EGFR', 'AK9', 'ITGB8', 'NME5', 'PPIL6', 'ZMYND10', 'CAPS', 'WDR54', 'EFHC1', 'DNAH12', 'RSPH1', 'CETN2', 'TMEM190', 'KRT17', 'CNTRL', 'KIF9', 'KRT19', 'NTF3', 'AQP3', 'TCTN1', 'INPP5D', 'C9orf24', 'C20orf85', 'PIFO', 'MORN2', 'TPPP3', 'C5orf49', 'C11orf70', 'SNTN', 'C1orf194', 'C9orf116', 'FAM183A', 'C9orf9', 'FAM229B', 'LRTOMT', 'KRT15', 'IK', 'TNFRSF18', 'ODF3B', 'SERPINB4', 'RAB7B', 'ARL4D', 'IQCK', 'DYNLL1', 'SMOC1', 'HS6ST2', 'KCNN4', 'AQP1', 'TRIM2', 'EFNB1', 'ITGA4', 'LTBP2', 'RPLP1', 'MT1X', 'SOX7', 'IFI16', 'PKD2', 'PLXDC2', 'SH3BP4', 'GAPDH', 'PHLDA1', 'BTF3', 'ID1', 'ITM2B']
+nominated: ['TRPV4', 'PSENEN', 'IGFBP2', 'AK9', 'ITGB8', 'MMP1', 'TNC', 'ITGA2', 'PLAU', 'PTPRZ1', 'CACNA2D2', 'ALOX15B', 'CSF3R', 'LRRK2', 'CX3CL1', 'TFAP2A', 'CHL1', 'TMPRSS4']  precision: 0.0
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 96 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_pipeline.py --config config/ipf.yaml --model scripted --run-dir runs/ipf_calibrate_1 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/ipf_calibrate_1/report.md section 1 (QC: cells kept, per-type removal) and section 3 (which clusters were enriched, split candidates, doublet/stress suspects)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_eval.py --ground-truth data/ground_truth/ipf.yaml runs/ipf_calibrate_1
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.

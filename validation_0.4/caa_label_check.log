@@ -1,0 +1,33 @@
+not in var: ['KRT5'] (check --var-column, species, or symbol case)
+
+fraction of cells with >= 1 count(s), per library:
+condition    sample  PEG3  ERBB4  PTPRC  n_cells
+      CAA sample_10  71.6   45.8    9.5    11117
+      CAA sample_16  64.4   66.4   23.0    15535
+      CAA sample_22  86.7   69.9    4.1    17494
+      CAA  sample_7  66.9   31.1    6.1    13291
+      CAA  sample_8  82.4   56.2    5.5    17691
+      CAA  sample_9  59.0   31.9   11.8    11652
+     HGIN sample_13  15.5   14.0    7.5     1389
+     HGIN sample_14   6.4    8.9    3.6     1661
+     HGIN sample_24  17.5   10.8    5.9     2085
+     OSCC  sample_1   5.5   11.9    4.7    15738
+     OSCC sample_18   5.1   13.5   10.5     2855
+     OSCC sample_19   3.1   24.3    4.9    10487
+     OSCC  sample_2   6.2   18.9   13.4    12087
+     OSCC sample_20   4.8   36.4    8.6    10374
+     OSCC sample_29   6.7   10.5   18.4     6283
+     OSCC  sample_3  10.7   10.4    3.0     5284
+     OSCC  sample_4   6.8   31.5   13.6    15162
+     OSCC  sample_5   4.8   12.5   10.6    12851
+     OSCC  sample_6   6.3    9.7   17.5    21931
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  ERBB4: library sample_7 labelled CAA has 31.1% positive (median CAA 51.0%, median OSCC 13.0%) -> closer to OSCC
+  ERBB4: library sample_9 labelled CAA has 31.9% positive (median CAA 51.0%, median OSCC 13.0%) -> closer to OSCC
+  ERBB4: library sample_20 labelled OSCC has 36.4% positive (median OSCC 13.0%, median CAA 51.0%) -> closer to CAA
+  PTPRC: condition medians differ by only 4.7 points; not an informative marker for the labels
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/caa_label_check.csv

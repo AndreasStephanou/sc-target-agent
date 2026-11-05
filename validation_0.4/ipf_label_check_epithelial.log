@@ -1,0 +1,38 @@
+restricted to 33321 cells with population == 'Epithelial'
+
+fraction of cells with >= 1 count(s), per library:
+condition  sample  MMP7  KRT17  ITGB6  GDF15  n_cells
+  Control THD0001   9.0    1.9   74.8   26.7     1331
+  Control THD0002  11.7    2.4   61.1   33.1     1258
+  Control THD0005   4.5    3.7   27.7   26.4      242
+  Control VUHD071   4.3    3.4   12.5   13.9      208
+  Control  VUHD65  18.4    4.2   26.9   44.5     1109
+  Control  VUHD66  14.3    6.1   30.2   52.8     1817
+  Control  VUHD67  10.4    2.9   46.6   51.4     1912
+  Control  VUHD68  25.6    3.4   34.2   33.3      117
+  Control  VUHD69   3.3    3.3   30.0   23.3       30
+  Control  VUHD70   9.4    3.2   14.0   57.9      406
+      IPF TILD001  33.9   19.6   26.5   61.7      230
+      IPF TILD006  49.8   22.8   19.2   44.6      307
+      IPF TILD010  50.3   39.0   26.0   34.5      557
+      IPF TILD015  52.2   15.9   33.4   65.2      485
+      IPF TILD028  40.1   25.4   27.3   53.2      791
+      IPF VUILD53  23.2   26.1   23.8   68.5      479
+      IPF VUILD59  37.9   19.2   42.1   52.9     5912
+      IPF VUILD60  20.7   11.9   14.0   43.7     6195
+      IPF VUILD61  32.9    4.4   13.5   54.6     6434
+      IPF VUILD63  25.3   11.3   20.4   32.9      407
+      IPF VUILD64  21.2   23.8   41.4   58.8     1163
+      IPF VUILD65  53.4   22.8   16.9   36.3     1931
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  MMP7: library VUHD68 labelled Control has 25.6% positive (median Control 9.9%, median IPF 35.9%) -> closer to IPF
+  MMP7: library VUILD60 labelled IPF has 20.7% positive (median IPF 35.9%, median Control 9.9%) -> closer to Control
+  MMP7: library VUILD64 labelled IPF has 21.2% positive (median IPF 35.9%, median Control 9.9%) -> closer to Control
+  KRT17: condition medians differ by only 17.8 points; not an informative marker for the labels
+  ITGB6: condition medians differ by only 5.2 points; not an informative marker for the labels
+  GDF15: condition medians differ by only 19.8 points; not an informative marker for the labels
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/ipf_label_check_epithelial.csv

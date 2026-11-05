@@ -1,0 +1,13 @@
+sc-target-agent environment check (sparse, >8k cells: the paths the synthetic demo does not hit)
+  ok   normalize+log1p                (  0.5s)
+  ok   highly_variable_genes          (  0.7s)
+  ok   pca                            (  1.4s)
+  ok   neighbors (approximate path)   ( 28.1s)
+  ok   leiden (igraph)                ( 28.2s)
+  ok   scrublet (per-sample)          ( 39.7s)
+  ok   harmonypy                      ( 40.0s)
+/home/as3562/miniconda3/envs/sctarget/lib/python3.11/site-packages/pydeseq2/dds.py:822: UserWarning: The dispersion trend curve fitting did not converge. Switching to a mean-based dispersion trend.
+  self._fit_parametric_dispersion_trend(vst)
+  ok   pydeseq2                       ( 54.6s)
+environment OK
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 -m sctarget.envcheck

@@ -1,0 +1,86 @@
+{
+  "file": "data/caa_processed.h5ad",
+  "n_cells": 204967,
+  "warnings": [
+    "3 condition levels: the pipeline compares one case against the rest; set dataset.disease to one value and dataset.reference to the others, or split into pairwise runs",
+    "sample imbalance 10 vs 3: the per-sample Mann-Whitney test is dominated by the larger group; report effect sizes alongside p-values",
+    "2 donor(s) contribute more than one library (Apollo: 2, Micah: 2): libraries from one donor are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report",
+    "covariate 'BRAF_status' is strongly associated with the condition (Cramer's V 0.77); check it before interpreting enrichment",
+    "covariate 'breed_status' is strongly associated with the condition (Cramer's V 0.80); check it before interpreting enrichment"
+  ],
+  "counts": {
+    "X": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 293.0,
+      "nonneg": true,
+      "n_checked": 200000
+    },
+    "layers/counts": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 293.0,
+      "nonneg": true,
+      "n_checked": 200000
+    }
+  },
+  "condition_levels": [
+    "CAA",
+    "HGIN",
+    "OSCC"
+  ],
+  "samples_per_condition": {
+    "CAA": 6,
+    "HGIN": 3,
+    "OSCC": 10
+  },
+  "donors_per_condition": {
+    "CAA": 6,
+    "HGIN": 3,
+    "OSCC": 10
+  },
+  "libraries_per_donor_max": 2,
+  "paired_donors": [
+    "Apollo",
+    "Micah"
+  ],
+  "confounding": {
+    "BRAF_status": {
+      "cramers_v": 0.771,
+      "levels": 3,
+      "levels_exclusive_to_one_condition": 2,
+      "perfectly_confounded": false
+    },
+    "breed_status": {
+      "cramers_v": 0.801,
+      "levels": 15,
+      "levels_exclusive_to_one_condition": 12,
+      "perfectly_confounded": false
+    },
+    "Sex": {
+      "cramers_v": 0.301,
+      "levels": 2,
+      "levels_exclusive_to_one_condition": 0,
+      "perfectly_confounded": false
+    },
+    "Age": {
+      "cramers_v": 0.688,
+      "levels": 8,
+      "levels_exclusive_to_one_condition": 6,
+      "perfectly_confounded": false
+    },
+    "Tumor_Location": {
+      "cramers_v": 0.452,
+      "levels": 5,
+      "levels_exclusive_to_one_condition": 1,
+      "perfectly_confounded": false
+    }
+  },
+  "aliases": {
+    "sample_tube_number": "one level per sample (alias of the sample column)",
+    "sample_names": "one level per sample (alias of the sample column)",
+    "tumor_status": "same partition as the condition column (alias of the condition)"
+  }
+}

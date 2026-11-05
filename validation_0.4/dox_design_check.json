@@ -1,0 +1,43 @@
+{
+  "file": "data/dox/dox.h5ad",
+  "n_cells": 75809,
+  "warnings": [],
+  "counts": {
+    "X": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 2113.0,
+      "nonneg": true,
+      "n_checked": 200000
+    }
+  },
+  "condition_levels": [
+    "DOX",
+    "Vehicle"
+  ],
+  "samples_per_condition": {
+    "DOX": 4,
+    "Vehicle": 4
+  },
+  "confounding": {
+    "batch": {
+      "cramers_v": 0.0,
+      "levels": 2,
+      "levels_exclusive_to_one_condition": 0,
+      "perfectly_confounded": false,
+      "too_many_levels_for_n_samples": false
+    },
+    "pipeline": {
+      "cramers_v": 0.0,
+      "levels": 2,
+      "levels_exclusive_to_one_condition": 0,
+      "perfectly_confounded": false,
+      "too_many_levels_for_n_samples": false
+    }
+  },
+  "aliases": {
+    "patient": "one level per sample (alias of the sample column)",
+    "title": "one level per sample (alias of the sample column)"
+  }
+}

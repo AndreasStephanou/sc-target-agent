@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/local/workdir/as3562/CoPAIR/sc-target-agent-v0.4-work/scripts/run_pipeline.py", line 56, in <module>
+    main()
+  File "/local/workdir/as3562/CoPAIR/sc-target-agent-v0.4-work/scripts/run_pipeline.py", line 46, in main
+    res = run_pipeline(cfg, model_name=args.model, run_dir=Path(args.run_dir) if args.run_dir else None, stages=args.stages, write_report=not args.no_report, resume_from=Path(args.resume_from) if args.resume_from else None)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/local/workdir/as3562/CoPAIR/sc-target-agent-v0.4-work/sctarget/agents/orchestrator.py", line 166, in run_pipeline
+    
+  File "/local/workdir/as3562/CoPAIR/sc-target-agent-v0.4-work/sctarget/report/builder.py", line 385, in build_report
+    md = build_markdown(session)
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/local/workdir/as3562/CoPAIR/sc-target-agent-v0.4-work/sctarget/report/builder.py", line 152, in build_markdown
+    report_figs = _report_time_figures(session)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/local/workdir/as3562/CoPAIR/sc-target-agent-v0.4-work/sctarget/report/builder.py", line 88, in _report_time_figures
+    out["design"] = _try("design_overview", F.design_overview)
+                                            ^^^^^^^^^^^^^^^^^
+AttributeError: module 'sctarget.report.figures' has no attribute 'design_overview'
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_pipeline.py --config config/dox.yaml --model scripted --run-dir runs/dox_calibrate_1 --scoring-version 3

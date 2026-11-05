@@ -1,0 +1,27 @@
+
+fraction of cells with >= 1 count(s), per library:
+condition     sample  CA9  NDUFA4L2  EPCAM  PTPRC  n_cells
+   Benign GSM4819726  0.0       2.3   31.1    4.3     1410
+   Benign GSM4819728  0.1       2.3   55.9    5.1      923
+   Benign GSM4819730  0.0       1.2   29.4    4.8     1097
+   Benign GSM4819731  0.2      14.9   41.5    8.3      578
+   Benign GSM4819733  0.1       1.2    9.5   15.1     1644
+   Benign GSM4819735  0.2       5.2   41.6    5.8     1896
+    ccRCC GSM4819725 50.6      78.7   16.1   28.2     1704
+    ccRCC GSM4819727 21.6      31.0   11.0   41.7     1660
+    ccRCC GSM4819729 36.5      86.0   13.9   13.0     3674
+    ccRCC GSM4819734 18.9      39.2    4.9   17.8     2872
+    ccRCC GSM4819736 53.7      87.0   49.5   24.0     1953
+    ccRCC GSM4819737 57.6      88.9    6.9    7.6     6453
+    ccRCC GSM4819738 35.6      86.2   16.8   15.3     3635
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  NDUFA4L2: library GSM4819727 labelled ccRCC has 31.0% positive (median ccRCC 86.0%, median Benign 2.3%) -> closer to Benign
+  NDUFA4L2: library GSM4819734 labelled ccRCC has 39.2% positive (median ccRCC 86.0%, median Benign 2.3%) -> closer to Benign
+  EPCAM: library GSM4819733 labelled Benign has 9.5% positive (median Benign 36.3%, median ccRCC 13.9%) -> closer to ccRCC
+  EPCAM: library GSM4819736 labelled ccRCC has 49.5% positive (median ccRCC 13.9%, median Benign 36.3%) -> closer to Benign
+  PTPRC: condition medians differ by only 12.3 points; not an informative marker for the labels
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/ccrcc_label_check.csv

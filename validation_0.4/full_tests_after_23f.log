@@ -1,0 +1,6 @@
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_pipeline_e2e.py::test_outputs_exist - assert ('ERBB4' in "#...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 57 passed, 1 skipped, 34 warnings in 391.78s (0:06:31)

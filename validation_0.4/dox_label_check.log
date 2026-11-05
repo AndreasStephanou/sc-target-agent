@@ -1,0 +1,24 @@
+not in var: ['Xist'] (check --var-column, species, or symbol case)
+
+fraction of cells with >= 1 count(s), per library:
+condition     sample  Bbc3  Pmaip1  Gdf15  Cdkn1a  Tfeb  n_cells
+      DOX GSM9059697   5.1     1.8    0.9    24.5  21.8     7801
+      DOX GSM9059698   5.1     2.0    1.1    22.3  17.2     8593
+      DOX GSM9059699   6.3     1.9    1.0    26.9  20.6     4659
+      DOX GSM9059700   7.6     1.3    2.3    80.2   6.1     7880
+  Vehicle GSM9059688   7.3     2.9    1.0    45.9  21.8    11859
+  Vehicle GSM9059689   6.4     2.1    0.8    32.4  18.6    15813
+  Vehicle GSM9059690   7.7     2.4    1.1    38.3  19.8     9003
+  Vehicle GSM9059691   6.4     1.0    1.2    51.1   6.6    10201
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  Bbc3: condition medians differ by only 1.2 points; not an informative marker for the labels
+  Pmaip1: condition medians differ by only 0.4 points; not an informative marker for the labels
+  Gdf15: condition medians differ by only 0.0 points; not an informative marker for the labels
+  Cdkn1a: condition medians differ by only 16.4 points; not an informative marker for the labels
+  Tfeb: condition medians differ by only 0.3 points; not an informative marker for the labels
+  none
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/dox_label_check.csv

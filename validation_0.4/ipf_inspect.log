@@ -1,0 +1,14 @@
+/local/workdir/as3562/CoPAIR/sc-target-agent-v0.4-work/scripts/new_dataset.py:58: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  n_per = obs.groupby(cond_key)[sample_key].nunique().to_dict() if (cond_key and sample_key) else {}
+89326 cells x 33694 genes
+
+categorical obs columns (n unique): sample (22), condition (2), library (31), author_celltype (31), population (4), Sample_Source (3), Status (2)
+
+guesses: sample_key=sample  condition_key=condition ['IPF', 'Control']  celltype_key=author_celltype  species=homo_sapiens
+         X looks like counts: True; counts layer: counts; existing clusterings: []; embeddings: []
+         samples per condition: {'Control': 10, 'IPF': 12}
+         compartment composition (fraction of cells positive for canonical markers), per condition: {'IPF': {'immune': 0.37, 'epithelial': 0.5, 'fibroblast': 0.11, 'endothelial': 0.3}, 'Control': {'immune': 0.52, 'epithelial': 0.35, 'fibroblast': 0.05, 'endothelial': 0.42}}
+
+wrote config/ipf.yaml and data/ground_truth/ipf.yaml (template). Next: edit both, `git add` + commit the key, then
+  SCTARGET_OFFLINE=1 python scripts/run_pipeline.py --config config/ipf.yaml --model scripted --run-dir runs/ipf_dry1
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/new_dataset.py data/ipf/ipf.h5ad --name ipf

@@ -1,0 +1,12 @@
+8 samples selected from GSE285475
+  GSM9059688 [WT_ | ?] WT_vehicle_01 -> 3 files
+  GSM9059689 [WT_ | ?] WT_vehicle_02 -> 3 files
+  GSM9059690 [WT_ | ?] WT_vehicle_03 -> 3 files
+  GSM9059691 [WT_ | ?] WT_vehicle_04 -> 3 files
+  GSM9059697 [WT_ | ?] WT_DOX_01 -> 3 files
+  GSM9059698 [WT_ | ?] WT_DOX_02 -> 3 files
+  GSM9059699 [WT_ | ?] WT_DOX_03 -> 3 files
+  GSM9059700 [WT_ | ?] WT_DOX_04 -> 3 files
+
+wrote data/dox/raw/samples.csv. Check the condition / patient columns, then:
+  python scripts/build_from_10x_samples.py --sheet data/dox/raw/samples.csv --out data/<name>/<name>.h5ad

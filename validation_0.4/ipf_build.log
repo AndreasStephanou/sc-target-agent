@@ -1,0 +1,36 @@
+metadata: 114396 cells, columns ['orig.ident', 'nCount_RNA', 'nFeature_RNA', 'Diagnosis', 'Sample_Name', 'Sample_Source', 'Status', 'percent.mt', 'nCount_SCT', 'nFeature_SCT', 'seurat_clusters', 'population', 'celltype']
+
+keeping conditions ['IPF', 'Control']: 89326 cells (25070 cells of other conditions dropped)
+cells per sample:
+Diagnosis  Sample_Name
+Control    THD0001         2218
+           THD0002         2647
+           THD0005         3494
+           VUHD071         2195
+           VUHD65          2552
+           VUHD66          2802
+           VUHD67          7612
+           VUHD68          5815
+           VUHD69           800
+           VUHD70          1509
+IPF        TILD001         2128
+           TILD006         3313
+           TILD010         1584
+           TILD015         6402
+           TILD028         4393
+           VUILD53         1116
+           VUILD59        15142
+           VUILD60         8463
+           VUILD61         8408
+           VUILD63         2124
+           VUILD64         1419
+           VUILD65         3190
+
+samples per condition: {'Control': 10, 'IPF': 12}
+libraries per sample: max 3; samples with >1 library: 8
+
+barcodes: 220213; genes: 33694 (symbol column 0)
+reading matrix (this is the slow step) ...
+matrix shape (33694, 220213), nnz 338061955, dtype int64
+
+wrote data/ipf/ipf.h5ad: 89326 cells x 33694 genes; obs columns ['sample', 'condition', 'library', 'author_celltype', 'population', 'Sample_Source', 'Status']

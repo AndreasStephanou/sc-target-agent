@@ -1,0 +1,49 @@
+{
+  "file": "data/ipf/ipf.h5ad",
+  "n_cells": 89326,
+  "warnings": [
+    "8 donor(s) contribute more than one library (THD0005: 3, TILD006: 2, TILD015: 2, TILD028: 2, VUILD59: 2, ...): libraries from one donor are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report"
+  ],
+  "counts": {
+    "X": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 8403.0,
+      "nonneg": true,
+      "n_checked": 200000
+    },
+    "layers/counts": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 8403.0,
+      "nonneg": true,
+      "n_checked": 200000
+    }
+  },
+  "condition_levels": [
+    "Control",
+    "IPF"
+  ],
+  "samples_per_condition": {
+    "Control": 12,
+    "IPF": 19
+  },
+  "donors_per_condition": {
+    "Control": 10,
+    "IPF": 12
+  },
+  "libraries_per_donor_max": 3,
+  "confounding": {
+    "Sample_Source": {
+      "cramers_v": 0.647,
+      "levels": 3,
+      "levels_exclusive_to_one_condition": 2,
+      "perfectly_confounded": false
+    }
+  },
+  "aliases": {
+    "Status": "same partition as the condition column (alias of the condition)"
+  }
+}

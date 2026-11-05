@@ -1,0 +1,19 @@
+29499 cells; matrices checked: X: integer (max 2644.0); layers/counts: integer (max 2644.0)
+
+condition levels: ['Benign', 'ccRCC']  (case = ccRCC)
+  Benign: 6 samples; cells per sample min/median/max = 578/1253/1896
+  ccRCC: 7 samples; cells per sample min/median/max = 1660/2872/6453
+
+donors per condition: {'Benign': 5, 'ccRCC': 7}; libraries per donor max = 2
+  paired design: 4 donor(s) appear in both conditions (['SS_2006', 'SS_2007', 'SS_2017', 'SS_2022'])
+  note: the within-cluster disease-vs-reference contrast is not blocked by donor; donor effects will inflate reference dispersion. State this in the write-up.
+
+columns skipped as aliases: library: one level per sample (alias of the sample column); tissue: same partition as the condition column (alias of the condition)
+
+sample-level covariates vs condition (one row per sample):
+  geo_tissue: 2 levels, Cramer's V = 0.24, 0 level(s) exclusive to one condition -> ok
+  sex: 2 levels, Cramer's V = 0.46, 1 level(s) exclusive to one condition -> ok
+
+WARNING: 5 donor(s) contribute more than one library (SS_2006: 2, SS_2007: 2, SS_2014: 2, SS_2017: 2, SS_2022: 2): libraries from one donor are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report
+
+wrote validation_0.4/ccrcc_design_check.json

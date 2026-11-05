@@ -1,0 +1,13 @@
+75809 cells; matrices checked: X: integer (max 2113.0)
+
+condition levels: ['DOX', 'Vehicle']  (case = DOX)
+  DOX: 4 samples; cells per sample min/median/max = 4659/7840/8593
+  Vehicle: 4 samples; cells per sample min/median/max = 9003/11030/15813
+
+columns skipped as aliases: patient: one level per sample (alias of the sample column); title: one level per sample (alias of the sample column)
+
+no other sample-level categorical columns found to check for confounding (batch, chemistry, sex, site). If they exist outside the object, check them by hand.
+
+no design warnings
+
+wrote validation_0.4/dox_design_check.json

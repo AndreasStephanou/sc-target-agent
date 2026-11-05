@@ -1,0 +1,27 @@
+run dir : runs/synthetic_program_calibrate_v04_fix23d
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=25 tools=24 errors=0  stop=end_turn
+  target   turns=14 tools=13 errors=0  stop=end_turn
+  critic   turns= 7 tools= 6 errors=0  stop=end_turn
+report  : runs/synthetic_program_calibrate_v04_fix23d/report.md
+elapsed : 29.9s
+Evaluation of runs/synthetic_program_calibrate_v04_fix23d vs synthetic_program.yaml  (prompts v7, scoring v3)
+========================================================================
+state 'program_keratinocyte': FOUND  (cluster 1, marker overlap 7/4 needed: ERBB4, GAP43, NEFL, PEG3, SNAP25, SYP, SYT1)
+    strict (agent-recorded genes only): FOUND  (cluster 1, overlap 7/4, 9 genes recorded)
+target ranks: {'ERBB4': 1}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'PEG3': 5, 'SYP': 8, 'SNAP25': 2, 'STMN2': None, 'GAP43': 9, 'NEFL': 7, 'SYT1': 4, 'RAB3A': 6, 'DLG4': 3}
+above first true target: 0 not in answer key -> known-wrong decoys: none; novel candidates: none
+nominated: ['ERBB4', 'SNAP25', 'DLG4']  precision: 1.0
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 1.0  found: ['afatinib', 'lapatinib', 'neratinib']
+tool calls: 45 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: True
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_pipeline.py --config config/synthetic_program.yaml --model scripted --run-dir runs/synthetic_program_calibrate_v04_fix23d --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/synthetic_program_calibrate_v04_fix23d/report.md section 1 (QC: cells kept, per-type removal) and section 3 (which clusters were enriched, split candidates, doublet/stress suspects)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python3 scripts/run_eval.py --ground-truth data/ground_truth/synthetic_program.yaml runs/synthetic_program_calibrate_v04_fix23d
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.
