@@ -357,6 +357,17 @@ nothing above them, KRT7 7th, no decoy ranked or nominated; drugs: none of the t
 (no PRKACA inhibitor exists; ENMD-2076/neratinib/everolimus not reached by the floor). The v6
 floor in the test clone (2026-11-02) had PRKACA 6th with four novel genes above it and markers 1/5.
 
+Worth recording: the tumour state came through the **expression route**, not composition. Cluster 6
+(hepatocyte-like lineage L1) is present in both conditions with no abundance shift; the within-
+cluster tumour-vs-normal contrast has 2,009 genes up at log2FC >= 1 (CA12, KRT7, CD24, IRF4 ...).
+With one condition per library and Harmony correcting on the library, part of the tumour-vs-normal
+difference in the hepatocyte lineage was integrated away and FLC tumour nuclei co-clustered with
+normal hepatocytes. The 0.4 rule that the expression route runs in every analysis (23, 23e) is what
+reached the state; the v6 floor, which ran it only as a fallback on a fragmented clustering,
+missed it. A design in which every library is one condition cannot separate library from condition
+in the integration; this is the general reason the expression route must always run, and it should
+be said in the design-types reference.
+
 ## Issue 11 (fixed in the skill's helper, generic): pairing was reported as pseudo-replication
 
 The donor warning counted libraries per donor, so a paired design (one tumour and one normal
