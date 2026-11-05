@@ -657,3 +657,19 @@ planted target with the largest within-cluster effect (log2FC 1.65) and full dru
 All three are generic: any dataset whose signal is a programme shift in an existing lineage
 (perturbation, most non-malignant disease) goes through these rules. Tumour (composition) paths are
 untouched; regression on the saved tumour runs is by `scripts/rescore.py --recompute-attribution`.
+
+### 23e. The scripted floor characterises the top enriched cluster of every lineage
+
+IPF floor (`runs/ipf_calibrate_1`): six clusters were disease-enriched across three lineages
+(basal, MUC5B+ and ciliated epithelium; an IPF-only AT2 cluster; two macrophage clusters). The
+scripted analyst characterised the top three by effect x size, all epithelial, so the macrophage
+states (the SPP1+ expansion that two independent IPF studies report) never received a marker
+table and the evaluator could not even match them. **Change (scripted route only):** the top
+enriched cluster of each lineage is characterised before a second cluster of the same lineage, cap
+raised from 3 to 5 composition states; the nominator and critic cover up to 6 recorded states
+instead of 4. Tumour datasets, where the enriched clusters are one lineage, are unaffected in
+ordering. The agent prompt already leaves the order to the model; nothing changes there.
+
+Floor limitation stated rather than patched: the scripted route never subclusters an enriched or
+programme cluster, so a rare state inside one (the 374 KRT5-/KRT17+ aberrant basaloid cells inside
+the 5,559-cell transitional cluster) is invisible to it. The agent has `subcluster`.

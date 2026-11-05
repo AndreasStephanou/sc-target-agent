@@ -65,3 +65,44 @@ Empty composition line for the mouse DOX object. Fix: case-insensitive marker ma
 | `synthetic_program_calibrate_v04_fix23` | base clustering only | FAIL: 9 and 6 strong genes in two keratinocyte clusters, neither 3x the other |
 | `synthetic_program_calibrate_v04_fix23b` | both fixes | (pending) |
 | `ipf_calibrate_1` | primary, scripted | (running) |
+
+## Issue 8 (fixed, generic): programme-basis states were mis-scored — protocol 23d
+
+Attribution classed induced programme genes `shared_with_reference` (reference cells of the same
+cluster express them at baseline); consistency was detection-based and the `< 0.67` cut-off flagged
+2 of 3 samples; the scripted nominator nominated one gene per cluster of the same lineage. Fixed:
+basis-aware attribution from the within-cluster contrast, per-sample induction as consistency,
+exact two-thirds, one nomination per gene. Synthetic `marker`-mode calibration now PASSES (ERBB4
+rank 1, three unique nominations, consistency 1.0). Tumour paths untouched.
+
+## IPF scripted floor (`runs/ipf_calibrate_1`, 11 min, 96 tool calls, 0 errors) — read 2026-11-05
+
+Eval: all three key states "missed" by marker overlap; ITGB6 unranked; 18 nominations, precision 0;
+no decoy nominated. Offline comparison with the authors' annotation (evaluation only; the column is
+forbidden to the model):
+
+| cluster | cells | IPF % | what it is (authors) | floor's treatment |
+|---|---|---|---|---|
+| 1 | 1,669 | 95 | basal cells (KRT5/KRT17/TP63): bronchiolisation | composition state; MMP1, TNC, ITGA2, PLAU, PTPRZ1 nominated |
+| 2 | 5,559 | 77 | SCGB3A2+ / transitional AT2, and 341 of the 374 KRT5-/KRT17+ aberrant basaloid cells | programme state (CDKN2A, MMP7, KRT17, SOX9, CDKN1A, SOX4, PTGS2 all significant within the cluster); never subclustered, so the aberrant basaloid state stays hidden inside it |
+| 4 | 7,127 | 42 | AT2 | programme state (MMP7, CDKN2A, ITGB6 log2 0.88 padj 0.011, SPP1 3.7) |
+| 13 | 300 | 100 | AT2, IPF-only | composition state; CACNA2D2, ALOX15B, CSF3R, LRRK2 nominated |
+| 0 | 2,533 | 85 | MUC5B+ secretory | enriched, NOT characterised (cap) |
+| 15, 18 | 969, 4,305 | 87, 83 | macrophages (the SPP1+ expansion) | enriched, NOT characterised (cap of 3 composition states, all taken by epithelium) |
+| 3+12+14 | 14,941 | 85 | ciliated | merged composition state; critic: enrichment does not hold within the lineage (log2 0.30); its five nominations all flagged shared_with_reference |
+| 11 | 2,659 | 87 | PLIN2+ / myofibroblasts | log2 2.3 but MWU p 0.20 (donor heterogeneity): not enriched |
+
+Library check (critic): S17 (IPF) immune compartment control-like with 6,276 cells — the same donor
+the pre-run compartment check flagged (VUILD59); pre-registered arm exists. Also S20 (IPF) in
+endothelial and immune, S15 and S03/S11 (controls) in epithelial/mesenchymal with small cell counts.
+
+Reading: the composition route dominates in IPF, as the corrected design table says (basal, MUC5B+,
+ciliated, an IPF-only AT2 state, two macrophage clusters); the expression route finds the
+senescence / aberrant-basaloid programme spread over the transitional and AT2 compartments. The
+floor's two generic weaknesses: (a) it characterises the top 3 enriched clusters overall, so in a
+multi-lineage disease the immune states never get a marker table (eval cannot even match them);
+(b) it never subclusters an enriched or programme cluster, so a rare state inside a programme
+cluster is invisible. (a) is fixed as protocol 23e (lineage coverage); (b) is left to the agent, which
+has `subcluster`, and is a stated floor limitation. ITGB6 reaches significance only in the AT2
+programme at log2 0.88 (below the 1.0 strong-gene threshold): the key's expected target is demanding
+at compartment resolution and will probably need the aberrant basaloid subcluster to rank.

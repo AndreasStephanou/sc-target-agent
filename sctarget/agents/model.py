@@ -157,7 +157,19 @@ class ScriptedModel:
             return -((r.get("log2_ratio") or 0) * np.log10(max(10, r.get("n_cells") or 10)))
         def prio2(c):
             return (0 if "+" in str(c) else 1, prio(c))  # a merged cluster was built on purpose: characterise it first
-        enriched = [c for c in sorted(da.get("disease_enriched_clusters", []), key=prio2) if str(c) not in stress][:3]
+        ranked_enriched = [c for c in sorted(da.get("disease_enriched_clusters", []), key=prio2) if str(c) not in stress]
+        # lineage coverage (protocol 23e): in a multi-lineage disease (IPF: epithelium, macrophages,
+        # fibroblasts all shift) the top enriched cluster of EACH lineage is characterised before a
+        # second cluster of the same lineage; the old "top 3 overall" filled the cap with one lineage
+        # and left the macrophage states without a marker table
+        seen_lin: set[str] = set()
+        first_per_lin: list = []
+        rest: list = []
+        for c in ranked_enriched:
+            lin = str(comp.get(str(c), {}).get("dominant_celltype") or "?")
+            (rest if lin in seen_lin else first_per_lin).append(c)
+            seen_lin.add(lin)
+        enriched = (first_per_lin + rest)[:5]
         if not enriched:
             retries = self._step.get("analyst_recluster", 0)
             da_thr = float(self.session.cfg.get("analysis.differential_abundance.enrichment_log2fc", 1.0))
@@ -312,10 +324,10 @@ class ScriptedModel:
         # composition states carry the stronger evidence (a population that exists only in disease);
         # score them first so a turn budget never silences them in favour of program states
         states = sorted(states, key=lambda st: (0 if st.get("basis", "composition") == "composition" else 1))
-        self._step["target_order"] = [st["cluster"] for st in states[:4]]
+        self._step["target_order"] = [st["cluster"] for st in states[:6]]
         steps: list[ToolUse | str] = []
         species = self.session.cfg.dataset.get("species", "homo_sapiens")
-        for st in states[:4]:
+        for st in states[:6]:
             cl = st["cluster"]
             contrast = "disease_vs_reference_within_cluster" if st.get("basis") == "program" else "cluster_vs_reference_clusters"
             pb = f.get("pseudobulk_de", {}).get(f"{cl}:{contrast}", {})
