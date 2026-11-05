@@ -1469,7 +1469,10 @@ def disease_programs(
                 "disease_altered": bool(len(strong) >= min_sig_genes),
             }
         )
-        programs[cl] = {"n_sig_up_strong": int(len(strong)), "top_up": strong.head(50).reset_index().to_dict(orient="records")}
+        # the programme's gene list follows the pool rule (protocol 23f): the most significant strong
+        # genes by statistic plus the largest strong effects, so a lineage-level response with large
+        # fold changes but modest statistics (atrophy / natriuretic genes in the DOX heart) is kept
+        programs[cl] = {"n_sig_up_strong": int(len(strong)), "top_up": _candidate_pool(strong, n_stat=40, n_effect=20, min_log2fc=min_log2fc).to_dict(orient="records")}
     df = pd.DataFrame(rows).set_index("cluster")
     ambient_note = None
     if "n_sig_up_strong" in df:
@@ -1506,6 +1509,7 @@ def disease_programs(
             for g in gs:
                 gene_celltypes.setdefault(g, set()).add(celltype_of[cl])
         clean_programs: dict[str, list[str]] = {}
+        suspect_sets: dict[str, set[str]] = {}
         n_susp, frac_susp, clean_cols, n_clean, amb_flag = {}, {}, {}, {}, {}
         for cl in df.index:
             gs = strong_sets[cl]
@@ -1524,6 +1528,7 @@ def disease_programs(
             frac = len(suspect) / len(gs)
             clean = [r["gene"] for r in programs[cl]["top_up"] if r["gene"] not in suspect]
             clean_programs[cl] = clean
+            suspect_sets[cl] = set(suspect)
             n_susp[cl], frac_susp[cl], clean_cols[cl], n_clean[cl] = len(suspect), round(frac, 3), ", ".join(clean[:12]), len(clean)
             # suspect whenever a non-trivial program is mostly shared/dominant-signature genes,
             # independent of whether it passed the size criteria - the recurrence itself is the evidence
@@ -1555,7 +1560,9 @@ def disease_programs(
     for cl in altered:
         if cl in clean_programs and f"{cl}:disease_vs_reference_within_cluster" in session.facts.get("pseudobulk_de", {}):
             pb = session.facts["pseudobulk_de"][f"{cl}:disease_vs_reference_within_cluster"]
-            pb["top_up"] = [r for r in pb["top_up"] if r["gene"] in set(clean_programs[cl])] or pb["top_up"]
+            # remove the ambient-suspect genes from the stored pool; do not shrink the pool to the
+            # programme's own head (that dropped the effect-pool genes again, protocol 23f)
+            pb["top_up"] = [r for r in pb["top_up"] if (r.get("gene") or r.get("index")) not in suspect_sets.get(cl, set())] or pb["top_up"]
     session.facts["disease_programs"] = {"cluster_key": key, "disease_altered_clusters": altered, "ambient_suspect_clusters": suspects, "table": df.reset_index().to_dict(orient="records"), "ambient_note": ambient_note}
     return {
         "cluster_key": key,

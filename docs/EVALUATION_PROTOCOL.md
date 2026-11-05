@@ -694,3 +694,10 @@ non-significant elsewhere), as the pre-run label check had hinted. The p53 read-
 time-point-dependent response; the lineage-level atrophy / natriuretic response is what the data
 hold. This joins EPAS1 (protein-level target) and the HCC literature markers as the third
 key-drafting failure mode: a read-out that is real but not at the sampled time.
+
+**23f addendum.** The DOX floor re-run under 23f was unchanged, because `disease_programs` rebuilt
+the programme's gene list from the 50 strongest genes by statistic and then replaced the stored
+pool with the genes of its "clean programme", discarding the effect-pool genes again. Now the
+programme's list follows the same pool rule (40 by statistic + 20 largest strong effects) and the
+ambient step removes suspect genes from the stored pool instead of restricting it to the
+programme head. Re-run as `dox_calibrate_3`.
