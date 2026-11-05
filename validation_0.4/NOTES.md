@@ -375,6 +375,26 @@ precisely: FOLR1 is found in the right state every time (14th / 24th / 35th / 17
 druggable, and is held back by 59-151 benign FOLR1+ reference epithelial cells that the new
 label-check rule now shows before the run (GSM8717110).
 
+## Ovarian no-leak arm, agent under prompts v9 (`runs/ovarian_noleak_agent_v04_2`) — 17 min, 2.83M input tokens, 93 calls, 0 errors -> protocol 23j outcome
+
+Strict 5/5 again; FOLR1 17th within the state again (global 97th), EPCAM 3rd, TACSTD2 11th; six
+nominations (CTLA4, IL2RA, MMP7, LOXL2, IL3RA, TNFSF13B; precision 0), no decoy. The critic applied
+v9 as written and reached the **representative** branch: "normal omentum carries cluster 24 at up
+to 0.46 of epithelium per library, mean 0.126, so the reference holds this epithelial population
+in bulk and the lineage counterpart is representative" - blocking kept for FOLR1 and CD24. In the
+same review it wrote that the verdict "depends on reference cell identity", that the 151 cells
+"may be normal fallopian-tube-like or mesothelial epithelium, or tumour-contaminated", and that "a
+reference-only subcluster of cluster 24 would settle this". So v9 produced the reasoning the skill
+asks for (cells named, settling experiment stated) but not the conditional nomination, because the
+representativeness test is answered by the derived lineage L1, which absorbs mesothelium at this
+resolution (protocol 21b, the exact property that defeated the lineage-relative guard). **v9 stays**
+(it is the correct rule and changed nothing else), the FOLR1 outcome is unchanged across five
+agent runs on this dataset, and the limitation is restated: with derived lineages, "the reference
+holds the lineage" cannot distinguish mesothelium from benign epithelium. The one step the critic
+named and did not take - a reference-only subcluster of the tumour cluster - is the generic
+settling move for this design and belongs in the skill as the next thing to try when the flag is
+representative-but-doubtful.
+
 ## FLC scripted floor (`runs/flc_calibrate_1`, 46 min, 121 calls, 0 errors)
 
 Primary vs normal liver, 9 vs 9 libraries, metastatic set aside (254k nuclei through QC and

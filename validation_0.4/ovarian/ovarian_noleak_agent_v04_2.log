@@ -1,0 +1,27 @@
+Thu Nov  5 03:59:49 PM EST 2026
+run dir : runs/ovarian_noleak_agent_v04_2
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=17 tools=41 errors=0  stop=end_turn
+  target   turns=13 tools=34 errors=0  stop=end_turn
+  critic   turns= 6 tools=16 errors=0  stop=end_turn
+report  : runs/ovarian_noleak_agent_v04_2/report.md
+elapsed : 1043.0s
+note: no answer key at data/ground_truth/ovarian_noleak.yaml; the run will produce hypotheses but cannot be scored. If you have a known answer, write and COMMIT the key before this run.
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/ovarian_noleak.yaml --model claude-code --run-dir runs/ovarian_noleak_agent_v04_2 --scoring-version 3
+
+Done. Read runs/ovarian_noleak_agent_v04_2/report.md: the executive summary, then section 4 (critic flags), then section 3 (ranking, with target_class, attribution and flags). Every number traces to runs/ovarian_noleak_agent_v04_2/run.jsonl.
+exit=0
+Evaluation of runs/ovarian_noleak_agent_v04_2 vs ovarian.yaml  (prompts v9, scoring v3)
+========================================================================
+state 'HGSOC_tumour_epithelium': FOUND  (cluster 24, marker overlap 6/5 needed: CD24, CLDN4, EPCAM, FOLR1, KRT7, WFDC2)
+    strict (agent-recorded genes only): FOUND  (cluster 24, overlap 5/5, 16 genes recorded)
+target ranks (within its state): {'FOLR1': 17}  state: {'FOLR1': '24 (L1)'}  global: {'FOLR1': 97}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'MUC16': None, 'MSLN': None, 'TACSTD2': 11, 'CLDN6': None, 'ERBB2': None, 'EPCAM': 3}
+above first true target: 14 not in answer key -> known-wrong decoys: none; novel candidates: ['ASS1', 'MMP7', 'IGFBP2', 'S100A1', 'CLDN3', 'MDK', 'WFDC2', 'SPINT2', 'CLDN4', 'SLC34A2', 'CLDN7', 'CRABP2', 'TSPAN1', 'MAL2']
+nominated: ['CTLA4', 'IL2RA', 'MMP7', 'LOXL2', 'IL3RA', 'TNFSF13B']  precision: 0.0
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 93 (0 errors)   tokens: {'input_tokens': 2830222, 'output_tokens': 40276}
+PASS: False
+
+Thu Nov  5 04:17:17 PM EST 2026
