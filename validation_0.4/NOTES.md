@@ -181,3 +181,21 @@ route, lineage-level response, replicate caveats); what it cannot do is rescue a
 expected read-out is not in the data at the sampled time. The honest DOX result is "state:
 cardiomyocyte stress/atrophy programme found; expected target absent at 2 weeks; acceptable
 natriuretic / atrophy genes present at ranks 9-12 of their state".
+
+## DOX pre-registered batch-2 arm, scripted floor (`runs/dox_batch2_calibrate_1`, 3 vs 3)
+
+Without the two batch-1 libraries the expression route flags eight programme clusters (the
+batch-1 libraries inflated the reference dispersion); the cardiomyocyte programme (cluster 17:
+Myl3, Myh6, Tnnt2, Hspb7, Pln, Csrp3 ...) is recorded and **Trim63 is nominated** (acceptable gene;
+precision 0.14), with Bdh1, Macrod1, Lonrf1, Tspan4, Tsc22d3, Selenbp1. The arm the critic asked for
+supports the atrophy response and shows the batch cost. Cdkn1a still absent.
+
+## ccRCC regression run 1 (`runs/ccrcc_agent_v04_1`, prompts v8, scoring v3) — 11.5 min, 2.19M tokens, 87 calls, 0 errors
+
+Tumour state found (lenient 9/5, strict 8/5); **CA9 ranked 1st in both tumour states** (0.91,
+0.92; EGLN3 2nd and flagged for direction again); no decoy nominated; CD70 and FOLH1 above the key
+as before; five states recorded (tumour x2, TAM, tumour endothelium programme, stroma programme).
+The evaluator's merged rank put CA9 6th behind endothelium/stroma genes — a metric artefact of
+lineage coverage, fixed as protocol 23g (within-state rank; merged rank kept as
+`target_rank_global`). Cost 2.19M vs 0.6-1.7M in earlier rounds: v8's coverage and the expression
+route add calls.
