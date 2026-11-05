@@ -21,6 +21,27 @@
     "pass": false
   },
   {
+    "run": "flc_agent_2",
+    "arm": "claude-code; prompts v11; scoring v3; de novo clustering; derived lineages",
+    "state_found": "0/1",
+    "state_overlap": "FLC_tumour_cells:3/5",
+    "strict_found": "0/1",
+    "strict_overlap": "FLC_tumour_cells:2/5",
+    "target_rank": "PRKACA:2 (state 6, L1)",
+    "target_rank_global": "PRKACA:3",
+    "acceptable_rank": "CA12:1, SLC16A14:-, AURKA:-, ERBB2:2, MTOR:-, KRT7:6, CYP19A1:-",
+    "decoys_above": 0,
+    "novel_above": 0,
+    "decoys_unflagged": 0,
+    "n_nominated": 10,
+    "precision": 0.3,
+    "drug_recall": 0.25,
+    "tool_calls": 111,
+    "tool_errors": 0,
+    "input_tokens": 3527894,
+    "pass": false
+  },
+  {
     "run": "flc_calibrate_1",
     "arm": "scripted; prompts v8; scoring v3; de novo clustering; derived lineages",
     "state_found": "0/1",

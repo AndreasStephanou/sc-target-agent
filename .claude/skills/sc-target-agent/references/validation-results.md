@@ -196,6 +196,7 @@ rule added this round, showed the healthy donor's benign PAX8+ inclusion that bl
 | ovarian | agent, no-leak arm (v8; v9) | 6/5 / **5/5** both | FOLR1 17th both; blocking flag both; v9 critic names the cells and the settling experiment | none | - | 3.5M; 2.8M |
 | FLC | floor | 3/5 / 3/5 | **PRKACA 2nd behind CA12** (v6: 6th) via the expression route | none | - | - |
 | FLC | agent (v8) | 3/5 / 3/5 | **PRKACA 2nd behind CA12, nominated**; ERBB2 2nd | PDGFRB nominated unflagged (stroma) | neratinib | 2.5M |
+| FLC | agent (v11) | 3/5 / 2/5 | **PRKACA 2nd behind CA12, nominated**; ERBB2 2nd; stability pair: top-10 Jaccard 0.54, same top three in the tumour state | none; FAP/COL1A2/VWF carry the microenvironment flag | neratinib | 3.5M |
 
 What changed in the method from these runs: the floor's effect pool (23h); the evaluator names the
 lineage of the state carrying a target and honours an optional `lineage:` on an expected state

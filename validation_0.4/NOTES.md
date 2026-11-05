@@ -435,6 +435,31 @@ cycling and never asked which compartment the gene is in. Prompts v11 (23l): eve
 from a non-disease-cell lineage carries a microenvironment flag naming the lineage. FLC agent run 2
 under v11 serves as verification and as the dataset's stability pair.
 
+## FLC agent run 2 (`runs/flc_agent_2`, prompts v11) — 43 min, 3.53M input tokens, 111 calls, 0 errors -> 23l verified; stability pair
+
+**PRKACA 2nd within its state behind CA12 again** (global 3rd), nominated again; ERBB2 2nd,
+KRT7 6th, neratinib found; 10 nominations, precision 0.30; **no decoy unflagged**: the critic
+applied v11 and recorded "Microenvironment flag: clusters 20 and 8+19 are not tumour-cell states"
+on VWF (endothelium) and on FAP and COL1A2 (CAF matrix programme), which is what the rule asks
+for; PDGFRB was not nominated this time. The critic also tested cluster 0's enrichment within its
+lineage (log2 0.69, p 0.18, does not hold) and flagged S22 as Normal-like in L0. Stability over
+the two agent runs: nominated-set Jaccard 0.62, top-10 Jaccard 0.54; the tumour programme state's
+top five are CA12, PRKACA, SLC7A5 in the same order in both runs (then HKDC1/IRF4 vs IRF4/MUC13).
+Key state still 3/5 by markers in both runs (the key's literature markers split between the
+composition and the programme state; a limitation of that key, recorded on 2026-11-02).
+
+## Round 0.4b closed: tag results-v5 (working copy only)
+
+Runs this round: 7 scripted floors, 7 agent runs (HCC 1, ovarian 3, FLC 2, plus the two FLC/ovarian
+prompt verifications counted above), ~23M input tokens. Method changes: protocol 23h (floor pool),
+23i (evaluator lineage), 23j (prompts v9), 23k (`subcluster(condition=...)`, prompts v10), 23l
+(prompts v11); skill 0.4.2 helper fixes (issues 9-11) and text. Tests: 93 passed, 1 skipped.
+Outcomes: HCC GPC3 1st in its state without patient 4, unscored in the tumour states with all
+libraries (HCC04N), scored in a stromal state by the agent; ovarian FOLR1 found in the right state
+in every run (14th-35th), held back by benign reference epithelium in every run, now visible
+before the run; FLC PRKACA 2nd behind CA12 in all three runs, nominated by the agent, neratinib
+found, no decoy unflagged under v11. Originals untouched; nothing pushed.
+
 ## Issue 11 (fixed in the skill's helper, generic): pairing was reported as pseudo-replication
 
 The donor warning counted libraries per donor, so a paired design (one tumour and one normal
