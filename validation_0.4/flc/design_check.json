@@ -1,0 +1,39 @@
+{
+  "file": "data/flc/flc.h5ad",
+  "n_cells": 354510,
+  "warnings": [
+    "3 condition levels: the pipeline compares one case against the rest; set dataset.disease to one value and dataset.reference to the others, or split into pairwise runs"
+  ],
+  "counts": {
+    "X": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 1151.0,
+      "nonneg": true,
+      "n_checked": 200000
+    },
+    "layers/counts": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 1151.0,
+      "nonneg": true,
+      "n_checked": 200000
+    }
+  },
+  "condition_levels": [
+    "Metastatic",
+    "Normal",
+    "Primary"
+  ],
+  "samples_per_condition": {
+    "Metastatic": 7,
+    "Normal": 9,
+    "Primary": 9
+  },
+  "confounding": {},
+  "aliases": {
+    "sample_tube_number": "one level per sample (alias of the sample column)"
+  }
+}

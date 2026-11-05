@@ -1,0 +1,48 @@
+# Frozen answer key for the FLC snRNA-seq dataset (Primary vs Normal liver; metastatic libraries
+# set aside in config/flc.yaml for a separate arm). Drafted from published fibrolamellar carcinoma
+# biology (Honeyman 2014 Science: DNAJB1-PRKACA fusion; Simon 2015 PNAS and Dinh 2017 Sci Rep:
+# FLC transcriptional signature; Sorenson 2017 and the FLC-specific markers used in the clinic),
+# checked against the De Vlaminck lab's own knowledge of this dataset, and committed BEFORE any
+# run. Do not edit afterwards.
+name: flc_snrnaseq
+disease: Primary
+reference: [Normal]
+
+expected_states:
+  - name: FLC_tumour_cells             # DNAJB1-PRKACA-driven hepatocyte-derived tumour cells
+    # Recurrent FLC-vs-liver overexpressed genes across the published cohorts. CA12 and
+    # SLC16A14 are the most consistent (LINC00473, the top published marker, is absent from this
+    # annotation and cannot be scored); PRKACA is elevated because the fusion transcript carries its
+    # kinase exons; KRT7 is the biliary-type keratin FLC expresses (CK7 IHC); CYP19A1 (aromatase)
+    # explains the gynaecomastia seen clinically; OAT, PCSK1, TESC, VCAN, DKK1, AKAP12, PAK3, NTS,
+    # SLC13A5 recur in the FLC signatures.
+    marker_genes: [CA12, SLC16A14, PRKACA, KRT7, CYP19A1, OAT, PCSK1, TESC, VCAN, DKK1, AKAP12, PAK3, NTS, SLC13A5]
+    min_marker_overlap: 5
+
+# The driver kinase. The fusion is not a gene symbol the pipeline can see; PRKACA itself is
+# transcriptionally elevated in FLC and is the only "expected" answer.
+expected_targets: [PRKACA]
+
+# Defensible from the data; not counted as false leads:
+#  - CA12: FLC-specific carbonic anhydrase, inhibitable (SLC-0111 class)
+#  - SLC16A14, LINC00473: top FLC markers, not druggable, but the right cells
+#  - AURKA: Aurora A inhibitor ENMD-2076 was trialled in FLC (NCT02234986)
+#  - ERBB2, EGFR... no: see decoys. ERBB2 alone is acceptable (neratinib + everolimus FLC trial)
+#  - MTOR: everolimus arm of the same trials
+#  - KRT7, CYP19A1: FLC-specific lineage features (aromatase inhibitors exist)
+acceptable_targets: [CA12, SLC16A14, AURKA, ERBB2, MTOR, KRT7, CYP19A1]
+
+# Compounds that count as "found". No approved PRKACA inhibitor exists, so recall here measures
+# whether the pipeline reaches the trialled agents; a 0 on this line is informative, not a failure.
+expected_drugs: [ENMD-2076, neratinib, everolimus, SLC-0111]
+
+# Druggable but clearly wrong answers. Ranked above PRKACA = false lead; nominated and not flagged = critic failure.
+#  - MKI67, TOP2A, CDK1: proliferation (FLC is slow-cycling; a cycling sub-state is not the answer)
+#  - ALB, APOA1, CPS1: hepatocyte lineage - shared with every normal hepatocyte
+#  - KDR, FLT1: endothelium (tumour libraries are endothelium-rich by composition, 0.39 vs 0.18)
+#  - PDGFRB, COL1A1: stroma / the fibrous lamellae - the tumour's scaffold, not the tumour cell
+#  - EGFR: broad epithelial expression; not FLC-specific
+#  - GPC3, AFP: HCC markers; FLC is characteristically AFP-negative
+decoy_targets: [MKI67, TOP2A, CDK1, ALB, APOA1, CPS1, KDR, FLT1, PDGFRB, COL1A1, EGFR, GPC3, AFP]
+
+per_cell_truth: null

@@ -1,0 +1,37 @@
+dataset:
+  path: data/flc.h5ad
+  species: homo_sapiens
+  sample_key: sample_names              # biological library (Parse sublibraries a/b, set1/set2 merge under it); 9 Primary / 9 Normal / 7 Metastatic
+  condition_key: tumor_status
+  celltype_key: null                    # no annotation: lineages derived from the data
+  disease: Primary
+  reference: [Normal]
+  condition_descriptions:
+    Primary: "fibrolamellar carcinoma, primary tumour (9 libraries, 8 patients)"
+    Normal: "non-tumour liver, mostly from the same patients (9 libraries)"
+  counts_layer: counts
+  already_processed: false
+  reuse_clustering: null
+  forbidden_obs_columns: [sample, sample_tube_number, bc1_wind, bc2_wind, bc3_wind, bc1_well, bc2_well, bc3_well, species]
+  # declared second arm: the 7 metastatic libraries are excluded from the primary-vs-normal run and
+  # analysed separately (metastatic vs normal, and vs primary) once the primary result is in
+  exclude_samples: [FLC06_DZIS, FLC06_UFNW, FLC13_BTLY, FLC25_BCRB, FLC25_UYHR, FLC26_OAOE, FLC30_KPKS, FLC83_T, FLC57_T, FLC26_ICBQ]
+  exclude_samples_reason: "metastatic libraries set aside by design for a separate arm; FLC83_T and FLC57_T low tumour content and FLC26_ICBQ tumour markers in a reference library, per pre-run label check"
+analysis:
+  lineages:
+    ignore_annotation: false
+targets:
+  objective: target
+  scoring_version: 3
+agent:
+  max_turns_per_role: 60
+
+# Pre-run label check (per-library fraction of nuclei positive; recorded before any run):
+#   FLC83_T and FLC57_T express the tumour markers at Normal-library levels and CYP3A4 at
+#   0.52-0.70 -> low tumour content. FLC26_ICBQ (Normal) has SLC16A14 in 0.40 of nuclei with low
+#   CYP3A4 -> possible tumour in a reference library. FCF82_N has little hepatocyte signal.
+# All four stay in the primary run. Declared second arm (config/flc_clean.yaml): exclude
+# FLC83_T, FLC57_T, FLC26_ICBQ in addition to the metastatic libraries, reason "low tumour
+# content / tumour markers in reference library, per pre-run label check".
+#   LINC00473 (top published FLC marker, lncRNA) is absent from var_names in this annotation;
+#   it is therefore not in the key and no library check or score uses it.

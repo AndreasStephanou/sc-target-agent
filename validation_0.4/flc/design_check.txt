@@ -1,0 +1,14 @@
+354510 cells; matrices checked: X: integer (max 1151.0); layers/counts: integer (max 1151.0)
+
+condition levels: ['Metastatic', 'Normal', 'Primary']  (case = Primary)
+  Metastatic: 7 samples; cells per sample min/median/max = 242/11330/39286
+  Normal: 9 samples; cells per sample min/median/max = 333/6114/19036
+  Primary: 9 samples; cells per sample min/median/max = 690/13285/86564
+
+columns skipped as aliases: sample_tube_number: one level per sample (alias of the sample column)
+
+no other sample-level categorical columns found to check for confounding (batch, chemistry, sex, site). If they exist outside the object, check them by hand.
+
+WARNING: 3 condition levels: the pipeline compares one case against the rest; set dataset.disease to one value and dataset.reference to the others, or split into pairwise runs
+
+wrote validation_0.4/flc/design_check.json
