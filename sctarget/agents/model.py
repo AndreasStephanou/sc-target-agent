@@ -357,11 +357,17 @@ class ScriptedModel:
         f = self._facts()
         ranked = f.get("ranked_targets", {}).get(cl, [])
         steps: list[ToolUse | str] = []
+        # a gene already nominated from another state (two clusters of one lineage sharing a programme)
+        # is nominated once; the report lists the states it came from (protocol 23d)
+        already: set[str] = self._step.setdefault("nominated_genes", set())
         for r in ranked[:5]:
             if r["druggability_score"] == 0 and r["known_compound_score"] == 0:
                 continue
             if r["score"] < 0.3 or r.get("attribution") in ("reference_driven", "ambient_like"):
                 continue  # weak, heavily penalised, or a wrong-condition artefact: not worth a nomination
+            if r["gene"] in already:
+                continue
+            already.add(r["gene"])
             steps.append(
                 ToolUse(
                     "record_finding",

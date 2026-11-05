@@ -1766,6 +1766,22 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
         return float(np.median(pcts)), float(np.median(means)), int(mask.sum())
 
     amb = _ambient_ratios(session, X, expr, present, in_c, disease_only=True, min_cells=min_cells)
+    # programme-basis states (protocol 23d): the cluster exists in both conditions, so the reference
+    # cells of the SAME cluster are the control and "shared with reference" can only mean "not induced".
+    # The class is read from the replicate-aware within-cluster contrast that found the programme.
+    from .targets import state_basis  # local import: targets imports this module
+
+    basis = state_basis(session, str(cluster))
+    pb_up: dict[str, tuple[float, float]] = {}
+    if basis == "program":
+        rec_pb = session.facts.get("pseudobulk_de", {}).get(f"{cluster}:disease_vs_reference_within_cluster", {}) or {}
+        for r_ in rec_pb.get("top_up", []) or []:
+            gname = r_.get("gene") or r_.get("index")
+            if gname:
+                pb_up[str(gname)] = (float(r_.get("log2fc") or 0.0), float(r_["padj"]) if r_.get("padj") is not None else 1.0)
+    de_cfg = session.cfg.analysis.get("differential_expression", {})
+    min_lfc_prog = float(de_cfg.get("min_log2fc", 1.0))
+    padj_prog = float(de_cfg.get("padj", 0.05))
     rows = []
     for j, g in enumerate(present):
         a_pct, a_mean, n_a = per_sample_median(in_c & is_d, j)       # disease cells, this cluster
@@ -1783,6 +1799,14 @@ def condition_attribution(session: AnalysisSession, genes: list[str], cluster: s
             cls = "weak"
         elif _is_ambient_like(amb.loc[g], ambient_ratio_threshold):
             cls = "ambient_like"
+        elif basis == "program":
+            lfc_padj = pb_up.get(g)
+            if lfc_padj is not None and lfc_padj[0] >= min_lfc_prog and lfc_padj[1] < padj_prog:
+                cls = "disease_wide"  # induced in disease cells of this cluster, replicate-aware
+            elif lfc_padj is None and b_mean is not None and (a_mean + eps) >= (2 ** min_lfc_prog) * (b_mean + eps):
+                cls = "disease_wide"  # no pseudobulk record for this gene: fall back to the mean ratio at the DE threshold
+            else:
+                cls = "shared_with_reference"  # expressed by the cluster in both conditions and not induced
         elif (r_mean is not None and r_mean >= 0.5 * (a_mean + eps)) or (ref_pool_ok and b_mean is not None and b_mean >= 0.5 * (a_mean + eps)):
             cls = "shared_with_reference"
         elif d_mean is not None and d_mean >= 0.5 * (a_mean + eps):
@@ -1879,6 +1903,12 @@ def gene_specificity(session: AnalysisSession, genes: list[str], cluster: str, c
     disease_clusters.discard(cluster)
     rows = []
     dis_samples = sorted(set(samples[conds == session.disease]))
+    ref_samples = sorted(set(samples[np.isin(conds, session.reference)]))
+    # protocol 23d: for a programme-basis state, consistency means "induced in each disease sample
+    # relative to the reference samples of the same cluster", not "detected in >= 10% of cells"
+    from .targets import state_basis  # local import: targets imports this module
+
+    program_basis = state_basis(session, str(cluster)) == "program"
     for j, g in enumerate(present):
         tm = float(means[cluster][j])
         others_all = {cl: float(means[cl][j]) for cl in clusters if cl != cluster}
@@ -1893,10 +1923,18 @@ def gene_specificity(session: AnalysisSession, genes: list[str], cluster: str, c
         r_in = expm[t_mask & np.isin(conds, session.reference), j]
         dvr = float(np.log2((d_in.mean() + 0.01) / (r_in.mean() + 0.01))) if len(d_in) and len(r_in) else None
         cons = []
-        for s in dis_samples:
-            m = t_mask & (samples == s)
-            if m.sum() >= 5:
-                cons.append(float((X[m, j] > 0).mean()) >= 0.10)
+        if program_basis:
+            ref_means = [float(expm[t_mask & (samples == s), j].mean()) for s in ref_samples if (t_mask & (samples == s)).sum() >= 5]
+            ref_med = float(np.median(ref_means)) if ref_means else None
+            for s in dis_samples:
+                m = t_mask & (samples == s)
+                if m.sum() >= 5 and ref_med is not None:
+                    cons.append(float(expm[m, j].mean()) > ref_med)
+        else:
+            for s in dis_samples:
+                m = t_mask & (samples == s)
+                if m.sum() >= 5:
+                    cons.append(float((X[m, j] > 0).mean()) >= 0.10)
         consistency = float(np.mean(cons)) if cons else None
         rows.append(
             {

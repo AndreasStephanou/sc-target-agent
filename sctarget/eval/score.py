@@ -169,7 +169,7 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
 
     # nominated candidates
     cands = facts.get("findings", {}).get("candidate_target", [])
-    res.nominated = [c["genes"][0] for c in cands if c.get("genes")]
+    res.nominated = list(dict.fromkeys(c["genes"][0] for c in cands if c.get("genes")))  # unique, order kept
     if res.nominated:
         res.nominated_precision = sum(1 for g in res.nominated if g in acceptable) / len(res.nominated)
     flagged_genes = {g for fl in facts.get("findings", {}).get("critic_flag", []) for g in (fl.get("genes") or [])}

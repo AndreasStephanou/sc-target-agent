@@ -631,3 +631,29 @@ metadata (here the processing batch, two libraries aligned with STARsolo and six
 must be added to the sample sheet before building so they reach `obs`; `build_from_10x_samples.py`
 already carries every sheet column. With `batch` in `obs` the design check shows it balanced across
 arms (Cramer's V 0.00); the batch-only arm is pre-registered in `config/dox_batch2.yaml`.
+
+### 23d. Programme-basis states: attribution, consistency and nomination must follow the basis
+
+With 23/23b in place the synthetic programme state was found (7 of 8 planted genes) but ERBB4, the
+planted target with the largest within-cluster effect (log2FC 1.65) and full druggability, ranked
+7th behind six undruggable programme genes, and SNAP25 was nominated twice. Three causes:
+
+1. `condition_attribution` classed ERBB4 `shared_with_reference` because reference cells of the
+   cluster express it at >= 0.5x the disease cells. In a programme state the cluster exists in both
+   conditions by definition, so that rule penalises every programme gene with a non-zero baseline;
+   SNAP25 escaped only because its baseline is lower. **Change:** for a programme-basis cluster the
+   class is read from the replicate-aware within-cluster contrast that found the programme
+   (`disease_wide` if padj < threshold and log2FC >= min_log2fc; `shared_with_reference` = not
+   induced); `reference_driven`, `weak` and `ambient_like` are unchanged. Composition states are
+   unaffected.
+2. `gene_specificity`'s `disease_sample_consistency` is "detected in >= 10% of the cluster's cells
+   in that disease sample", a composition-state notion; and `score_targets` flagged `cons < 0.67`,
+   which with three disease samples flags exactly 2 of 3 (0.667). **Change:** programme states use
+   per-sample induction (disease sample's within-cluster mean above the median of the reference
+   samples' means); the cut-off is "fewer than two thirds" exactly.
+3. The scripted nominator recorded the same gene once per programme cluster of the same lineage.
+   **Change:** a gene is nominated once across states; the evaluator counts unique nominations.
+
+All three are generic: any dataset whose signal is a programme shift in an existing lineage
+(perturbation, most non-malignant disease) goes through these rules. Tumour (composition) paths are
+untouched; regression on the saved tumour runs is by `scripts/rescore.py --recompute-attribution`.

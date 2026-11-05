@@ -230,7 +230,9 @@ def score_targets(session: AnalysisSession, genes: list[str], cluster: str, huma
                 if dvr is not None and dvr < 0.5 and (sp.get("log2_specificity") or 0) < 1.0:
                     flags.append("shared_across_conditions")
         s_cons = 0.5 if cons is None else float(cons)
-        if cons is not None and cons < 0.67:
+        # "fewer than two thirds of disease samples": 2 of 3 (0.667) is consistent; the earlier 0.67
+        # cut-off flagged exactly that case (protocol 23d)
+        if cons is not None and cons < (2.0 / 3.0) - 1e-9:
             flags.append("inconsistent_across_samples")
 
         attr = session.facts.get("condition_attribution", {}).get(str(cluster), {}).get(g)
