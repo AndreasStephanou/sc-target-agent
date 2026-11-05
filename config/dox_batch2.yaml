@@ -1,0 +1,30 @@
+# Pre-registered second arm for DOX (GSE285475 WT): batch2 libraries only (3 vs 3), declared before any run.
+# GEO records batch1 (STARsolo alignment) for WT_vehicle_04 (GSM9059691) and WT_DOX_04 (GSM9059700) and
+# batch2 (Cell Ranger v9) for the other six. In the pre-run label check the two batch1 libraries were the
+# outliers in every library-level metric (Cdkn1a+ 51% and 80%; Tfeb+ 6-7% vs 17-22%). The batch is balanced
+# across arms, so it is kept in the primary run; this arm tests whether the result depends on it.
+dataset:
+  path: data/dox/dox.h5ad
+  species: mus_musculus
+  sample_key: sample
+  condition_key: condition
+  celltype_key: null
+  disease: DOX
+  reference: [Vehicle]
+  condition_descriptions:
+    DOX: "doxorubicin-treated wild-type male mice, batch2 libraries only (3 animals)"
+    Vehicle: "vehicle-injected wild-type male mice, batch2 libraries only (3 animals)"
+  counts_layer: null
+  already_processed: false
+  reuse_clustering: null
+  forbidden_obs_columns: [title, patient]
+  exclude_samples: [GSM9059691, GSM9059700]
+  exclude_samples_reason: "pre-registered batch arm: GEO lists these two libraries (one per condition) as batch1, processed with a different alignment pipeline (STARsolo) from the other six (Cell Ranger v9); both were outliers in the pre-run library-level metrics. Balanced across arms, so kept in the primary run; excluded here to test dependence on the processing batch."
+analysis:
+  lineages:
+    ignore_annotation: false
+targets:
+  objective: marker
+  scoring_version: 3
+agent:
+  max_turns_per_role: 60

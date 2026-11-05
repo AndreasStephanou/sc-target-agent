@@ -1,0 +1,33 @@
+# Pre-registered arm for IPF (GSE135893), declared BEFORE the first calibration result was read.
+# The compartment-restricted label check (validation_0.4/ipf_label_check_immune.log) found the largest
+# IPF donor, VUILD59 (15,142 cells, 2 libraries), with a control-like immune compartment: SPP1+ in 4.2% of
+# immune cells (IPF median 29.4%, control median 2.0%) and FABP4+ in 80% (alveolar-macrophage marker,
+# high in controls). Its epithelium is IPF-like (MMP7 38%, KRT17 19%). This is regional heterogeneity
+# of an IPF explant, not a label error, so VUILD59 stays in the primary arm. Run this arm only if the
+# macrophage state (or a macrophage candidate) hinges on it. TILD001 and VUILD64 were also closer to
+# control for SPP1 but are small libraries with IPF-like epithelium; they stay in both arms.
+dataset:
+  path: data/ipf/ipf.h5ad
+  species: homo_sapiens
+  sample_key: sample
+  condition_key: condition
+  celltype_key: population
+  disease: IPF
+  reference: [Control]
+  condition_descriptions:
+    IPF: "idiopathic pulmonary fibrosis, explanted lung at transplant (11 donors; VUILD59 excluded, see reason)"
+    Control: "non-fibrotic control lung, declined donor organs (10 donors, 2 sites)"
+  counts_layer: counts
+  already_processed: false
+  reuse_clustering: null
+  forbidden_obs_columns: [author_celltype, Status, library]
+  exclude_samples: [VUILD59]
+  exclude_samples_reason: "pre-registered arm: in the pre-run compartment-restricted label check VUILD59's immune compartment resembled controls (SPP1+ 4.2% of immune cells vs IPF median 29.4%; FABP4+ 80%), while its epithelium was IPF-like. Regional heterogeneity, not a label error; kept in the primary arm, excluded here to test whether the macrophage state depends on it."
+analysis:
+  lineages:
+    ignore_annotation: false
+targets:
+  objective: target
+  scoring_version: 3
+agent:
+  max_turns_per_role: 60

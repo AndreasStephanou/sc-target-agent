@@ -1,0 +1,36 @@
+# Doxorubicin vs vehicle, mouse heart scRNA-seq, GSE285475 wild-type arms only (4 vs 4 animals, one library
+# each; the EC-Tfeb transgenic arms are excluded at build: a second factor is not a two-condition design).
+# Design row 5 (perturbation, treated vs vehicle in vivo); objective = marker (response genes; druggability
+# reported, not scored). Built by scripts/build_from_10x_samples.py from data/dox/raw/samples.csv.
+#
+# Pre-run checks (validation_0.4/dox_*): integer counts in X; 4 vs 4; no design warnings. Batch (GEO): three
+# libraries per arm processed in batch2 (Cell Ranger v9), one per arm in batch1 (STARsolo): balanced, but
+# the two batch1 libraries are outliers in library-level metrics (Cdkn1a+ 51% and 80% vs 22-46% elsewhere),
+# so a pre-registered arm without them exists (config/dox_batch2.yaml). Whole-tissue Cdkn1a+ fractions were
+# LOWER in DOX libraries than in vehicle (medians 25.7% vs 42.1%): recorded as a risk to the literature key,
+# not a reason to change it. Xist is absent from the intersected gene set (all animals male per GEO).
+dataset:
+  path: data/dox/dox.h5ad
+  species: mus_musculus                   # mouse symbols; human orthologs via Ensembl for the (unscored) drug lookups
+  sample_key: sample                      # GSM library = one animal
+  condition_key: condition
+  celltype_key: null                      # no annotation: lineages derived from the data
+  disease: DOX
+  reference: [Vehicle]
+  condition_descriptions:
+    DOX: "doxorubicin 5 mg/kg iv once weekly for 2 weeks, wild-type male mice, whole heart single cells (4 animals)"
+    Vehicle: "vehicle-injected wild-type male mice, same schedule (4 animals)"
+  counts_layer: null                      # counts are in X
+  already_processed: false
+  reuse_clustering: null
+  forbidden_obs_columns: [title, patient]  # title = animal label; patient duplicates it
+  exclude_samples: []
+  exclude_samples_reason: null
+analysis:
+  lineages:
+    ignore_annotation: false
+targets:
+  objective: marker                       # perturbation: rank response genes; druggability informational
+  scoring_version: 3
+agent:
+  max_turns_per_role: 60

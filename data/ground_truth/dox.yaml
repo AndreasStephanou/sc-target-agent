@@ -1,0 +1,68 @@
+# Frozen answer key for GSE285475, wild-type arms only: mouse heart scRNA-seq, doxorubicin (5 mg/kg iv
+# weekly, 2 weeks) vs vehicle, 4 animals per arm, one library per animal. Design row 5 of the 0.4 skill
+# (perturbation: treated vs vehicle in vivo), targets.objective = marker (response genes; druggability
+# reported, not scored). The EC-Tfeb transgenic arms of the deposit are excluded at build: a second
+# factor is not a two-condition design. Drafted BEFORE any run from the primary literature named below;
+# never edited after the first run.
+#
+# Batch: three libraries per arm were processed in batch2 (Cell Ranger) and one per arm in batch1
+# (STARsolo); balanced across arms. Pre-registered second arm if either batch1 library is flagged by
+# check_reference_libraries or the label check: exclude both batch1 libraries (3 vs 3) with the reason
+# written in the config.
+#
+# WHAT THE TEST IS (written in advance). Doxorubicin induces a p53-dependent transcriptional response
+# in cardiac cells in vivo that is among the most reproduced findings in cardiotoxicity models (Cdkn1a,
+# Mdm2, Bax, Ccng1, Phlda3, Eda2r, Zmat3, Aen, Trp53inp1, Gdf15, Sesn2), with cardiomyocyte atrophy
+# genes (Fbxo32, Trim63), natriuretic peptide stress genes (Nppa, Nppb) and Nrf2 oxidative-stress
+# targets (Hmox1, Nqo1) alongside (e.g. Zhu et al. 2009 Circulation 119:99 on p53 in DOX cardiotoxicity;
+# Octavia et al. 2012 J Mol Cell Cardiol 52:1213 review; the GSE285475 paper itself for endothelial
+# TFEB). In marker mode the question is which genes RESPOND in which lineage, so the expected "target"
+# is the canonical read-out CDKN1A (p21), which rises in essentially every cell type after DOX. The
+# test is "CDKN1A ranked first among response genes in at least one lineage, direction UP in DOX";
+# the other p53 targets are acceptable. Since there is no new cell state, this is the pure programme
+# (expression-route) case - exactly the path fixed in protocol section 23.
+#
+# Predictions recorded in advance: (1) composition will be nearly flat (maybe fewer proliferating cells
+# and endothelial loss), so the expression route must carry the result; (2) the response will be
+# disease_wide across several lineages, not state_specific; (3) proliferation genes will be DOWN
+# (TOP2 poison, cell-cycle arrest) - a down-regulated cycle gene is not a nominated target in either
+# direction; (4) all animals are male, so no sex gene should surface; if Xist or Ddx3y appears, the
+# metadata is wrong.
+#
+# Gene symbols are mouse; the pipeline maps to human symbols for the (unscored) druggability lookup.
+# The key uses human-style upper-case symbols because the evaluator compares against the human_symbol
+# column when one exists and the mouse symbol otherwise; both spellings are listed where they differ.
+#
+# PRE-RUN OBSERVATION, recorded before freezing (validation_0.4/dox_label_check.log), content of the key
+# unchanged: the fraction of Cdkn1a-positive cells per whole-heart library was LOWER in the DOX libraries
+# (22-27%, and 80% in the batch1 library) than in vehicle (32-51%). Fraction-positive at the tissue level is
+# composition-dependent and the two batch1 libraries dominate the spread, so this does not overturn the
+# literature prediction (p53 response up in DOX), but it is a risk to the key: if the pipeline finds the
+# p53 programme down or absent at this 2-week time point, that is reported as a key-drafting lesson, not
+# fixed by editing the key.
+name: dox_gse285475_wt
+disease: DOX
+reference: [Vehicle]
+
+expected_states:
+  - name: p53_response_program
+    parent_cell_type: null                 # any lineage: the program is expected in several
+    marker_genes: [Cdkn1a, Mdm2, Bax, Ccng1, Phlda3, Eda2r, Zmat3, Aen, Trp53inp1, Gdf15, Sesn2, Ei24,
+                   CDKN1A, MDM2, BAX, CCNG1, PHLDA3, EDA2R, ZMAT3, AEN, TRP53INP1, GDF15, SESN2, EI24]
+    min_marker_overlap: 4
+
+expected_targets: [Cdkn1a, CDKN1A]
+acceptable_targets: [Mdm2, Bax, Ccng1, Phlda3, Eda2r, Zmat3, Aen, Trp53inp1, Gdf15, Sesn2, Ei24, Fbxo32, Trim63, Nppa, Nppb, Hmox1, Nqo1,
+                     MDM2, BAX, CCNG1, PHLDA3, EDA2R, ZMAT3, AEN, TRP53INP1, GDF15, SESN2, EI24, FBXO32, TRIM63, NPPA, NPPB, HMOX1, NQO1]
+expected_drugs: []                         # marker mode: drug recall is not applicable
+
+# Decoys: the perturbation's trivial or artefactual read-outs and lineage markers.
+#  Tfeb: the transgene of the excluded arms; must not appear in a WT-only comparison
+#  Top2a, Mki67, Ube2c: proliferation; doxorubicin is a TOP2 poison and arrests the cycle (expected DOWN)
+#  Hspa1a, Hspa1b, Fos, Jun, Egr1: dissociation stress / immediate-early genes
+#  Ifit1, Isg15: interferon response (dissociation and injury)
+#  Xist, Ddx3y: sex genes (all animals male)
+#  Pecam1, Ptprc, Col1a1, Ttn, Myh6: lineage markers
+decoy_targets: [Tfeb, Top2a, Mki67, Ube2c, Hspa1a, Hspa1b, Fos, Jun, Egr1, Ifit1, Isg15, Xist, Ddx3y, Pecam1, Ptprc, Col1a1, Ttn, Myh6,
+                TFEB, TOP2A, MKI67, UBE2C, HSPA1A, HSPA1B, FOS, JUN, EGR1, IFIT1, ISG15, XIST, DDX3Y, PECAM1, PTPRC, COL1A1, TTN, MYH6]
+per_cell_truth: null
