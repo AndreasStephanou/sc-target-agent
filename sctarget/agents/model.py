@@ -394,7 +394,7 @@ class ScriptedModel:
                 )
             )
         # a plain string ends the role, so only say "done" after the LAST state has been processed
-        states = self._step.get("target_order") or [st["cluster"] for st in f.get("findings", {}).get("disease_state", [])][:4]
+        states = self._step.get("target_order") or [st["cluster"] for st in f.get("findings", {}).get("disease_state", [])][:6]
         if cl == states[-1]:
             n_total = len(f.get("findings", {}).get("candidate_target", [])) + len([s for s in steps if isinstance(s, ToolUse)])
             steps.append(f"Nominated {n_total} candidate targets across clusters {', '.join(states)}.")
