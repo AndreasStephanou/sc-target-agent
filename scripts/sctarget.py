@@ -87,7 +87,7 @@ def cmd_calibrate(a):
     if rc:
         return rc
     print("\nCalibration run finished. Before an agent run, look at:")
-    print(f"  - {run_dir}/report.md section 1 (QC: cells kept, per-type removal) and section 3 (which clusters were enriched, split candidates, doublet/stress suspects)")
+    print(f"  - {run_dir}/report.md: the executive summary (design, key numbers), section 1 (QC: cells kept, per-type removal) and section 2 (which clusters were enriched, split candidates, doublet/stress suspects, programme clusters)")
     print("  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster")
     if a.ground_truth:
         _run([PY, "scripts/run_eval.py", "--ground-truth", a.ground_truth, run_dir])
@@ -113,7 +113,7 @@ def cmd_run(a):
         args += ["--scoring-version", str(a.scoring_version)]
     rc = _run(args)
     if rc == 0:
-        print(f"\nDone. Read {run_dir}/report.md: section 5 (critic flags) first, then section 4 (ranking, with target_class and flags). Every number traces to {run_dir}/run.jsonl.")
+        print(f"\nDone. Read {run_dir}/report.md: the executive summary, then section 4 (critic flags), then section 3 (ranking, with target_class, attribution and flags). Every number traces to {run_dir}/run.jsonl.")
         if gt.exists() and gt.stat().st_size >= 50:
             _run([PY, "scripts/run_eval.py", "--ground-truth", str(gt), run_dir])
     return rc

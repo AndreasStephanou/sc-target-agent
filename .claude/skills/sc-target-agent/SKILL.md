@@ -126,8 +126,9 @@ or published marker set for an answer key; the researcher's tolerance for run ti
    druggability services rate-limit). Tell the researcher what leaves the machine: cluster-level
    tables, marker lists and gene symbols go to the model; gene symbols go to DGIdb, Open Targets and
    NCBI; no per-cell data and no real sample identifiers.
-7. **Read the result with the researcher.** Start with the critic's flags (report section 5), then
-   the ranking (section 4): the evidence table, then the per-library panels (one point per library
+7. **Read the result with the researcher.** Start with the report's executive summary (design
+   statement, key numbers, top candidates), then the critic's flags (section 4), then the ranking
+   (section 3): the evidence table, then the per-library panels (one point per library
    by lineage and state, coloured by condition; a real candidate shows most case libraries above the
    reference ones in its own lineage; a single high library or a shift in every lineage is a
    replicate effect or ambient RNA). For each top candidate check, using `references/flags.md`:

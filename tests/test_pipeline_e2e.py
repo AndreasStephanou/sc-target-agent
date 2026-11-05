@@ -27,7 +27,7 @@ def test_outputs_exist(agent_run):
     assert list((rd / "figures").glob("*.png"))
     assert list((rd / "tables").glob("*.csv"))
     md = (rd / "report.md").read_text()
-    assert "ERBB4" in md and "## 5. Critic review" in md and "## 7. Provenance" in md
+    assert "ERBB4" in md and "## Executive summary" in md and "## 4. Critic review" in md and "## 7. Provenance" in md and "## 8. Figure index" in md
 
 
 def test_nothing_per_cell_reached_the_model(agent_run):
