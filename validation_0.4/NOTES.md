@@ -162,3 +162,22 @@ Nppb ranked 12th (score 0.22; `weak`: detected in < 10% of the cluster's disease
 cardiomyocyte metabolic / structural programme with natriuretic and atrophy genes present but
 sparse at two weeks; Cdkn1a not induced. Three touches to reach one pool rule end-to-end is the
 cost of a pool that was built in three places; all three now share `_candidate_pool`.
+
+## DOX agent run 1 (`runs/dox_agent_1`, prompts v8, scoring v3, objective marker) — 23 min, 1.17M input tokens, 63 tool calls, 0 errors
+
+First perturbation design through the model. Composition flat (as predicted); expression route run;
+the cardiomyocyte DOX programme recorded (cluster 20, L8: Mb, Cryab, Cish, Lmod2, Rorc, Irs2, Ankrd1,
+Nppb, Txnip; 3 DOX vs 3 vehicle libraries because one DOX library has no cells in the cluster), plus a
+second cardiomyocyte cluster recorded as a composition state and then rejected by the critic
+(enrichment driven by 3 of 4 DOX libraries; within-lineage log2 0.91, p 0.2). Nppb ranked 12th and
+Ankrd1 9th within the programme state, Myh7 9th in the other; Cdkn1a not induced (key-drafting
+lesson, unchanged). Nominations Irs2, Rorc, Akt1, Ptgds, Dgat2, all flagged by the critic as sparse,
+disease_wide or not real druggability; no decoy. The critic found S08 (a DOX library) vehicle-like
+in lineage L4 and recommended an exclusion arm: the pre-registered batch-2 arm
+(`config/dox_batch2.yaml`) answers it and is run as a free floor (`dox_batch2_calibrate_1`).
+
+Reading: on a perturbation the agent now does what the design table says it should (programme
+route, lineage-level response, replicate caveats); what it cannot do is rescue a key whose
+expected read-out is not in the data at the sampled time. The honest DOX result is "state:
+cardiomyocyte stress/atrophy programme found; expected target absent at 2 weeks; acceptable
+natriuretic / atrophy genes present at ranks 9-12 of their state".

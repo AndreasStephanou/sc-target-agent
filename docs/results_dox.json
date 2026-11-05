@@ -1,5 +1,25 @@
 [
   {
+    "run": "dox_agent_1",
+    "arm": "claude-code; prompts v8; scoring v3; de novo clustering; derived lineages",
+    "state_found": "0/1",
+    "state_overlap": "p53_response_program:0/4",
+    "strict_found": "0/1",
+    "strict_overlap": "p53_response_program:0/4",
+    "target_rank": "Cdkn1a:-, CDKN1A:-",
+    "acceptable_rank": "Mdm2:-, Bax:-, Ccng1:-, Phlda3:-, Eda2r:-, Zmat3:-, Aen:-, Trp53inp1:-, Gdf15:-, Sesn2:-, Ei24:-, Fbxo32:-, Trim63:-, Nppa:-, Nppb:16, Hmox1:-, Nqo1:-, MDM2:-, BAX:-, CCNG1:-, PHLDA3:-, EDA2R:-, ZMAT3:-, AEN:-, TRP53INP1:-, GDF15:-, SESN2:-, EI24:-, FBXO32:-, TRIM63:-, NPPA:-, NPPB:-, HMOX1:-, NQO1:-",
+    "decoys_above": 0,
+    "novel_above": 28,
+    "decoys_unflagged": 0,
+    "n_nominated": 5,
+    "precision": 0.0,
+    "drug_recall": null,
+    "tool_calls": 63,
+    "tool_errors": 0,
+    "input_tokens": 1165977,
+    "pass": false
+  },
+  {
     "run": "dox_calibrate_1",
     "arm": "scripted; prompts v7; scoring v3; de novo clustering; derived lineages",
     "state_found": "0/1",
