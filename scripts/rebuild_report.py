@@ -27,8 +27,16 @@ def main(argv=None) -> int:
     ap.add_argument("run_dirs", nargs="+")
     a = ap.parse_args(argv)
     cfg = load_config(a.config)
+    import json
+
     for rd in a.run_dirs:
         rd = Path(rd)
+        # report-time figures from earlier rebuilds (index above the run's own figures recorded in
+        # state.json) are reproducible products: remove them so the rebuild does not accumulate copies
+        own = len(json.loads((rd / "state.json").read_text()).get("figures", []))
+        for p in (rd / "figures").glob("*"):
+            if p.name[:2].isdigit() and p.name[2:3] == "_" and int(p.name[:2]) > own:
+                p.unlink()
         session = AnalysisSession.create(cfg, rd)
         _resume_session(session, rd, keep_findings_from=set(STAGES))
         md, html = build_report(session)
