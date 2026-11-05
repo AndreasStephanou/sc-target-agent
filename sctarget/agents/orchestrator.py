@@ -55,8 +55,9 @@ def _resume_session(session: AnalysisSession, source: Path, keep_findings_from: 
     if "critic" not in keep_findings_from:
         facts.get("findings", {})["summary"] = [x for x in facts.get("findings", {}).get("summary", []) if x.get("title") != "Critic summary"]
         facts.pop("differential_abundance_within_celltype", None)
+    same_dir = Path(source).resolve() == Path(session.run_dir).resolve()  # in-place report rebuild
     for sub in ("tables", "figures"):
-        if (source / sub).exists():
+        if (source / sub).exists() and not same_dir:
             for f in (source / sub).iterdir():
                 shutil.copy(f, session.run_dir / sub / f.name)
     for v in facts.get("pseudobulk_de", {}).values():

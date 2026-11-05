@@ -1,4 +1,10 @@
-"""Build the Markdown + HTML report from the session facts and run log."""
+"""Build the Markdown + HTML report from the session facts and run log.
+
+Layout (0.4): an executive summary a reader can act on (design statement, metrics, the top
+candidates with their evidence and the direction question), then the evidence sections in the order
+a reviewer reads them, then provenance and a figure index. Every figure is also written as PDF and
+SVG (publication vector files) next to its PNG; the index lists them.
+"""
 from __future__ import annotations
 
 import datetime as dt
@@ -10,18 +16,22 @@ from ..session import AnalysisSession
 from .figures import candidate_evidence_rows
 
 CSS = """
-body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#1c1c1c;line-height:1.45}
-h1{border-bottom:2px solid #333;padding-bottom:.3rem}h2{margin-top:2.2rem;border-bottom:1px solid #ccc}
-table{border-collapse:collapse;font-size:.9rem;margin:.6rem 0}th,td{border:1px solid #ddd;padding:.3rem .5rem;text-align:left;vertical-align:top}
-th{background:#f3f3f3}code{background:#f5f5f5;padding:0 .2rem}img{max-width:100%;border:1px solid #eee;margin:.5rem 0}
+body{font-family:Helvetica,Arial,'Liberation Sans',sans-serif;max-width:1040px;margin:2rem auto;padding:0 1rem;color:#1c1c1c;line-height:1.45}
+h1{border-bottom:2px solid #333;padding-bottom:.3rem}h2{margin-top:2.2rem;border-bottom:1px solid #ccc}h3{margin-top:1.6rem}
+table{border-collapse:collapse;font-size:.86rem;margin:.6rem 0}th,td{border:1px solid #ddd;padding:.3rem .5rem;text-align:left;vertical-align:top}
+th{background:#f3f3f3}code{background:#f5f5f5;padding:0 .2rem}img{max-width:100%;border:1px solid #eee;margin:.5rem 0;background:#fff}
 .flag-blocking{color:#b00020;font-weight:600}.flag-major{color:#c75000;font-weight:600}.flag-minor{color:#666}
-.small{color:#666;font-size:.85rem}
+.small{color:#666;font-size:.85rem}.kpi{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem;margin:.6rem 0}
+.kpi div{border:1px solid #e3e3e3;border-radius:6px;padding:.45rem .6rem;background:#fafafa}.kpi b{display:block;font-size:1.25rem;color:#0072B2}
+blockquote{border-left:3px solid #0072B2;margin:.6rem 0;padding:.2rem .8rem;color:#333;background:#f7fafc}
 """
 
 
 def _fmt(x: Any, nd: int = 3) -> str:
     if x is None:
         return "–"
+    if isinstance(x, bool):
+        return "yes" if x else "no"
     if isinstance(x, float):
         if abs(x) < 1e-3 and x != 0:
             return f"{x:.1e}"
@@ -39,28 +49,45 @@ def _table(rows: list[dict[str, Any]], cols: list[tuple[str, str]], nd: int = 3)
     return head + body
 
 
-def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
-    """Replicate-level figures built when the report is rendered (needs the data in memory; a report
-    regenerated from a run directory without the object simply has none)."""
-    out: dict[str, Any] = {"candidate_panels": []}
-    if session.adata is None:
-        return out
-    try:
-        from .figures import library_correlation_heatmaps, library_expression_panel, state_library_bars
+def _kv(rows: list[tuple[str, Any]]) -> str:
+    return "| | |\n|---|---|\n" + "".join(f"| {k} | {_fmt(v)} |\n" for k, v in rows)
 
-        existing = {Path(x["path"]).name for x in session.figures}
-        def _fig(rel):
-            return next((x for x in session.figures if x["path"] == rel), None)
-        if not any("state_library_shares" in n for n in existing):
-            rel = state_library_bars(session)
-            if rel:
-                out["state_shares"] = _fig(rel)
-        if not any("library_correlation" in n for n in existing):
-            rel = library_correlation_heatmaps(session)
-            if rel:
-                out["library_corr"] = _fig(rel)
-        # candidate panels: nominated genes (or top-ranked) per state, 8 per figure; reuse panels the
-        # agent already drew with plot_genes
+
+def _fig_md(x: dict[str, Any] | None) -> str:
+    return f"\n![{x['caption']}]({x['path']})\n" if x else ""
+
+
+def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
+    """Figures built when the report is rendered. Each one is optional: a failure is logged and the
+    report goes on without it. Data-dependent figures need the object in memory."""
+    out: dict[str, Any] = {"candidate_panels": []}
+    existing = {Path(x["path"]).name for x in session.figures}
+
+    def _fig(rel):
+        return next((x for x in session.figures if x["path"] == rel), None)
+
+    def _have(tag: str):
+        return next((x for x in session.figures if tag in Path(x["path"]).name), None)
+
+    def _try(tag: str, fn, *args, **kw):
+        if any(tag in n for n in existing):
+            return _have(tag)
+        try:
+            rel = fn(session, *args, **kw)
+            return _fig(rel) if rel else None
+        except Exception as e:  # noqa: BLE001 - figures never break a report
+            try:
+                session.log.note("report", f"figure {tag} skipped: {type(e).__name__}: {e}")
+            except Exception:  # noqa: BLE001
+                pass
+            return None
+
+    from . import figures as F
+
+    if session.adata is not None:
+        out["design"] = _try("design_overview", F.design_overview)
+        out["abundance"] = _try("abundance_overview", F.abundance_overview)
+        out["state_shares"] = _try("state_library_shares", F.state_library_bars)
         f = session.facts
         cands = f.get("findings", {}).get("candidate_target", [])
         rt = f.get("ranked_targets", {})
@@ -76,19 +103,40 @@ def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
             if not genes:
                 continue
             name = f"library_expression_state{cl}_" + "_".join(genes[:3])
-            if any(name in n for n in existing):
-                out["candidate_panels"].append(next(x for x in session.figures if name in x["path"]))
-                continue
-            rel = library_expression_panel(session, genes, name, title=f"Nominated candidates for state {cl}: per-library pseudobulk expression")
-            if rel:
-                out["candidate_panels"].append(_fig(rel))
-    except Exception as e:  # noqa: BLE001 - figures never break a report
-        session.log.note("report", f"report-time figures skipped: {type(e).__name__}: {e}")
+            x = _try(name, F.library_expression_panel, genes, name, title=f"Nominated candidates for state {cl}: per-library pseudobulk expression")
+            if x:
+                out["candidate_panels"].append(x)
+    out["library_corr"] = _try("library_correlation", F.library_correlation_heatmaps)
+    out["candidate_heatmap"] = _try("candidate_evidence", F.candidate_heatmap)
+    out["volcanoes"] = _try("state_volcanoes", F.state_volcanoes)
     return out
+
+
+def _eval_section(session: AnalysisSession) -> str:
+    p = session.run_dir / "eval.json"
+    if not p.exists():
+        return ""
+    try:
+        ev = json.loads(p.read_text())
+    except Exception:  # noqa: BLE001
+        return ""
+    md = ["## 6. Evaluation against the frozen answer key\n"]
+    md.append(f"Key: `{ev.get('ground_truth')}` · prompts v{ev.get('prompt_version')} · scoring v{ev.get('scoring_version')} · **{'PASS' if ev.get('passed') else 'not passed'}** under the key's own criteria.\n\n")
+    rows = []
+    for name, r in (ev.get("state_recovery") or {}).items():
+        rows.append({"state": name, "lenient": r.get("found"), "strict": r.get("found_strict"), "cluster": r.get("best_match"), "need": r.get("required_overlap")})
+    md.append("**State recovery** (lenient: the matched cluster's tables carry the signature; strict: the agent itself recorded it):\n\n" + _table(rows, [("state", "Expected state"), ("lenient", "Found"), ("strict", "Strict"), ("cluster", "Best-matching cluster"), ("need", "Markers required")]))
+    md.append("\n**Target ranks:** " + ", ".join(f"{g}: {('#' + str(v)) if v else 'not ranked'}" for g, v in (ev.get("target_rank") or {}).items()) + "\n")
+    acc = {g: v for g, v in (ev.get("acceptable_rank") or {}).items() if v}
+    md.append("\n**Acceptable targets ranked:** " + (", ".join(f"{g} #{v}" for g, v in sorted(acc.items(), key=lambda kv: kv[1])) or "none") + "\n")
+    md.append(f"\n**Decoys above the first expected target:** {_fmt(ev.get('decoys_above_target'))} · **novel genes above it:** {len(ev.get('novel_above_target') or [])} · **decoys nominated unflagged:** {_fmt(ev.get('decoys_nominated_unflagged'))} · **nominated precision:** {_fmt(ev.get('nominated_precision'))} · **drug recall:** {_fmt(ev.get('drug_recall'))}\n")
+    md.append("\n> A missed expected state can be a resolution problem (the state sits inside a larger cluster), a key-drafting problem (literature markers that are not consistent in this dataset) or a method miss; the matched cluster and its tables tell which.\n")
+    return "\n".join(md)
 
 
 def build_markdown(session: AnalysisSession) -> str:
     f = session.facts
+    cfg_ds = session.cfg.dataset
     ds = f.get("dataset", {})
     findings = f.get("findings", {})
     states = findings.get("disease_state", [])
@@ -98,72 +146,142 @@ def build_markdown(session: AnalysisSession) -> str:
     events = session.log.events()
     model_names = sorted({e.get("model") for e in events if e["type"] == "model_call" and e.get("model")})
     usage = session.log.usage_totals()
+    calls = [e for e in events if e["type"] == "tool_call"]
+    n_err = len([e for e in calls if e.get("error")])
+    elapsed = max((e.get("elapsed_s") or 0) for e in events) if events else None
     report_figs = _report_time_figures(session)
     fig_by_name = {Path(x["path"]).name: x for x in session.figures}
+    objective = str(session.cfg.targets.get("objective", "target"))
+    comp = {str(r["cluster"]): r for r in f.get("cluster_composition", [])}
+    da = f.get("differential_abundance", {})
+    rt = f.get("ranked_targets", {})
+    uniq_cands = list(dict.fromkeys(c["genes"][0] for c in cands if c.get("genes")))
+    sev = {s: len([fl for fl in flags if fl.get("severity") == s]) for s in ("blocking", "major", "minor")}
+    chk = f.get("reference_library_check") or {}
+    flag_by_gene: dict[str, list[str]] = {}
+    for fl in flags:
+        for g in fl.get("genes") or []:
+            flag_by_gene.setdefault(g, []).append(f"{fl.get('severity', '')}: {fl['title']}")
 
     md: list[str] = []
-    md.append(f"# Target discovery report — {ds.get('disease', '?')} vs {', '.join(ds.get('reference_conditions', []))}\n")
+    md.append(f"# {'Target discovery' if objective == 'target' else 'Response-gene'} report — {ds.get('disease', '?')} vs {', '.join(ds.get('reference_conditions', []))}\n")
     md.append(
-        f"<span class='small'>Run `{session.run_dir.name}` · {dt.datetime.now().strftime('%Y-%m-%d %H:%M')} · model(s): {', '.join(model_names) or '–'} · prompts v{session.facts.get('prompt_version', 1)} · scoring v{session.facts.get('scoring_version', 1)} · "
-        f"tokens in/out: {usage.get('input_tokens', 0):,}/{usage.get('output_tokens', 0):,} · {len([e for e in events if e['type']=='tool_call'])} tool calls</span>\n"
+        f"<span class='small'>Run `{session.run_dir.name}` · {dt.datetime.now().strftime('%Y-%m-%d %H:%M')} · model(s): {', '.join(model_names) or '–'} · prompts v{f.get('prompt_version', 1)} · scoring v{f.get('scoring_version', 1)} · objective `{objective}` · "
+        f"tokens in/out: {usage.get('input_tokens', 0):,}/{usage.get('output_tokens', 0):,} · {len(calls)} tool calls</span>\n"
     )
     md.append(
         "> **Read this first.** Every number below was produced by a deterministic tool call recorded in `run.jsonl`; "
-        "the model chose which tools to run and wrote the interpretation. Candidates are hypotheses for wet-lab validation, not conclusions. "
-        "Druggability values marked *fixture* come from bundled illustrative data, not a live database.\n"
+        "the model chose which tools to run and wrote the interpretation. Candidates are hypotheses for orthogonal validation, not conclusions. "
+        "Druggability counts compounds and does not know the therapeutic direction. Values marked *fixture* come from bundled illustrative data, not a live database.\n"
     )
 
-    # ---- dataset
-    md.append("## 1. Dataset\n")
+    # ---- 0. executive summary
+    md.append("## Executive summary\n")
+    md.append("### Design\n")
+    descr = cfg_ds.get("condition_descriptions") or {}
+    cond_lines = []
+    for k, v in ds.get("condition_counts", {}).items():
+        role = "case" if str(k) == str(ds.get("disease")) else "reference"
+        cond_lines.append(f"- **{k}** ({role}): {v:,} cells, {ds.get('samples_per_condition', {}).get(k, '?')} libraries" + (f" — {descr[k]}" if k in descr else ""))
+    md.append("\n".join(cond_lines) + "\n")
+    lin_src = ("annotation `" + str(ds.get("celltype_key")) + "`") if ds.get("celltype_key") and not f.get("lineages") else (("derived from the data (coarse Leiden r" + str(f.get("lineages", {}).get("resolution")) + ", " + str(len(f.get("lineages", {}).get("groups", {}))) + " groups)") if f.get("lineages") else "none")
+    design_rows: list[tuple[str, Any]] = [
+        ("Objective", "druggable targets (`target`)" if objective == "target" else "condition-specific response genes (`marker`; druggability reported, not scored)"),
+        ("Species", ds.get("species")),
+        ("Replicates", "libraries are pseudonymised S01…; the per-sample tests treat each library as one replicate — if libraries are nested in donors, the config comments and the design check say so"),
+        ("Lineages", lin_src),
+        ("Clustering", f"`{f.get('clustering', {}).get('cluster_key', '–')}` ({f.get('clustering', {}).get('method', '–')}, harmony={f.get('clustering', {}).get('harmony_used')}); base clustering `{f.get('clustering', {}).get('base_cluster_key', '–')}`"),
+    ]
+    if "qc" in f:
+        q = f["qc"]
+        design_rows.append(("QC", f"{q['cells_before']:,} → {q['cells_after']:,} cells, {q['genes_before']:,} → {q['genes_after']:,} genes ({q.get('mode', 'fixed')} thresholds; min_genes={q['params']['min_genes']}, max_mt%={q['params']['max_mt_pct']})"))
+    if f.get("excluded_samples"):
+        ex = f["excluded_samples"]
+        design_rows.append(("Excluded by config", f"{ex.get('n_samples')} libraries ({ex.get('n_cells', 0):,} cells). Reason: {ex.get('reason') or 'none recorded'}"))
+    else:
+        design_rows.append(("Excluded by config", "none (primary arm)"))
+    md.append(_kv(design_rows))
+    md.append(_fig_md(report_figs.get("design")))
+
+    md.append("### Key numbers\n")
+    n_states_comp = len([s for s in states if s.get("basis", "composition") != "program"])
+    n_states_prog = len(states) - n_states_comp
+    kpis: list[tuple[str, Any]] = [
+        ("Cells after QC", f.get("qc", {}).get("cells_after", ds.get("n_cells"))),
+        ("Libraries (case / reference)", f"{ds.get('samples_per_condition', {}).get(ds.get('disease'), '?')} / {sum(v for k, v in ds.get('samples_per_condition', {}).items() if str(k) != str(ds.get('disease')))}"),
+        ("Clusters", f.get("clustering", {}).get("n_clusters")),
+        ("Disease-enriched clusters", len(da.get("disease_enriched_clusters", []))),
+        ("States recorded (composition / programme)", f"{n_states_comp} / {n_states_prog}"),
+        ("Candidates nominated (unique genes)", len(uniq_cands)),
+        ("Critic flags (blocking / major / minor)", f"{sev['blocking']} / {sev['major']} / {sev['minor']}"),
+        ("Library/lineage pairs flagged by the marker-free label check", len(chk.get("flagged", [])) if chk else "not run"),
+        ("Tool calls / errors", f"{len(calls)} / {n_err}"),
+        ("Model calls · tokens in / out", f"{len([e for e in events if e['type']=='model_call'])} · {usage.get('input_tokens', 0):,} / {usage.get('output_tokens', 0):,}"),
+        ("Elapsed", f"{elapsed/60:.1f} min" if elapsed else "–"),
+    ]
+    ev_path = session.run_dir / "eval.json"
+    if ev_path.exists():
+        try:
+            ev = json.loads(ev_path.read_text())
+            sr = ev.get("state_recovery") or {}
+            kpis.append(("Answer key: states found (lenient / strict)", f"{sum(1 for r in sr.values() if r.get('found'))} / {sum(1 for r in sr.values() if r.get('found_strict'))} of {len(sr)}"))
+            kpis.append(("Answer key: expected target rank", ", ".join(f"{g} {('#' + str(v)) if v else '–'}" for g, v in (ev.get('target_rank') or {}).items())))
+            kpis.append(("Answer key: decoys nominated unflagged", len(ev.get("decoys_nominated_unflagged") or [])))
+        except Exception:  # noqa: BLE001
+            pass
+    md.append("<div class='kpi'>" + "".join(f"<div><b>{_fmt(v)}</b>{k}</div>" for k, v in kpis) + "</div>\n")
+    md.append("\n" + _kv(kpis) + "\n")
+
+    md.append("### Top candidates\n")
+    if not cands:
+        md.append("_No candidate targets were recorded._\n")
+    else:
+        rows = []
+        drug = f.get("druggability", {})
+        for c in cands:
+            g = c["genes"][0] if c.get("genes") else "?"
+            rec = next((r for r in rt.get(c.get("cluster"), []) if r["gene"] == g), {})
+            d = drug.get(rec.get("human_symbol", g)) or drug.get(g) or {}
+            n_inh = d.get("n_inhibitors", 0) or 0
+            rows.append({
+                "gene": g, "cluster": c.get("cluster"), "class": rec.get("target_class"), "attribution": rec.get("attribution"), "score": rec.get("score"),
+                "compounds": rec.get("top_inhibitors", [])[:3],
+                "direction": (f"{n_inh} inhibitor-type interaction(s)" if n_inh else "no inhibitor-type interaction listed") + " — human check",
+                "confidence": c.get("confidence"), "critic": flag_by_gene.get(g, []),
+            })
+        rows.sort(key=lambda r: -(r.get("score") or 0))
+        md.append(_table(rows, [("gene", "Gene"), ("cluster", "State"), ("class", "Class"), ("attribution", "Attribution"), ("score", "Score"), ("compounds", "Known compounds"), ("direction", "Therapeutic direction"), ("confidence", "Nominator confidence"), ("critic", "Critic flags")]))
+        md.append("\n> **Direction is a human check.** For each candidate, state whether the listed compounds inhibit or activate it and whether that is the direction this design needs. A `reference_driven` or `ambient_like` attribution means the signal is not from these cells; `shared_with_reference` means a lineage or pan-condition gene; for a programme state (`basis: program`) it means *not induced*. A candidate set aside by attribution while the per-library evidence supports it should be reported as conditional on the reference cells identified, not dropped.\n")
+    md.append(_fig_md(report_figs.get("candidate_heatmap")))
+    for s in summaries:
+        md.append(f"\n**{s['title']}.** {s['detail']}\n")
+
+    # ---- 1. dataset
+    md.append("## 1. Dataset and QC\n")
     md.append(
         f"- {ds.get('n_cells', 0):,} cells × {ds.get('n_genes', 0):,} genes · species `{ds.get('species')}` · "
         f"conditions: {', '.join(f'{k} ({v:,})' for k, v in ds.get('condition_counts', {}).items())}\n"
         f"- samples per condition: {', '.join(f'{k}: {v}' for k, v in ds.get('samples_per_condition', {}).items())} (pseudonymized S01…)\n"
-        f"- lineages: {('annotation `' + ds['celltype_key'] + '`') if ds.get('celltype_key') and not f.get('lineages') else ('derived from the data (coarse Leiden r' + str(f.get('lineages', {}).get('resolution')) + ', ' + str(len(f.get('lineages', {}).get('groups', {}))) + ' groups)' if f.get('lineages') else 'none')}; clustering used: `{f.get('clustering', {}).get('cluster_key', '–')}` ({f.get('clustering', {}).get('method', '–')}, harmony={f.get('clustering', {}).get('harmony_used')})\n"
+        f"- lineages: {lin_src}; clustering used: `{f.get('clustering', {}).get('cluster_key', '–')}` ({f.get('clustering', {}).get('method', '–')}, harmony={f.get('clustering', {}).get('harmony_used')})\n"
     )
-    if f.get("excluded_samples"):
-        ex = f["excluded_samples"]
-        md.append(f"- **Samples excluded by config:** {ex.get('n_samples')} ({ex.get('n_cells', 0):,} cells). Reason given: {ex.get('reason') or 'none recorded'}. This is a disclosed analysis choice (`dataset.exclude_samples`); compare with the run that keeps them.\n")
     if f.get("counts_layer_used"):
         md.append(f"- raw counts: layer `{f['counts_layer_used']}`\n")
     if "qc" in f:
         q = f["qc"]
         md.append(f"- QC: {q['cells_before']:,} → {q['cells_after']:,} cells, {q['genes_before']:,} → {q['genes_after']:,} genes (min_genes={q['params']['min_genes']}, max_mt%={q['params']['max_mt_pct']})\n")
+        lost = q.get("lineage_loss") or q.get("per_celltype_removed")
+        if isinstance(lost, dict) and lost:
+            md.append("- per-lineage QC loss: " + ", ".join(f"{k}: {_fmt(v)}" for k, v in list(lost.items())[:12]) + "\n")
+    if f.get("doublets"):
+        d = f["doublets"]
+        md.append(f"- doublets: {d.get('method', '–')}, {d.get('n_flagged', d.get('n_doublets', '–'))} cells flagged\n")
     for name, x in fig_by_name.items():
         if name.startswith("01_umap") or "umap_sct" in name or "umap_leiden" in name:
-            md.append(f"\n![{x['caption']}]({x['path']})\n")
+            md.append(_fig_md(x))
             break
 
-    # ---- executive summary
-    md.append("## 2. Summary of nominations\n")
-    if not cands:
-        md.append("_No candidate targets were recorded._\n")
-    else:
-        flag_by_gene: dict[str, list[str]] = {}
-        for fl in flags:
-            for g in fl.get("genes") or []:
-                flag_by_gene.setdefault(g, []).append(f"{fl.get('severity', '')}: {fl['title']}")
-        rows = []
-        for c in cands:
-            g = c["genes"][0] if c.get("genes") else "?"
-            rec = next((r for r in f.get("ranked_targets", {}).get(c.get("cluster"), []) if r["gene"] == g), {})
-            rows.append(
-                {
-                    "gene": g,
-                    "cluster": c.get("cluster"),
-                    "score": rec.get("score"),
-                    "compounds": rec.get("top_inhibitors", [])[:3],
-                    "confidence": c.get("confidence"),
-                    "critic": flag_by_gene.get(g, []),
-                }
-            )
-        md.append(_table(rows, [("gene", "Gene"), ("cluster", "State (cluster)"), ("score", "Score"), ("compounds", "Known inhibitors"), ("confidence", "Nominator confidence"), ("critic", "Critic flags")]))
-    for s in summaries:
-        md.append(f"\n**{s['title']}.** {s['detail']}\n")
-
-    # ---- disease states
-    md.append("## 3. Disease-specific cell states\n")
-    da = f.get("differential_abundance", {})
+    # ---- 2. states
+    md.append("## 2. Condition-associated cell states\n")
     if da.get("table"):
         md.append(f"Per-sample differential abundance (cluster key `{da.get('cluster_key')}`); enriched clusters: **{', '.join(da.get('disease_enriched_clusters', [])) or 'none'}**.\n\n")
         md.append(
@@ -172,21 +290,27 @@ def build_markdown(session: AnalysisSession) -> str:
                 [("cluster", "Cluster"), ("n_cells", "Cells"), ("mean_prop_disease", "Mean prop. disease"), ("mean_prop_reference", "Mean prop. reference"), ("log2_ratio", "log2 ratio"), ("mannwhitney_p", "MWU p"), ("n_disease_samples_present", "Disease samples present"), ("disease_enriched", "Enriched")],
             )
         )
-        for name, x in fig_by_name.items():
-            if "differential_abundance" in name:
-                md.append(f"\n![{x['caption']}]({x['path']})\n")
-                break
-    if report_figs.get("state_shares"):
-        x = report_figs["state_shares"]
-        md.append(f"\n![{x['caption']}]({x['path']})\n")
-    comp = {r["cluster"]: r for r in f.get("cluster_composition", [])}
+        md.append(_fig_md(report_figs.get("abundance")))
+        if not report_figs.get("abundance"):
+            for name, x in fig_by_name.items():
+                if "differential_abundance" in name:
+                    md.append(_fig_md(x))
+                    break
+    dp = f.get("disease_programs", {})
+    if dp.get("table"):
+        md.append(f"\nExpression route (`disease_programs`, on clustering `{dp.get('cluster_key')}`): disease-altered programmes in clusters **{', '.join(dp.get('disease_altered_clusters', [])) or 'none'}**" + (f"; ambient-suspect: {', '.join(dp.get('ambient_suspect_clusters', []))}" if dp.get("ambient_suspect_clusters") else "") + ".\n")
+    md.append(_fig_md(report_figs.get("state_shares")))
     for st in states:
         cl = st.get("cluster")
-        md.append(f"\n### {st['title']}\n\n{st['detail']}\n\n_Confidence: {st.get('confidence', '–')}; dominant cell type: {comp.get(cl, {}).get('dominant_celltype', '–')}._\n")
+        md.append(f"\n### {st['title']}\n\n{st['detail']}\n\n_Basis: {st.get('basis', 'composition')}; confidence: {st.get('confidence', '–')}; dominant lineage: {comp.get(str(cl), {}).get('dominant_celltype', '–')}._\n")
         pb = f.get("pseudobulk_de", {}).get(f"{cl}:cluster_vs_reference_clusters")
         if pb:
             md.append(f"\n**Pseudobulk DE vs sibling clusters** ({pb['method']}; replicates target={pb['replicates']['target']}, reference={pb['replicates']['reference']}; {pb['n_sig_up']} up / {pb['n_sig_down']} down at padj<0.05). Top up-regulated:\n\n")
             md.append(_table(pb["top_up"][:12], [("gene", "Gene"), ("log2fc", "log2FC"), ("padj", "padj"), ("baseMean", "baseMean")]))
+        pbw = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_cluster")
+        if pbw and st.get("basis") == "program":
+            md.append(f"\n**Pseudobulk DE, disease vs reference within the cluster** ({pbw['method']}; replicates target={pbw['replicates']['target']}, reference={pbw['replicates']['reference']}; {pbw['n_sig_up']} up / {pbw['n_sig_down']} down). Top up-regulated:\n\n")
+            md.append(_table(pbw["top_up"][:12], [("gene", "Gene"), ("log2fc", "log2FC"), ("padj", "padj"), ("baseMean", "baseMean")]))
         mk_key = next((k for k in f.get("markers", {}) if k.startswith(f"{cl}_vs_")), None)
         if mk_key:
             md.append(f"\n**Cell-level markers** ({mk_key.replace('_vs_', ' vs ')}):\n\n")
@@ -195,24 +319,25 @@ def build_markdown(session: AnalysisSession) -> str:
             if en.get("top"):
                 md.append("\n**Enrichment (ORA):**\n\n" + _table(en["top"][:6], [("term", "Term"), ("overlap", "Overlap"), ("set_size_in_background", "Set size"), ("padj", "padj"), ("genes", "Genes")]))
                 break
+    md.append(_fig_md(report_figs.get("volcanoes")))
 
-    # ---- ranking
-    md.append("## 4. Target ranking\n")
-    rt = f.get("ranked_targets", {})
+    # ---- 3. ranking
+    md.append("## 3. Target ranking\n")
     if not rt:
         md.append("_No ranking was produced._\n")
-    ev = candidate_evidence_rows(session)
-    if ev:
-        md.append("**Evidence summary for the nominated candidates** (one row per gene and state; full per-state tables below). `axis` says which lineage contrast carried the lineage log2FC; `drugs` counts compounds but does not know the therapeutic direction - the critic judges that.\n\n")
-        md.append(_table(ev, [("rank", "#"), ("gene", "Gene"), ("state", "State"), ("score", "Score"), ("class", "Class"), ("state_log2fc", "State log2FC"), ("lineage_log2fc", "Lineage log2FC"), ("axis", "Axis"), ("specificity", "log2 spec."), ("consistency", "Consistency"), ("attribution", "Attribution"), ("drugs", "Drugs"), ("top", "Top compounds"), ("flags", "Flags"), ("critic", "Critic")]))
+    ev_rows = candidate_evidence_rows(session)
+    if ev_rows:
+        md.append("**Evidence summary for the nominated candidates** (one row per gene and state; full per-state tables below). `axis` says which lineage contrast carried the lineage log2FC; `drugs` counts compounds but does not know the therapeutic direction - the critic and the reader judge that.\n\n")
+        md.append(_table(ev_rows, [("rank", "#"), ("gene", "Gene"), ("state", "State"), ("score", "Score"), ("class", "Class"), ("state_log2fc", "State log2FC"), ("lineage_log2fc", "Lineage log2FC"), ("axis", "Axis"), ("specificity", "log2 spec."), ("consistency", "Consistency"), ("attribution", "Attribution"), ("drugs", "Drugs"), ("top", "Top compounds"), ("flags", "Flags"), ("critic", "Critic")]))
     for x in report_figs.get("candidate_panels", []):
-        md.append(f"\n![{x['caption']}]({x['path']})\n")
+        md.append(_fig_md(x))
     for cl, rows in rt.items():
-        md.append(f"\n**Cluster {cl}** — score = weighted sum of effect size, specificity, druggability, known compounds, sample consistency (weights in `config_used.json`).\n\n")
+        basis = next((st.get("basis", "composition") for st in states if str(st.get("cluster")) == str(cl)), "composition")
+        md.append(f"\n**State {cl}** ({basis}) — score = weighted sum of effect size, specificity, druggability, known compounds, sample consistency (weights in `config_used.json`; objective `{objective}`).\n\n")
         md.append(
             _table(
                 rows[:15],
-                [("rank", "#"), ("gene", "Gene"), ("human_symbol", "Human"), ("score", "Score"), ("target_class", "Class"), ("effect_size_log2fc", "log2FC"), ("lineage_log2fc_disease_vs_reference", "lineage log2FC"), ("log2_specificity", "log2 spec."), ("sample_consistency", "Consistency"), ("druggability_score", "Druggable"), ("known_compound_score", "Compounds"), ("top_inhibitors", "Inhibitors"), ("flags", "Flags")],
+                [("rank", "#"), ("gene", "Gene"), ("human_symbol", "Human"), ("score", "Score"), ("target_class", "Class"), ("effect_size_log2fc", "log2FC"), ("lineage_log2fc_disease_vs_reference", "lineage log2FC"), ("log2_specificity", "log2 spec."), ("sample_consistency", "Consistency"), ("druggability_score", "Druggable"), ("known_compound_score", "Compounds"), ("top_inhibitors", "Inhibitors"), ("attribution", "Attribution"), ("flags", "Flags")],
             )
         )
     drug = f.get("druggability", {})
@@ -223,32 +348,36 @@ def build_markdown(session: AnalysisSession) -> str:
     if lit:
         md.append("\n**Literature (PubMed hit counts):** " + "; ".join(f"{g}: {v.get('count')}" for g, v in list(lit.items())[:12]) + "\n")
 
-    # ---- critic
-    md.append("## 5. Critic review\n")
-    chk = f.get("reference_library_check")
+    # ---- 4. critic
+    md.append("## 4. Critic review\n")
     if chk:
         md.append(f"Marker-free library label check: {chk.get('n_lineages_judged', 0)} of {chk.get('n_lineages_total', 0)} lineages showed condition structure and were judged; {len(chk.get('flagged', []))} library/lineage pair(s) flagged.\n")
-        if report_figs.get("library_corr"):
-            x = report_figs["library_corr"]
-            md.append(f"\n![{x['caption']}]({x['path']})\n")
+        md.append(_fig_md(report_figs.get("library_corr")))
     if not flags:
         md.append("_No flags raised._\n")
-    for sev in ("blocking", "major", "minor", None):
+    for s in ("blocking", "major", "minor", None):
         for fl in flags:
-            if fl.get("severity") == sev:
-                md.append(f"- <span class='flag-{sev or 'minor'}'>[{sev or 'note'}]</span> **{fl['title']}** — {fl['detail']}\n")
+            if fl.get("severity") == s:
+                md.append(f"- <span class='flag-{s or 'minor'}'>[{s or 'note'}]</span> **{fl['title']}** — {fl['detail']}\n")
 
-    # ---- role notes
-    md.append("## 6. Agent notes\n")
+    # ---- 5. notes
+    md.append("## 5. Agent notes\n")
     for role, text in f.get("role_summaries", {}).items():
         if text:
             md.append(f"**{role}:** {text}\n\n")
 
-    # ---- provenance
+    # ---- 6. evaluation (only with a key)
+    md.append(_eval_section(session))
+
+    # ---- 7. provenance
     md.append("## 7. Provenance\n")
-    calls = [e for e in events if e["type"] == "tool_call"]
-    md.append(f"{len(calls)} tool calls, {len([e for e in events if e['type']=='model_call'])} model calls. Full log: `run.jsonl`; tables: `tables/`; state: `state.json`.\n\n")
+    md.append(f"{len(calls)} tool calls ({n_err} errors), {len([e for e in events if e['type']=='model_call'])} model calls. Full log: `run.jsonl`; tables: `tables/`; state: `state.json`; config: `config_used.json`.\n\n")
     md.append(_table([{"seq": e["seq"], "role": e["role"], "tool": e["tool"], "args": json.dumps(e["args"])[:90], "err": "✗" if e.get("error") else ""} for e in calls], [("seq", "#"), ("role", "Role"), ("tool", "Tool"), ("args", "Arguments"), ("err", "Error")]))
+
+    # ---- 8. figure index
+    md.append("## 8. Figure index\n")
+    md.append("Each figure is written as PNG (300 dpi, shown above) and, where available, as PDF and SVG with editable text for publication.\n\n")
+    md.append(_table([{"png": x["path"], "vector": ", ".join(x.get("vector") or []) or "–", "caption": x["caption"][:140]} for x in session.figures], [("png", "PNG"), ("vector", "Vector"), ("caption", "Caption")]))
     return "\n".join(md)
 
 
@@ -276,5 +405,5 @@ def build_report(session: AnalysisSession) -> tuple[Path, Path]:
         return m.group(0)
 
     body = re.sub(r'src="(figures/[^"]+)"', _inline, body)
-    html_path.write_text(f"<!doctype html><html><head><meta charset='utf-8'><title>Target discovery report</title><style>{CSS}</style></head><body>{body}</body></html>")
+    html_path.write_text(f"<!doctype html><html><head><meta charset='utf-8'><title>sc-target-agent report</title><style>{CSS}</style></head><body>{body}</body></html>")
     return md_path, html_path

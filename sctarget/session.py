@@ -102,13 +102,18 @@ class AnalysisSession:
         return path
 
     def save_figure(self, name: str, fig: Any, caption: str) -> Path:
+        """Write a figure as PNG (300 dpi, inlined in the HTML report) plus PDF and SVG with the same
+        stem (publication vector files); register the PNG path and caption for the report."""
+        from .report.style import save_all
+
         safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in name)
-        path = self.run_dir / "figures" / f"{len(self.figures) + 1:02d}_{safe}.png"
-        fig.savefig(path, dpi=110, bbox_inches="tight")
+        stem = self.run_dir / "figures" / f"{len(self.figures) + 1:02d}_{safe}"
+        written = save_all(fig, stem)
         import matplotlib.pyplot as plt
 
         plt.close(fig)
-        self.figures.append({"path": str(path.relative_to(self.run_dir)), "caption": caption})
+        path = Path(written["png"])
+        self.figures.append({"path": str(path.relative_to(self.run_dir)), "caption": caption, "vector": [str(Path(p).relative_to(self.run_dir)) for k, p in written.items() if k != "png"]})
         return path
 
     def pseudonymize_series(self, s: pd.Series) -> pd.Series:
