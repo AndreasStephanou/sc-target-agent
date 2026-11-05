@@ -283,3 +283,74 @@ check-env / inspect / calibrate / run / report`, plus `build_from_matrix.py`, `f
 no annotation exists, and ships a skill (`skills/sc-target-agent/SKILL.md`) that walks a Claude
 Code session through a new dataset with the lessons above built in. The protocol document is the
 method history; `tests/` must pass after any change.
+
+## 7. Round 0.4: a non-malignant disease and a perturbation (IPF, GSE135893; doxorubicin heart, GSE285475)
+
+The 0.4 skill (design classification, pre-run design and label checks, a no-key protocol, labelled
+limitations) was written on the assumption that the method generalises beyond tumours. This round
+tested that on the two design types the protocol had named as never run, with the same rules as
+before: keys frozen and tagged before any run, arms pre-registered, every method change a labelled
+version motivated by a named failure, tumour datasets re-run as regression. Protocol sections
+23-23g; results tables `docs/results_ipf_v04.md`, `docs/results_dox_v04.md`, `docs/results_ccrcc_v04.md`.
+
+**What broke first.** The free step that opens every analysis, the scripted calibration on the
+synthetic programme dataset, ended with "no disease-specific state found" on data where every case
+keratinocyte runs a planted programme. Four generic defects sat on the expression route - the path
+every perturbation and most non-malignant diseases take - and none had been visible on the tumour
+datasets, which take the composition route: the programme test ran on a resolution-2.0
+re-clustering that split each lineage into pieces too small to pass (23); two clusters of one
+lineage that both carried the programme cancelled each other under "3x any other cluster" (23b);
+attribution classed every programme gene with a non-zero baseline `shared_with_reference`,
+consistency was detection-based and the two-thirds cut-off flagged exactly 2 of 3 samples, and the
+nominator nominated one gene per cluster (23d); and the candidate pool kept the most significant
+genes by statistic only, so the largest inductions never reached scoring (23f, three touches to
+reach one rule end-to-end). After them the synthetic calibration passes (ERBB4 first, three unique
+nominations) and the tumour regression is clean.
+
+**IPF (12 donors vs 10, libraries pooled to donor; key: three states, ITGB6 secondary).** The
+composition route dominates, not the programme route the design table had predicted: basal-cell
+expansion, MUC5B+ secretory cells, ciliated cells (a composition shift the critic rejected), an
+IPF-only AT2 state and two macrophage clusters are all enriched across donors, and the expression
+route finds the senescence / aberrant-basaloid programme (CDKN2A, MMP7, KRT17, SOX9) spread over
+the transitional and AT2 compartments. Neither the floor nor the v7 agent characterised the
+macrophage clusters (three epithelial states filled the cap); prompts v8 - the top enriched cluster
+of every lineage, the expression route in every analysis - turned the SPP1+ profibrotic macrophage
+state into a strict recovery (9/5 and 6/5 markers; SPP1 ranked 1st within its state, 3rd merged).
+The 374 KRT5-/KRT17+ aberrant basaloid cells sit inside a 5,559-cell transitional cluster that no
+run subclustered, so that state and ITGB6 (significant only in the AT2 programme, log2 0.9) were
+not reached; the v8 rule that asks for exactly that subclustering was not followed once, and is
+left as the stated limitation rather than iterated on one dataset. Nominations (MMP1, MMP7, TNC,
+ITGA2, SPP1, MMP9, CTSK ...) are published IPF biology the key's acceptable list did not contain;
+no decoy was nominated in any run. The pre-run compartment-restricted label check and the critic's
+marker-free check flagged the same donor (control-like macrophages in the largest IPF explant);
+the pre-registered arm was not needed because the macrophage state was recovered with it in.
+
+**Doxorubicin vs vehicle (4 vs 4 wild-type hearts, `objective: marker`; key: p53 programme,
+Cdkn1a).** Composition is flat, as predicted; the expression route finds the cardiomyocyte
+response (Trim63, Nppb, Fbxo32, Nppa, Ankrd1, Myh7 - acceptable genes of the key) in floors and
+agent alike, and the agent's critic rejected a second "state" carried by 3 of 4 libraries and asked
+for the pre-registered batch arm, which supports the atrophy response (Trim63 nominated at 3 vs
+3). The expected read-out, p21, is not induced at two weeks of weekly dosing (down in the
+cardiomyocyte programme, modest and non-significant elsewhere), as the pre-run label check had
+hinted. This is the third key-drafting failure mode after EPAS1 (protein-level) and the HCC
+literature markers (not consistent in the data): a real response gene sampled at the wrong time.
+The key is unchanged and the result is reported as "programme found, expected target absent at
+this time point, acceptable genes at ranks 9-12 of their state". Nominations were weak and the
+critic said so.
+
+**Regression and cost.** ccRCC under v8 and all 23x changes: tumour state found (lenient 9/5,
+strict 8/5), CA9 first in both tumour states, EGLN3 second and flagged for direction, CD70 and
+FOLH1 above the key, no decoy. The merged target rank fell to 6th because v8 records the TAM,
+endothelium and stroma states too; the evaluator now judges the rank within the state that carries
+the target (23g) and keeps the merged rank as information. v8 roughly doubles the analyst's tool
+calls: 1.2-4.1M input tokens per run in this round against 0.6-2.3M before. Stability pair on
+ccRCC: [second run pending at the time of writing].
+
+**What the round says about generality.** The code was design-agnostic; the method was not, in
+four places, all on the expression route, all invisible on tumours, all generic once seen. The
+skill's design table was right that perturbations are the pure programme case and wrong that
+non-malignant disease is "mostly programme": IPF creates disease-only populations and the
+composition route found them. Keys for non-tumour designs fail in a new way (time), and the
+pre-run checks the skill added (compartment-restricted label check, design check with donor
+nesting and covariates) found the same libraries the critic later flagged. Nobody but the author
+has run any of this.
