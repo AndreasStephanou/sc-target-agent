@@ -72,6 +72,8 @@ def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
     def _try(tag: str, fn, *args, **kw):
         if any(tag in n for n in existing):
             return _have(tag)
+        if fn is None:  # a process that imported an older figures module simply skips the figure
+            return None
         try:
             rel = fn(session, *args, **kw)
             return _fig(rel) if rel else None
@@ -84,10 +86,11 @@ def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
 
     from . import figures as F
 
+    g = lambda n: getattr(F, n, None)  # noqa: E731 - tolerate a stale module in a long-running process
     if session.adata is not None:
-        out["design"] = _try("design_overview", F.design_overview)
-        out["abundance"] = _try("abundance_overview", F.abundance_overview)
-        out["state_shares"] = _try("state_library_shares", F.state_library_bars)
+        out["design"] = _try("design_overview", g("design_overview"))
+        out["abundance"] = _try("abundance_overview", g("abundance_overview"))
+        out["state_shares"] = _try("state_library_shares", g("state_library_bars"))
         f = session.facts
         cands = f.get("findings", {}).get("candidate_target", [])
         rt = f.get("ranked_targets", {})
@@ -103,12 +106,12 @@ def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
             if not genes:
                 continue
             name = f"library_expression_state{cl}_" + "_".join(genes[:3])
-            x = _try(name, F.library_expression_panel, genes, name, title=f"Nominated candidates for state {cl}: per-library pseudobulk expression")
+            x = _try(name, g("library_expression_panel"), genes, name, title=f"Nominated candidates for state {cl}: per-library pseudobulk expression")
             if x:
                 out["candidate_panels"].append(x)
-    out["library_corr"] = _try("library_correlation", F.library_correlation_heatmaps)
-    out["candidate_heatmap"] = _try("candidate_evidence", F.candidate_heatmap)
-    out["volcanoes"] = _try("state_volcanoes", F.state_volcanoes)
+    out["library_corr"] = _try("library_correlation", g("library_correlation_heatmaps"))
+    out["candidate_heatmap"] = _try("candidate_evidence", g("candidate_heatmap"))
+    out["volcanoes"] = _try("state_volcanoes", g("state_volcanoes"))
     return out
 
 
