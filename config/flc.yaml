@@ -1,5 +1,5 @@
 dataset:
-  path: data/flc.h5ad
+  path: data/flc/flc.h5ad
   species: homo_sapiens
   sample_key: sample_names              # biological library (Parse sublibraries a/b, set1/set2 merge under it); 9 Primary / 9 Normal / 7 Metastatic
   condition_key: tumor_status
