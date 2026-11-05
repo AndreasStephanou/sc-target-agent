@@ -325,6 +325,14 @@ significant rows plus the rows the tool had labelled `effect`; a gene at statist
 in neither set. Fixed as protocol 23h (effect set taken over the whole stored list; test added);
 floor re-run as `ovarian_calibrate_v04_2`.
 
+**Re-run (`runs/ovarian_calibrate_v04_2`, 13 min):** state found 5/5 again; **FOLR1 now scored,
+24th of 111 within the tumour state** (score 0.47, class state_specific, flag
+`shared_with_reference`; global 58th), 22 genes above it all epithelial tumour genes (MMP7,
+CDKN2A, WFDC2, RAB25 ...), none a decoy; EPCAM 2nd, CLDN6 25th, ERBB2 57th. The floor reaches
+the gene for the first time; the `shared_with_reference` flag is the round-0.3 attribution
+limitation (benign FOLR1+ epithelium in the omentum reference, protocol 21b) and is what the
+pre-registered `ovarian_noleak` arm tests.
+
 ## Issue 11 (fixed in the skill's helper, generic): pairing was reported as pseudo-replication
 
 The donor warning counted libraries per donor, so a paired design (one tumour and one normal

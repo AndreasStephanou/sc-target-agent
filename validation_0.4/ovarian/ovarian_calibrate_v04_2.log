@@ -1,1 +1,30 @@
 Thu Nov  5 03:22:01 PM EST 2026
+run dir : runs/ovarian_calibrate_v04_2
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=49 tools=48 errors=0  stop=end_turn
+  target   turns=58 tools=57 errors=0  stop=end_turn
+  critic   turns=23 tools=22 errors=0  stop=end_turn
+report  : runs/ovarian_calibrate_v04_2/report.md
+elapsed : 789.8s
+Evaluation of runs/ovarian_calibrate_v04_2 vs ovarian.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'HGSOC_tumour_epithelium': FOUND  (cluster 6, marker overlap 5/5 needed: CD24, EPCAM, KRT18, KRT8, WFDC2)
+    strict (agent-recorded genes only): missed  (cluster 6, overlap 1/5, 15 genes recorded)
+target ranks (within its state): {'FOLR1': 24}  state: {'FOLR1': '6 (L0)'}  global: {'FOLR1': 58}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'MUC16': None, 'MSLN': None, 'TACSTD2': None, 'CLDN6': 25, 'ERBB2': 57, 'EPCAM': 2}
+above first true target: 22 not in answer key -> known-wrong decoys: none; novel candidates: ['MMP7', 'CDKN2A', 'DEFB1', 'S100A1', 'RAB25', 'WFDC2', 'IGFBP2', 'SCGB2A1', 'FXYD3', 'AQP5', 'S100A2', 'SPINT2', 'LCN2', 'SMIM22', 'NPW', 'KLK8', 'CLDN3', 'MAL', 'ERP27', 'KRT17', 'BIK', 'MIEN1']
+nominated: ['MMP7', 'EPCAM', 'CDKN2A', 'DEFB1', 'S100A1', 'CCR8', 'TNFRSF4', 'TNFRSF9', 'LAIR2', 'OAS1', 'FN1', 'SPP1', 'CTSL', 'CTSD', 'ADAMDEC1', 'IGKV4-1', 'IGLV6-57', 'XBP1', 'IGHG3', 'TDO2', 'SERPINE1', 'GJB2', 'DIO2', 'COL11A1', 'LCN2', 'SLC39A4', 'CHCHD7']  precision: 0.037037037037037035
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 129 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/ovarian.yaml --model scripted --run-dir runs/ovarian_calibrate_v04_2 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/ovarian_calibrate_v04_2/report.md: the executive summary (design, key numbers), section 1 (QC: cells kept, per-type removal) and section 2 (which clusters were enriched, split candidates, doublet/stress suspects, programme clusters)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/ovarian.yaml runs/ovarian_calibrate_v04_2
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.
+exit=0
+Thu Nov  5 03:35:15 PM EST 2026
