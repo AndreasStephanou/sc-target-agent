@@ -333,6 +333,20 @@ the gene for the first time; the `shared_with_reference` flag is the round-0.3 a
 limitation (benign FOLR1+ epithelium in the omentum reference, protocol 21b) and is what the
 pre-registered `ovarian_noleak` arm tests.
 
+## Ovarian agent run 1, all libraries (`runs/ovarian_agent_v04_1`, prompts v8, scoring v3) — 18 min, 3.91M input tokens, 112 calls, 0 errors
+
+Tumour epithelium found (lenient 6/5 including FOLR1; strict 4/5, 20 genes recorded); seven states
+processed (five composition, one per lineage, plus fibroblast and T/NK programmes). **FOLR1 14th
+within the tumour state** (round 0.3: 16th), classed state_specific with the
+`shared_with_reference` flag, not nominated; EPCAM 2nd, ERBB2 15th; 15 nominations led by MMP7,
+EPCAM, SLC34A2; no decoy. The critic's reading is the one the skill asks for: it called FOLR1 "the
+best-supported druggable gene" (mirvetuximab soravtansine, live DGIdb), attributed the
+shared-with-reference class to the tumour-like reference libraries S23/S27 that
+`check_reference_libraries` flagged in up to six lineages (the same GSM8717127/GSM8717133 that the
+pre-run label check and the `ovarian_noleak` arm name), said FOLR1 "needs the exclusion arm before
+it is called tumour-specific", and recorded that the arm had not been run - rather than dropping
+the gene. Pre-registered arm run as `ovarian_noleak_calibrate_v04_1` and `ovarian_noleak_agent_v04_1`.
+
 ## Issue 11 (fixed in the skill's helper, generic): pairing was reported as pseudo-replication
 
 The donor warning counted libraries per donor, so a paired design (one tumour and one normal

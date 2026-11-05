@@ -1,1 +1,40 @@
 Thu Nov  5 03:19:46 PM EST 2026
+run dir : runs/ovarian_agent_v04_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=16 tools=42 errors=0  stop=end_turn
+  target   turns=22 tools=50 errors=0  stop=end_turn
+  critic   turns= 6 tools=18 errors=0  stop=end_turn
+report  : runs/ovarian_agent_v04_1/report.md
+elapsed : 1097.0s
+Evaluation of runs/ovarian_agent_v04_1 vs ovarian.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'HGSOC_tumour_epithelium': FOUND  (cluster 6, marker overlap 6/5 needed: CD24, EPCAM, FOLR1, KRT18, KRT8, WFDC2)
+    strict (agent-recorded genes only): missed  (cluster 6, overlap 4/5, 20 genes recorded)
+target ranks (within its state): {'FOLR1': 14}  state: {'FOLR1': '6 (L0)'}  global: {'FOLR1': 32}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'MUC16': None, 'MSLN': None, 'TACSTD2': None, 'CLDN6': None, 'ERBB2': 15, 'EPCAM': 2}
+above first true target: 12 not in answer key -> known-wrong decoys: none; novel candidates: ['MMP7', 'CDKN2A', 'S100A1', 'RAB25', 'WFDC2', 'AQP5', 'S100A2', 'SPINT2', 'SLC34A2', 'LCN2', 'KLK8', 'CLDN3']
+nominated: ['MMP7', 'EPCAM', 'SLC34A2', 'CDKN2A', 'CCR8', 'TNFRSF4', 'TNFRSF9', 'SPP1', 'CTSL', 'TDO2', 'LOXL2', 'SERPINE1', 'EGFL6', 'EIF2AK2', 'OAS1']  precision: 0.06666666666666667
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 112 (0 errors)   tokens: {'input_tokens': 3911530, 'output_tokens': 44183}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/ovarian.yaml --model claude-code --run-dir runs/ovarian_agent_v04_1 --scoring-version 3
+
+Done. Read runs/ovarian_agent_v04_1/report.md: the executive summary, then section 4 (critic flags), then section 3 (ranking, with target_class, attribution and flags). Every number traces to runs/ovarian_agent_v04_1/run.jsonl.
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/ovarian.yaml runs/ovarian_agent_v04_1
+ovarian agent exit=0
+Evaluation of runs/ovarian_agent_v04_1 vs ovarian.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'HGSOC_tumour_epithelium': FOUND  (cluster 6, marker overlap 6/5 needed: CD24, EPCAM, FOLR1, KRT18, KRT8, WFDC2)
+    strict (agent-recorded genes only): missed  (cluster 6, overlap 4/5, 20 genes recorded)
+target ranks (within its state): {'FOLR1': 14}  state: {'FOLR1': '6 (L0)'}  global: {'FOLR1': 32}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'MUC16': None, 'MSLN': None, 'TACSTD2': None, 'CLDN6': None, 'ERBB2': 15, 'EPCAM': 2}
+above first true target: 12 not in answer key -> known-wrong decoys: none; novel candidates: ['MMP7', 'CDKN2A', 'S100A1', 'RAB25', 'WFDC2', 'AQP5', 'S100A2', 'SPINT2', 'SLC34A2', 'LCN2', 'KLK8', 'CLDN3']
+nominated: ['MMP7', 'EPCAM', 'SLC34A2', 'CDKN2A', 'CCR8', 'TNFRSF4', 'TNFRSF9', 'SPP1', 'CTSL', 'TDO2', 'LOXL2', 'SERPINE1', 'EGFL6', 'EIF2AK2', 'OAS1']  precision: 0.06666666666666667
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 112 (0 errors)   tokens: {'input_tokens': 3911530, 'output_tokens': 44183}
+PASS: False
+
+Thu Nov  5 03:38:07 PM EST 2026
