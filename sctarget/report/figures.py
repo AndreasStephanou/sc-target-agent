@@ -429,19 +429,8 @@ def candidate_heatmap(session, name: str = "candidate_evidence", max_rows: int =
     return str(p.relative_to(session.run_dir))
 
 
-def _contrast_table(session, cluster: str) -> tuple[pd.DataFrame | None, str]:
-    """Full pseudobulk table (all genes) for the contrast that carried the state's scoring."""
-    from ..tools.targets import state_basis
-
-    basis = state_basis(session, str(cluster))
-    rt = session.facts.get("ranked_targets", {}).get(str(cluster), [])
-    axis = next((r.get("lineage_axis_source") for r in rt if r.get("lineage_axis_source")), None)
-    if basis == "program":
-        contrast = "disease_vs_reference_within_cluster"
-    elif axis:
-        contrast = str(axis)
-    else:
-        contrast = "cluster_vs_reference_clusters"
+def _contrast_table(session, cluster: str, contrast: str) -> tuple[pd.DataFrame | None, str | None]:
+    """Full pseudobulk table (all genes) of one contrast for one state; returns (table, file path)."""
     safe_cl = str(cluster).replace("+", "_")
     pats = [f"*pseudobulk_de_*_{safe_cl}_{contrast}.csv", f"*pseudobulk_de_*{safe_cl}*{contrast}*.csv"]
     for pat in pats:
@@ -451,8 +440,25 @@ def _contrast_table(session, cluster: str) -> tuple[pd.DataFrame | None, str]:
             gcol = "gene" if "gene" in df.columns else df.columns[0]
             df = df.rename(columns={gcol: "gene"})
             if "log2fc" in df.columns and "padj" in df.columns:
-                return df, contrast
-    return None, contrast
+                return df, hits[-1]
+    return None, None
+
+
+def _state_contrasts(session, cluster: str) -> list[tuple[str, str]]:
+    """(contrast, label) pairs to draw for a state: its own defining contrast first (sibling
+    contrast for a composition state, within-cluster for a programme state), then the lineage
+    contrast that carried its scoring, which is shared by every state of the same lineage."""
+    from ..tools.targets import state_basis
+
+    basis = state_basis(session, str(cluster))
+    if basis == "program":
+        return [("disease_vs_reference_within_cluster", "disease vs reference within the cluster")]
+    out = [("cluster_vs_reference_clusters", "state vs sibling clusters")]
+    rt = session.facts.get("ranked_targets", {}).get(str(cluster), [])
+    axis = next((r.get("lineage_axis_source") for r in rt if r.get("lineage_axis_source")), None)
+    if axis:
+        out.append((str(axis), str(axis).replace("disease_vs_reference_within_", "disease vs reference, ") + " (lineage contrast, shared by the lineage's states)"))
+    return out
 
 
 def state_volcanoes(session, name: str = "state_volcanoes", max_states: int = 6) -> str | None:
@@ -460,41 +466,54 @@ def state_volcanoes(session, name: str = "state_volcanoes", max_states: int = 6)
     states = session.facts.get("findings", {}).get("disease_state", [])[:max_states]
     if not states:
         return None
-    panels = []
+    nominated: dict[str, set[str]] = {}
+    for c in session.facts.get("findings", {}).get("candidate_target", []):
+        if c.get("genes"):
+            nominated.setdefault(str(c.get("cluster")), set()).add(c["genes"][0])
+    # one panel per distinct table: a lineage contrast shared by several states is drawn once,
+    # labelled with every state it serves and with all their candidates in bold
+    panels: dict[str, dict[str, Any]] = {}
     for st in states:
         cl = str(st.get("cluster"))
-        df, contrast = _contrast_table(session, cl)
-        if df is not None and len(df) > 20:
-            panels.append((cl, st, df, contrast))
+        for contrast, label in _state_contrasts(session, cl):
+            df, path = _contrast_table(session, cl, contrast)
+            if df is None or len(df) <= 20 or path is None:
+                continue
+            key = str(Path(path).resolve())
+            if key not in panels:
+                panels[key] = {"df": df, "label": label, "states": [], "genes": set()}
+            panels[key]["states"].append(cl)
+            panels[key]["genes"] |= nominated.get(cl, set())
     if not panels:
         return None
-    nominated = {(c["genes"][0], str(c.get("cluster"))) for c in session.facts.get("findings", {}).get("candidate_target", []) if c.get("genes")}
-    ncol = min(3, len(panels))
-    nrow = int(np.ceil(len(panels) / ncol))
+    items = list(panels.values())[:max_states * 2]
+    ncol = min(3, len(items))
+    nrow = int(np.ceil(len(items) / ncol))
     fig, axes = plt.subplots(nrow, ncol, figsize=(DOUBLE_COL if ncol > 1 else SINGLE_COL, 2.2 * nrow + 0.3), squeeze=False)
-    for k, (ax, (cl, st, df, contrast)) in enumerate(zip(axes.ravel(), panels)):
+    for k, (ax, it) in enumerate(zip(axes.ravel(), items)):
+        df = it["df"]
         x = df["log2fc"].to_numpy(dtype=float)
         y = -np.log10(np.clip(df["padj"].to_numpy(dtype=float), 1e-300, 1.0))
-        sig = (df["padj"] < 0.05) & (np.abs(df["log2fc"]) >= 1)
+        sig = ((df["padj"] < 0.05) & (np.abs(df["log2fc"]) >= 1)).to_numpy()
         ax.scatter(x[~sig], y[~sig], s=2, color=LIGHT, edgecolor="none", rasterized=True)
         ax.scatter(x[sig & (x > 0)], y[sig & (x > 0)], s=2.5, color=DISEASE_COLOR, alpha=0.6, edgecolor="none", rasterized=True)
         ax.scatter(x[sig & (x < 0)], y[sig & (x < 0)], s=2.5, color=REFERENCE_COLOR, alpha=0.6, edgecolor="none", rasterized=True)
         genes = df["gene"].astype(str).to_numpy()
-        lab = [i for i, g in enumerate(genes) if (g, cl) in nominated]
-        top = list(np.argsort(-(y * (x > 0)))[:8])
+        lab = [i for i, g in enumerate(genes) if g in it["genes"]]
+        top = [int(i) for i in np.argsort(-(y * (x > 0)))[:8]]
         for i in dict.fromkeys(lab + top):
-            if i in lab or sig.iloc[i]:
+            if i in lab or sig[i]:
                 ax.annotate(genes[i], (x[i], y[i]), fontsize=5, fontweight="bold" if i in lab else "normal", color="black" if i in lab else NEUTRAL, xytext=(2, 2), textcoords="offset points")
         ax.axhline(-np.log10(0.05), color=NEUTRAL, lw=0.5, ls=":")
         for v in (-1, 1):
             ax.axvline(v, color=NEUTRAL, lw=0.5, ls=":")
         ax.set_xlabel("log2 fold change")
         ax.set_ylabel("-log10 padj")
-        ax.set_title(f"state {cl}: {contrast.replace('disease_vs_reference_within_', 'disease vs reference, ').replace('_', ' ')}", fontsize=6.5)
+        ax.set_title(f"state{'s' if len(it['states']) > 1 else ''} {', '.join(it['states'])}: {it['label']}", fontsize=6)
         panel_label(ax, chr(ord("a") + k))
         despine(ax)
-    for ax in axes.ravel()[len(panels):]:
+    for ax in axes.ravel()[len(items):]:
         ax.axis("off")
     fig.tight_layout()
-    p = session.save_figure(name, fig, "Replicate-aware pseudobulk contrast that carried each recorded state's scoring (vermilion: up in disease, blue: down; padj < 0.05 and |log2FC| >= 1). Nominated candidates in bold; the eight most significant up-regulated genes labelled.")
+    p = session.save_figure(name, fig, "Replicate-aware pseudobulk contrasts behind the recorded states (vermilion: up in disease, blue: down; padj < 0.05 and |log2FC| >= 1): each state's own defining contrast, and the lineage contrast that carried its scoring, drawn once when several states share it. Nominated candidates in bold; the eight most significant up-regulated genes labelled.")
     return str(p.relative_to(session.run_dir))
