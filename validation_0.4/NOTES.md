@@ -357,6 +357,24 @@ strict 2/5); **FOLR1 35th of 83 within its state** (score 0.17, state_specific, 
 (protocol 21, 21b) - the library the new label-check rule lists as GSM8717110 (PAX8 5%) - which the
 arm by construction does not remove. The limitation stands exactly as frozen in 0.3.
 
+## Ovarian no-leak arm, agent (`runs/ovarian_noleak_agent_v04_1`, prompts v8) — 19 min, 3.47M input tokens, 105 calls, 0 errors
+
+Tumour epithelium found **strict 5/5** (as in both 0.3 no-leak agent runs); **FOLR1 17th within its
+state** (0.3: unranked after being set aside), EPCAM 2nd, TACSTD2 12th; 13 nominations led by MMP7
+and EPCAM, no decoy. The critic's blocking flag is the 0.3 verdict again: FOLR1 `reference_driven`
+(151 reference cells in the cluster, mean 5.5 vs 1.4 in disease cells; "an epithelial/
+mesothelial-like population present in normal omentum ... e.g. mesothelial or epithelial
+inclusions"). The critic identified the reference cells as a population and read the gene as not
+tumour-exclusive, which is the 0.4 attribution reading rule halfway: it named the cells but still
+withheld the candidate rather than reporting it as conditional on them. The 0.4 skill text says
+"reported as conditional, not dropped"; the critic prompt (v8) does not yet say this in those
+words. Noted as a prompt-text gap, not acted on in this round (one dataset, the known case).
+
+Across the three ovarian runs of this round the picture is unchanged from 0.3 and stated more
+precisely: FOLR1 is found in the right state every time (14th / 24th / 35th / 17th), is called
+druggable, and is held back by 59-151 benign FOLR1+ reference epithelial cells that the new
+label-check rule now shows before the run (GSM8717110).
+
 ## FLC scripted floor (`runs/flc_calibrate_1`, 46 min, 121 calls, 0 errors)
 
 Primary vs normal liver, 9 vs 9 libraries, metastatic set aside (254k nuclei through QC and

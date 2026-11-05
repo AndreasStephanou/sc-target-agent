@@ -1,1 +1,27 @@
 Thu Nov  5 03:38:25 PM EST 2026
+run dir : runs/ovarian_noleak_agent_v04_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=17 tools=43 errors=0  stop=end_turn
+  target   turns=16 tools=45 errors=0  stop=end_turn
+  critic   turns= 5 tools=15 errors=0  stop=end_turn
+report  : runs/ovarian_noleak_agent_v04_1/report.md
+elapsed : 1141.0s
+note: no answer key at data/ground_truth/ovarian_noleak.yaml; the run will produce hypotheses but cannot be scored. If you have a known answer, write and COMMIT the key before this run.
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/ovarian_noleak.yaml --model claude-code --run-dir runs/ovarian_noleak_agent_v04_1 --scoring-version 3
+
+Done. Read runs/ovarian_noleak_agent_v04_1/report.md: the executive summary, then section 4 (critic flags), then section 3 (ranking, with target_class, attribution and flags). Every number traces to runs/ovarian_noleak_agent_v04_1/run.jsonl.
+exit=0
+Evaluation of runs/ovarian_noleak_agent_v04_1 vs ovarian.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'HGSOC_tumour_epithelium': FOUND  (cluster 24, marker overlap 6/5 needed: CD24, CLDN4, EPCAM, FOLR1, KRT7, WFDC2)
+    strict (agent-recorded genes only): FOUND  (cluster 24, overlap 5/5, 15 genes recorded)
+target ranks (within its state): {'FOLR1': 17}  state: {'FOLR1': '24 (L1)'}  global: {'FOLR1': 118}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'MUC16': None, 'MSLN': None, 'TACSTD2': 12, 'CLDN6': None, 'ERBB2': None, 'EPCAM': 2}
+above first true target: 14 not in answer key -> known-wrong decoys: none; novel candidates: ['MMP7', 'CDKN2A', 'IGFBP2', 'S100A1', 'CLDN3', 'LCN2', 'MDK', 'WFDC2', 'SPINT2', 'CLDN4', 'SLC34A2', 'CLDN7', 'TSPAN1', 'MAL2']
+nominated: ['MMP7', 'EPCAM', 'CTLA4', 'IL2RA', 'TIGIT', 'CCR8', 'TDO2', 'INHBA', 'FAP', 'LOXL2', 'TNFSF13B', 'CTSL', 'STAT1']  precision: 0.07692307692307693
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 105 (0 errors)   tokens: {'input_tokens': 3466872, 'output_tokens': 45155}
+PASS: False
+
+Thu Nov  5 03:57:31 PM EST 2026
