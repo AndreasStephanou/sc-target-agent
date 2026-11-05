@@ -1,1 +1,30 @@
 Thu Nov  5 03:15:27 PM EST 2026
+run dir : runs/hcc_nop4_calibrate_v04_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=45 tools=44 errors=0  stop=end_turn
+  target   turns=54 tools=53 errors=0  stop=end_turn
+  critic   turns=27 tools=26 errors=0  stop=end_turn
+report  : runs/hcc_nop4_calibrate_v04_1/report.md
+elapsed : 451.7s
+Evaluation of runs/hcc_nop4_calibrate_v04_1 vs hcc.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'HCC_malignant_hepatocyte': missed  (cluster 13, marker overlap 1/5 needed: GPC3)
+    strict (agent-recorded genes only): missed  (cluster 13, overlap 1/5, 15 genes recorded)
+target ranks (within its state): {'GPC3': 1}  state: {'GPC3': '13'}  global: {'GPC3': 8}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'AFP': None, 'MDK': None}
+above first true target: 0 not in answer key -> known-wrong decoys: none; novel candidates: none
+nominated: ['GPC3', 'RAMP1', 'MAGEA3', 'UGT2B11', 'CLGN', 'SPP1', 'MMP9', 'CCL18', 'GPNMB', 'ADAMDEC1', 'CYP17A1', 'EPHX1', 'SQLE', 'SCD', 'FOLH1', 'CA2', 'PGF', 'COL1A2', 'TNFRSF4', 'F2R', 'INHBA', 'SERPINE1', 'VCAN']  precision: 0.043478260869565216
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 1.0  found: ['codrituzumab']
+tool calls: 125 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/hcc_nop4.yaml --model scripted --run-dir runs/hcc_nop4_calibrate_v04_1 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/hcc_nop4_calibrate_v04_1/report.md: the executive summary (design, key numbers), section 1 (QC: cells kept, per-type removal) and section 2 (which clusters were enriched, split candidates, doublet/stress suspects, programme clusters)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/hcc.yaml runs/hcc_nop4_calibrate_v04_1
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.
+exit=0
+Thu Nov  5 03:23:03 PM EST 2026

@@ -277,6 +277,32 @@ biological sub-groups and confounding only when they are processing batches. The
 reports such a column as NESTED WITHIN CONDITION with that distinction, and keeps PERFECTLY
 CONFOUNDED for a column with as many levels as conditions.
 
+## HCC scripted floors (`runs/hcc_calibrate_v04_1`, 10 min, 127 calls; `runs/hcc_nop4_calibrate_v04_1`, 7.5 min, 125 calls)
+
+All libraries: six states recorded (three disease-only hepatocyte clusters 14, 15, 18 each present
+in 10/10 patients, a myeloid state, an endothelial and a T/NK programme); key state 0/5 as in every
+earlier HCC floor (the key's literature markers are patient-heterogeneous, the recorded limitation
+of that key); **GPC3 unscored**: log2FC 2.6 in the whole-lineage contrast but padj 0.20 with
+HCC04N in the reference, and ~0 in each hepatocyte cluster's sibling contrast because the siblings
+are the other tumour hepatocyte clusters (the floor merged 13+22 only). Two proliferation decoys
+(TOP2A, MKI67) ranked in the cycling hepatocyte cluster, nominated by neither role. Same picture as
+round 0.2.
+
+Without patient 4 (pre-registered arm): **GPC3 ranked 1st within its state** (cluster 13; global
+8th), recall@5 1.0, codrituzumab found, nothing above it, no decoy nominated; key state again
+missed by markers (1/5: GPC3 itself). Round 0.2's floor had GPC3 4th in this arm; the within-state
+rank (23g) and the effect pool (23f) account for the difference. The HCC04N anomaly remains the
+single determinant of whether the expected target is scored at all.
+
+## Ovarian scripted floor (`runs/ovarian_calibrate_v04_1`, 16.5 min, 131 calls) -> protocol 23h
+
+Tumour epithelium found (cluster 6, lenient 5/5; strict 1/5), EPCAM 2nd, CLDN6 23rd, ERBB2 57th;
+FOLR1 **unscored** although significant in the sibling contrast (log2FC 4.8, padj 5e-8; 39th by
+statistic, 9th by effect among 1,834 significant genes). Cause: the floor's pool read the 20 most
+significant rows plus the rows the tool had labelled `effect`; a gene at statistic rank 21-40 was
+in neither set. Fixed as protocol 23h (effect set taken over the whole stored list; test added);
+floor re-run as `ovarian_calibrate_v04_2`.
+
 ## Issue 11 (fixed in the skill's helper, generic): pairing was reported as pseudo-replication
 
 The donor warning counted libraries per donor, so a paired design (one tumour and one normal
