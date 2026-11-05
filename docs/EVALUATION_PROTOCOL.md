@@ -757,6 +757,33 @@ no such field and keep their numbers; the HCC result above is read with the line
 recorded as "scored in a stromal state, unscored in the tumour hepatocyte states". New keys
 should name the lineage. Tested (`tests/test_eval_lineage.py`).
 
+### 23j. Prompts v9: a reference-driven candidate with per-sample support is reported as conditional, not dropped (round 0.4b)
+
+Motivating case: ovarian no-leak agent run (`runs/ovarian_noleak_agent_v04_1`, prompts v8). State
+found strict 5/5, FOLR1 17th within it, the critic named the 151 in-cluster reference cells as an
+"epithelial/mesothelial-like population ... e.g. mesothelial or epithelial inclusions" and still
+recorded a blocking flag, "not a safe tumour-state marker or target in this dataset". That is the
+fourth agent run on this dataset to find FOLR1 in the right state and set it aside; the gene has
+an approved agent (mirvetuximab soravtansine). Protocol 21b froze the attribution *rule* after three
+touches and stated the limitation; the 0.4 skill then added a *reading* rule (a blocking
+`reference_driven` verdict on a candidate that the per-sample and compartment evidence support is a
+prompt to identify the reference cells; the candidate is reported as conditional on them, not
+dropped). The repository's prompts still said "drop `reference_driven` genes outright" (target)
+and "a blocking flag" (critic), so the method contradicted the skill that drives it.
+
+Change (prompts v9; the attribution tool, its rule and scoring v3 are unchanged): the target prompt
+keeps a `reference_driven` gene ranked with its flag when the state is absent from reference
+libraries by per-sample abundance and the gene is specific and consistent across disease samples,
+and reports it as conditional on the identity of the in-cluster reference cells; it drops the gene
+when those cells are a representative counterpart of the lineage. The critic prompt asks for the
+cells to be named (lineage, libraries, share of the reference condition) before any flag, records a
+major flag that states the condition and what would settle it (reference-only subcluster, histology,
+exclusion arm) in the conditional case, and keeps the blocking flag for the representative case.
+Verified by re-running the no-leak arm under v9 (`runs/ovarian_noleak_agent_v04_2`); the outcome is
+recorded in `validation_0.4/NOTES.md` whatever it is. The rule is general: it applies to any design
+in which the reference holds a small population expressing the candidate (benign inclusions, rare
+progenitors, a tissue-resident counterpart of a disease state).
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new

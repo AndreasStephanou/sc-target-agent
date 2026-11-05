@@ -39,6 +39,17 @@ PROMPT_VERSION history
      in two lineages, three epithelial states recorded and the two macrophage clusters never
      characterised; the expression route never run; the 374 KRT5-/KRT17+ aberrant basaloid cells
      left inside a 5,559-cell transitional cluster that carried their program.
+  9  target and critic: a `reference_driven` gene is not dropped when the per-sample and compartment
+     evidence support it (state absent from reference libraries by per-sample abundance, high
+     specificity, consistent across disease samples); it is ranked with the flag and reported as
+     CONDITIONAL on the identity of the in-cluster reference cells, which the critic names (lineage,
+     libraries, share of the reference condition: a rare population or a representative
+     counterpart). Dropped only when those cells are a representative counterpart of the lineage.
+     Motivated by the ovarian no-leak agent run of round 0.4b (GSE286057, prompts v8): the critic
+     identified the 151 reference cells as "epithelial/mesothelial-like ... inclusions" and still
+     withheld FOLR1 (approved agent) as "not a safe target", the fourth run to set the gene aside
+     after finding it in the right state; the skill text (0.4) had stated the conditional reading
+     since the round began and the prompt said "drop outright".
 """
 
 from __future__ import annotations
@@ -46,7 +57,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 8
+PROMPT_VERSION = 9
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -165,9 +176,15 @@ Procedure:
    reason to keep them. For program-basis states (shared cell type), judge by
    log2_disease_vs_reference_within_cluster instead - cluster-vs-cluster specificity is not the
    point there, and `score_targets` switches its specificity component automatically.
-2b. `condition_attribution` on the same genes. Drop `reference_driven` genes outright: their
-   expression sits in the reference-condition cells that were assigned to this cluster, so the
-   cluster-vs-sibling fold change is an artefact (mixed-condition clusters do this). Drop
+2b. `condition_attribution` on the same genes. A `reference_driven` gene has its expression in the
+   reference-condition cells that were assigned to this cluster, so the cluster-vs-sibling fold
+   change may be an artefact (mixed-condition clusters do this). Drop it when those reference cells
+   are a representative counterpart of the lineage (the reference condition holds the lineage in
+   bulk and the gene is expressed there). Keep it, ranked with the flag, when the per-sample and
+   compartment evidence support it - the state is absent from reference libraries by per-sample
+   abundance, specificity is high and the gene is consistent across disease samples - and report
+   it as CONDITIONAL on the identity of the in-cluster reference cells (say what they are:
+   `reference_pool_in_cluster`, which lineage and libraries); the critic settles it. Drop
    `ambient_like` genes too: their level in these cells is no higher than in unrelated lineages
    of the same disease samples, i.e. sample background rather than expression by these cells
    (check the ambient_ratio and control lineage columns). Treat
@@ -202,9 +219,17 @@ them. For every disease state and candidate target recorded:
 - Is the candidate a cell-cycle gene (score_targets flags proliferation_marker; the state may be
   flagged cycling_substate)? Proliferation genes mark that cells divide, which every tumour does;
   they are not disease-specific targets and would be nominated in any cancer dataset. Flag them.
-- Run `condition_attribution` on every nominated gene. A `reference_driven` gene is a blocking
-  flag: the signal comes from reference-condition cells inside the cluster. Read the
-  `reference_pool_in_cluster` column first: when it says too_thin or rare_in_reference, the
+- Run `condition_attribution` on every nominated gene. A `reference_driven` gene means the signal
+  comes from reference-condition cells inside the cluster. Before flagging, name those cells: which
+  lineage, which libraries, what share of the reference condition they are (use the per-sample
+  state proportions and `check_reference_libraries`). If they are a representative counterpart of
+  the lineage (the reference holds the lineage in bulk and expresses the gene), the flag is
+  blocking. If the state is absent from reference libraries by per-sample abundance and the gene
+  is specific and consistent across disease samples, the gene stays a candidate CONDITIONAL on the
+  identity of those cells - record a major flag that says what they are and what would settle it
+  (a reference-only subcluster, a histology check, an exclusion arm), not a blocking flag that
+  drops the gene. The reader needs the candidate and the condition, not the candidate's absence.
+  Read the `reference_pool_in_cluster` column first: when it says too_thin or rare_in_reference, the
   in-cluster reference cells did not decide the class, and a `rare_reference_counterpart` gene is
   one that a small normal population (< 0.5% of reference cells) also expresses - report it as an
   on-target consideration (which lineage? which libraries?), not as a disqualification. Check the dot
