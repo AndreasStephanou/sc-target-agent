@@ -176,6 +176,36 @@ associated macrophages, endothelium and stroma programmes) and their candidates.
 input tokens per run (0.6-1.7M before v8). The evaluator now judges a target's rank within the state
 that carries it (protocol 23g); the merged rank is reported as `target_rank_global`.
 
+## Round 0.4b — the three earlier tumour datasets under skill 0.4 (HCC, ovarian, FLC; prompts v8-v11, scoring v3)
+
+HCC and ovarian objects rebuilt from GEO with the repository's builders (identical HCC dimensions;
+ovarian 124k cells for the same 29 libraries), FLC copied; keys unchanged from their frozen
+versions; the pre-registered arms of earlier rounds carried over. The pre-run checks reproduced
+every earlier anomaly before any token was spent (HCC04N tumour programme; the two tumour-bearing
+distant-omentum libraries; FLC83_T / FLC57_T low tumour content) and, with the second label-check
+rule added this round, showed the healthy donor's benign PAX8+ inclusion that blocked FOLR1 in 0.3.
+
+| dataset | arm | state (lenient / strict) | target rank within its state | decoys | drugs | tokens |
+|---|---|---|---|---|---|---|
+| HCC | floor, all libraries | 0/5 / 0/5 | GPC3 unscored (HCC04N in the reference; as in 0.2) | 2 ranked, none nominated | - | - |
+| HCC | floor, without patient 4 | 1/5 / 1/5 | **GPC3 1st** (0.2: 4th) | none | codrituzumab | - |
+| HCC | agent, all libraries | 2/5 / 2/5 | GPC3 2nd **in a CAF-like stromal state**; unscored in the tumour hepatocyte states | none | codrituzumab | 3.6M |
+| ovarian | floor, all libraries (x2) | 5/5 / 1/5 | FOLR1 unscored, then **24th** after the pool fix (23h) | none | - | - |
+| ovarian | agent, all libraries | 6/5 / 4/5 | FOLR1 14th (0.3: 16th); critic asks for the exclusion arm by library | none | - | 3.9M |
+| ovarian | floor, no-leak arm | 6/5 / 2/5 | FOLR1 35th, `reference_driven` | none | - | - |
+| ovarian | agent, no-leak arm (v8; v9) | 6/5 / **5/5** both | FOLR1 17th both; blocking flag both; v9 critic names the cells and the settling experiment | none | - | 3.5M; 2.8M |
+| FLC | floor | 3/5 / 3/5 | **PRKACA 2nd behind CA12** (v6: 6th) via the expression route | none | - | - |
+| FLC | agent (v8) | 3/5 / 3/5 | **PRKACA 2nd behind CA12, nominated**; ERBB2 2nd | PDGFRB nominated unflagged (stroma) | neratinib | 2.5M |
+
+What changed in the method from these runs: the floor's effect pool (23h); the evaluator names the
+lineage of the state carrying a target and honours an optional `lineage:` on an expected state
+(23i); a reference-driven candidate with per-sample support is reported as conditional (v9, 23j);
+`subcluster(condition=...)` as the critic's settling move (23k, v10); a microenvironment flag on
+nominations from non-disease-cell lineages (v11, 23l). What did not change: FOLR1's fate, which five
+agent runs now place in the right state and hold back on 59-151 benign reference epithelial cells;
+GPC3's fate with HCC04N in the reference. The FLC tumour state came through the expression route
+because per-library integration co-clustered tumour nuclei with normal hepatocytes.
+
 ## What has and has not been tested (added in skill 0.4.0)
 
 | dimension | tested | not tested |
@@ -183,7 +213,7 @@ that carries it (protocol 23g); the merged rank is reported as `target_rank_glob
 | design type | tumour vs tissue of origin (ccRCC, HCC); tumour vs tissue lacking the lineage (ovarian omentum); tumour vs another tumour + healthy (CAA); non-malignant disease vs healthy (IPF, round 0.4); perturbation treated vs vehicle (doxorubicin heart, round 0.4) | knockout vs wild-type; infection; paired-only; blood / bone marrow; brain |
 | objective | `target`; `marker` (doxorubicin heart, one agent run and four floors) | - |
 | species | human (4), dog (1), mouse (1) | others |
-| modality | scRNA-seq (3), snRNA-seq (1) | spatial, multiome, CITE-seq |
+| modality | scRNA-seq (5), snRNA-seq (2: canine CAA, human FLC Parse) | spatial, multiome, CITE-seq |
 | replicates per condition | 6-23 libraries | 2-3 libraries (the minimum the skill allows) |
 | annotation | inherited (3) and derived (4) | - |
 | backends | Claude Code login, API (sonnet-4-5), scripted | other model families |
@@ -191,5 +221,8 @@ that carries it (protocol 23g); the merged rank is reported as `target_rank_glob
 
 The known target's fate in every public dataset was decided by what sat in the reference set. The
 pre-run checks added in skill 0.4.0 (`scripts/design_check.py`, `scripts/label_check.py`) exist to
-surface that before tokens are spent; they have been run on the synthetic and ccRCC objects but have
-not yet changed the course of a real run.
+surface that before tokens are spent. In round 0.4b they were run on HCC, ovarian and FLC before
+any run and reproduced every library anomaly the earlier rounds had found after the fact; the
+second label-check rule showed the benign inclusion behind FOLR1's `reference_driven` verdict
+before the run. The pre-registered arms were already in place, so the checks confirmed decisions
+rather than changing them; on a new dataset they are the step at which those decisions are made.
