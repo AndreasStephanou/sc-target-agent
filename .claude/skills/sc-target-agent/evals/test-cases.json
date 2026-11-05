@@ -1,0 +1,74 @@
+[
+  {
+    "id": "case-01-ccrcc-straightforward",
+    "type": "straightforward",
+    "should_trigger": true,
+    "prompt": "evals/case-01/input.md",
+    "expected": "evals/case-01/expected-behavior.md",
+    "data": "public GSE159115; author ran it",
+    "notes": "Full workflow with a frozen key; CA9 ranked first in the author's runs."
+  },
+  {
+    "id": "case-02-ccrcc-problem",
+    "type": "problem",
+    "should_trigger": true,
+    "prompt": "evals/case-02/input.md",
+    "expected": "evals/case-02/expected-behavior.md",
+    "data": "public GSE159115; author ran it",
+    "notes": "Swapped metadata, QC removing a lineage, protein-level target in the key, stress cluster."
+  },
+  {
+    "id": "case-03-mouse-ambiguous",
+    "type": "ambiguous",
+    "should_trigger": true,
+    "prompt": "evals/case-03/input.md",
+    "expected": "evals/case-03/expected-behavior.md",
+    "data": "fabricated",
+    "notes": "No annotation, 2 vs 2, no key, confounded batch; design check expected."
+  },
+  {
+    "id": "case-04-hcc-problem",
+    "type": "problem",
+    "should_trigger": true,
+    "prompt": "evals/case-04/input.md",
+    "expected": "evals/case-04/expected-behavior.md",
+    "data": "public GSE149614; author ran it",
+    "notes": "Install that cannot cluster, contaminated reference library, cycling sub-state."
+  },
+  {
+    "id": "case-05-ovarian-difficult",
+    "type": "difficult",
+    "should_trigger": true,
+    "prompt": "evals/case-05/input.md",
+    "expected": "evals/case-05/expected-behavior.md",
+    "data": "public GSE286057; author ran it",
+    "notes": "Dataset choice by composition; known target set aside by attribution; knowing when to stop."
+  },
+  {
+    "id": "case-06-fibrosis-nested-libraries",
+    "type": "difficult",
+    "should_trigger": true,
+    "prompt": "evals/case-06/input.md",
+    "expected": "evals/case-06/expected-behavior.md",
+    "data": "fabricated",
+    "notes": "Non-malignant design (untested), libraries nested in donors, chemistry partly confounded, no key."
+  },
+  {
+    "id": "case-07-knockout-marker-mode",
+    "type": "ambiguous",
+    "should_trigger": true,
+    "prompt": "evals/case-07/input.md",
+    "expected": "evals/case-07/expected-behavior.md",
+    "data": "fabricated",
+    "notes": "Perturbation design in marker mode; the knocked-out gene must not be the expected target."
+  },
+  {
+    "id": "case-08-bulk-out-of-scope",
+    "type": "out-of-scope",
+    "should_trigger": false,
+    "prompt": "evals/case-08/input.md",
+    "expected": "evals/case-08/expected-behavior.md",
+    "data": "fabricated",
+    "notes": "Bulk RNA-seq, one sample per arm, a request to validate: the skill must decline and say why."
+  }
+]

@@ -615,3 +615,19 @@ of OTHER lineages only (dominant lineage from the lineage key); same-lineage clu
 excluded from the "any other cluster" maximum. The absolute criterion is unchanged. Regression test
 extended (the flagged clusters must all be keratinocyte). Generic: whatever the tissue, the
 lineage that runs the programme may be split over several clusters at the base resolution.
+
+### 23c. `inspect` composition line was human-only; epithelial warning made conditional
+
+On the mouse doxorubicin object `inspect` printed an empty compartment-composition line: the
+canonical markers (PTPRC, EPCAM, COL1A1, PECAM1 ...) were matched exactly against Title-case mouse
+symbols. Matching is now case-insensitive (`new_dataset.py`), and the "fewer than 5% epithelial
+cells" warning says that it matters only when the question concerns epithelium; heart, brain and
+blood have none by design. On the DOX object the line now reads endothelial 0.64 vehicle vs 0.46
+treated and fibroblast 0.41 vs 0.48, a composition shift consistent with the deposit's own finding
+of endothelial toxicity, visible before any run.
+
+Also in this round (procedural, recorded for the skill): covariates that exist only in the deposit's
+metadata (here the processing batch, two libraries aligned with STARsolo and six with Cell Ranger)
+must be added to the sample sheet before building so they reach `obs`; `build_from_10x_samples.py`
+already carries every sheet column. With `batch` in `obs` the design check shows it balanced across
+arms (Cramer's V 0.00); the batch-only arm is pre-registered in `config/dox_batch2.yaml`.

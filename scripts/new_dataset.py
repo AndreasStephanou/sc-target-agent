@@ -75,7 +75,12 @@ def main(argv=None):
     markers = {"immune": ["PTPRC"], "epithelial": ["EPCAM", "KRT8", "KRT18"], "fibroblast": ["COL1A1", "DCN"], "endothelial": ["PECAM1", "VWF"]}
     if cond_key and looks_counts or counts_layer:
         try:
-            present = {k: [g for g in gs if g in adata.var_names] for k, gs in markers.items()}
+            # case-insensitive: mouse / dog symbols are Title-case (Ptprc, Epcam); an exact human-cased
+            # match returned an empty composition line for every non-human object (protocol 23c)
+            by_upper = {}
+            for v in adata.var_names:
+                by_upper.setdefault(str(v).upper(), str(v))
+            present = {k: [by_upper[g] for g in gs if g in by_upper] for k, gs in markers.items()}
             genes = sorted({g for gs in present.values() for g in gs})
             sub = adata[:, genes].to_memory()
             M = sub.layers[counts_layer] if counts_layer else sub.X
@@ -93,7 +98,7 @@ def main(argv=None):
     if comp:
         print(f"         compartment composition (fraction of cells positive for canonical markers), per condition: {comp}")
         if all(isinstance(v, dict) for v in comp.values()) and all(v.get("epithelial", 1) < 0.05 for v in comp.values()):
-            warn.append("fewer than 5% epithelial-marker-positive cells in every condition: an epithelial target cannot be tested here (immune-sorted or epithelium lost at dissociation?)")
+            warn.append("fewer than 5% epithelial-marker-positive cells in every condition: if the question concerns epithelium (most tumours), it cannot be tested here (immune-sorted deposit, or epithelium lost at dissociation); for a non-epithelial tissue (heart, brain, blood) this is expected and the compartment that matters should be checked instead")
     if not sample_key:
         warn.append("no sample column found: per-sample tests need one")
     if cond_key and len(conds) != 2:
