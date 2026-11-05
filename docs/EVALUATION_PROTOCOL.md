@@ -738,6 +738,25 @@ stored rows**, whether the tool labelled them `stat` or `effect`. Tested
 the agent's view and the report are unaffected. Verified by re-running the ovarian floor
 (`runs/ovarian_calibrate_v04_2`); the result is recorded in `validation_0.4/NOTES.md` whatever it is.
 
+### 23i. The evaluator names the lineage of the state that carries a target (round 0.4b)
+
+Motivating case: HCC agent run on the rebuilt object, all libraries (`runs/hcc_agent_v04_1`). The
+within-state rule (23g) reported GPC3 2nd and recall@5 = 1.0. The state that carried it was
+cluster 12, a CAF-like stromal state (83.7% tumour cells, fibroblast-dominant); GPC3 reached its
+ranking through the disease-wide contrast and was classed `disease_wide`. In the two tumour
+hepatocyte states the key means (clusters 14 and 15) GPC3 was unscored, for the reason recorded
+in round 0.2 (lineage contrast padj 0.20 with HCC04N in the reference). The number was right by
+the rule and wrong as a reading: the expected target was not found where the key expects it.
+
+Change (evaluator only; no method change, scoring v3 unchanged): the eval line prints the dominant
+lineage of the carrying state next to its cluster (`state: {'GPC3': '12 (Fibroblast)'}`,
+`target_state_lineage` in the JSON). An expected state in a key may carry an optional `lineage:`
+field; when present, a rank in a state of another lineage is reported under
+`target_rank_off_lineage` and not credited to `target_rank` or recall@k. Existing frozen keys have
+no such field and keep their numbers; the HCC result above is read with the lineage shown and
+recorded as "scored in a stromal state, unscored in the tumour hepatocyte states". New keys
+should name the lineage. Tested (`tests/test_eval_lineage.py`).
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new

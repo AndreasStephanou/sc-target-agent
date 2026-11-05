@@ -294,6 +294,28 @@ missed by markers (1/5: GPC3 itself). Round 0.2's floor had GPC3 4th in this arm
 rank (23g) and the effect pool (23f) account for the difference. The HCC04N anomaly remains the
 single determinant of whether the expected target is scored at all.
 
+## HCC agent run 1, all libraries (`runs/hcc_agent_v04_1`, prompts v8, scoring v3) — 15.5 min, 3.61M input tokens, 111 calls, 0 tool errors -> protocol 23i
+
+Six states recorded across hepatocyte (cycling tumour cluster 15; NDUFA4L2/SQLE/MAGEA cluster 14),
+myeloid (C1Q+ lipid-associated macrophages), endothelial programme (THY1/ESM1), fibroblast
+(CAF-like cluster 12) and T/NK (Treg-like, sub-threshold). The agent merged 13+22 (normal
+hepatocytes) and ran `check_reference_libraries` twice; the critic's eleven flags are substantive
+(cycling genes are not targets; cluster 15 genes are disease_wide, not state-specific; cluster 12's
+enrichment is a lineage-composition effect, log2 -0.05 within the fibroblast lineage; T/NK tumour
+libraries S01/S12 resemble normal; hepatocyte S08 flagged). Nominations: 15 genes, CYP17A1 and SQLE
+first, GPC3 13th; codrituzumab found; no decoy nominated.
+
+**The eval line said GPC3 2nd within its state and recall@5 = 1.0. The state was cluster 12, the
+CAF-like stromal state** (GPC3 `disease_wide`, reached through the disease-wide contrast), not a
+tumour hepatocyte state: in clusters 14 and 15 GPC3 was unscored as in every all-library HCC run
+(lineage contrast padj 0.20 with HCC04N). The number was right by rule 23g and misleading as a
+reading. Protocol 23i: the evaluator now prints the carrying state's dominant lineage
+(`'12 (Fibroblast)'`) and honours an optional `lineage:` on a key's expected state, under which an
+off-lineage rank is reported and not credited. Frozen keys have no such field, so their numbers
+stand; this run is read as "GPC3 scored in a stromal state, unscored in the tumour hepatocyte
+states". Compared with round 0.2 (GPC3 unscored everywhere with all libraries), the change is that
+v8's lineage coverage characterised a stromal state in which the pan-tumour gene is detectable.
+
 ## Ovarian scripted floor (`runs/ovarian_calibrate_v04_1`, 16.5 min, 131 calls) -> protocol 23h
 
 Tumour epithelium found (cluster 6, lenient 5/5; strict 1/5), EPCAM 2nd, CLDN6 23rd, ERBB2 57th;

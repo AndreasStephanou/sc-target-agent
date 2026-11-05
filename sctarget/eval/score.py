@@ -41,6 +41,8 @@ class EvalResult:
     target_rank: dict[str, int | None] = field(default_factory=dict)         # best rank WITHIN a recorded state's own ranking (the key's "ranked first in its state")
     target_rank_global: dict[str, int | None] = field(default_factory=dict)  # rank in the merged ranking of all states (penalises lineage coverage; reported, not scored)
     target_state: dict[str, str | None] = field(default_factory=dict)        # the state whose ranking gives target_rank
+    target_state_lineage: dict[str, str | None] = field(default_factory=dict)  # dominant lineage of that state (protocol 23i: the reader sees where the credit came from)
+    target_rank_off_lineage: dict[str, Any] = field(default_factory=dict)    # when the key names the expected state's lineage: best rank in a state of ANOTHER lineage (reported, not credited)
     acceptable_rank: dict[str, int | None] = field(default_factory=dict)  # acceptable (non-expected) targets, within-state best: reported, never scored
     target_recall_at_k: float | None = None
     k: int = 5
@@ -163,15 +165,34 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
     # target_rank_global; it falls as more lineages are characterised, which is not a defect.
     per_state: dict[str, list[str]] = {str(cl): [r["gene"] for r in sorted(rows, key=lambda r: int(r.get("rank") or 10**6))] for cl, rows in facts.get("ranked_targets", {}).items()}
 
-    def _best(g: str) -> tuple[int | None, str | None]:
-        hits = [(genes.index(g) + 1, cl) for cl, genes in per_state.items() if g in genes]
+    # protocol 23i: the lineage of the state that carries a target is reported, and when the key
+    # names the expected state's lineage (optional `lineage:` on an expected state) a rank in a state
+    # of another lineage is not credited (HCC: GPC3 2nd in a CAF-like stromal state, unscored in the
+    # tumour hepatocyte states the key means)
+    comp = {str(r.get("cluster")): r for r in facts.get("cluster_composition", []) if isinstance(r, dict)}
+    lineage_of = {cl: (comp.get(cl, {}).get("dominant_celltype") or None) for cl in per_state}
+    expected_lineages = {str(e["lineage"]).lower() for e in gt.get("expected_states", []) if e.get("lineage")}
+
+    def _on_lineage(cl: str) -> bool:
+        if not expected_lineages:
+            return True
+        lin = (lineage_of.get(cl) or "").lower()
+        return any(x == lin or x in lin or lin in x for x in expected_lineages) if lin else False
+
+    def _best(g: str, on_lineage: bool | None = True) -> tuple[int | None, str | None]:
+        hits = [(genes.index(g) + 1, cl) for cl, genes in per_state.items() if g in genes and (on_lineage is None or _on_lineage(cl) == on_lineage)]
         return min(hits) if hits else (None, None)
 
     res.target_rank_global = {g: (order.index(g) + 1 if g in order else None) for g in expected}
-    res.target_rank, res.target_state = {}, {}
+    res.target_rank, res.target_state, res.target_state_lineage, res.target_rank_off_lineage = {}, {}, {}, {}
     for g in expected:
         rk, cl = _best(g)
         res.target_rank[g], res.target_state[g] = rk, cl
+        res.target_state_lineage[g] = lineage_of.get(cl) if cl else None
+        if expected_lineages:
+            ork, ocl = _best(g, on_lineage=False)
+            if ork is not None:
+                res.target_rank_off_lineage[g] = {"rank": ork, "state": ocl, "lineage": lineage_of.get(ocl)}
     acc_only = [g for g in gt.get("acceptable_targets", []) if g not in expected]
     res.acceptable_rank = {g: _best(g)[0] for g in acc_only}
     if expected:
@@ -245,7 +266,10 @@ def format_eval(res: EvalResult) -> str:
         lines.append(f"    strict (agent-recorded genes only): {'FOUND' if v.get('found_strict') else 'missed'}  (cluster {sb.get('cluster')}, overlap {sb.get('overlap')}/{v['required_overlap']}, {sb.get('n_recorded_genes', 0)} genes recorded)")
         if "cell_level" in v:
             lines.append(f"    cell-level P/R/F1: {v['cell_level']['precision']}/{v['cell_level']['recall']}/{v['cell_level']['f1']}")
-    lines.append(f"target ranks (within its state): {res.target_rank}  state: {res.target_state}  global: {res.target_rank_global}   recall@{res.k}: {res.target_recall_at_k}")
+    state_str = {g: (f"{cl} ({res.target_state_lineage.get(g)})" if cl and res.target_state_lineage.get(g) else cl) for g, cl in res.target_state.items()}
+    lines.append(f"target ranks (within its state): {res.target_rank}  state: {state_str}  global: {res.target_rank_global}   recall@{res.k}: {res.target_recall_at_k}")
+    if res.target_rank_off_lineage:
+        lines.append("    off-lineage (reported, not credited; the key names the expected state's lineage): " + "; ".join(f"{g}: rank {v['rank']} in state {v['state']} ({v['lineage']})" for g, v in res.target_rank_off_lineage.items()))
     if res.acceptable_rank:
         lines.append(f"acceptable-target ranks (reported, not scored): {res.acceptable_rank}")
     lines.append(f"above first true target: {len(res.false_leads)} not in answer key -> known-wrong decoys: {res.decoys_above_target or 'none'}; novel candidates: {res.novel_above_target or 'none'}")
