@@ -329,11 +329,15 @@ write-up.
 | dataset | design | known target | outcome |
 |---|---|---|---|
 | ccRCC, GSE159115 | 7 tumour / 6 benign kidney libraries, 29k cells | CA9 (HIF programme; EPAS1 is protein-level and was wrongly expected — documented) | CA9 **ranked 1st** in every tumour state, with and without the authors' annotation; strict state recovery met; GEO tissue labels found swapped for 4 libraries and corrected from the authors' files |
-| HCC, GSE149614 | 10 tumour / 8 non-tumour liver, 63k cells; reviewer-style from a fresh clone | GPC3 (codrituzumab) | unscored with all libraries (a "normal" library expressed the tumour programme; padj 0.20); **4th with codrituzumab** once that patient was excluded in a pre-registered arm; three install-time defects found and fixed |
-| Ovarian omental metastases, GSE286057 (2025) | 6 tumour / 23 omentum, 145k cells; reviewer-style, first model-driven runs | FOLR1 (mirvetuximab soravtansine) | agent **ranked FOLR1 16th** in the primary run and set it aside with a stated reason the critic traced to two contaminated reference libraries; blocked in the exclusion arms by 59 benign FOLR1+ epithelial cells in normal omentum; strict state recovery met twice; method frozen with the limitation stated |
+| HCC, GSE149614 | 10 tumour / 8 non-tumour liver, 63k cells; reviewer-style from a fresh clone; rebuilt from GEO in round 0.4b | GPC3 (codrituzumab) | unscored with all libraries (a "normal" library expressed the tumour programme; padj 0.20); **1st in its state with codrituzumab** once that patient was excluded in a pre-registered arm (round 0.2: 4th); the 0.4b agent run scored it 2nd in a stromal state and the evaluator now says so (protocol 23i) |
+| Ovarian omental metastases, GSE286057 (2025) | 6 tumour / 23 omentum, 124k cells after the 0.4b rebuild; reviewer-style, first model-driven runs | FOLR1 (mirvetuximab soravtansine) | found in the tumour state in every agent run (**14th-17th** within it, five runs over rounds 0.3-0.4b) and held back each time: two contaminated reference libraries in the primary run, then 59-151 benign FOLR1+ epithelial cells in normal omentum; the 0.4b label check shows that donor before any run; strict state recovery met four times; limitation stated |
+| IPF lung, GSE135893 (round 0.4) | 12 IPF / 10 control donors, non-malignant disease vs healthy | SPP1+ profibrotic macrophage state; aberrant basaloid / ITGB6 | SPP1 macrophage state **recovered strictly, SPP1 1st in its state** under prompts v8; aberrant basaloid state not reached (no run subclustered the transitional cluster); no decoy nominated |
+| Doxorubicin vs vehicle mouse heart, GSE285475 (round 0.4) | 4 vs 4 wild-type hearts, perturbation, `objective: marker` | p53 programme, Cdkn1a | cardiomyocyte stress / atrophy programme found in every run (Trim63, Nppb, Fbxo32, Nppa: acceptable genes); Cdkn1a not induced at two weeks (time-point key failure, recorded); critic asked for the pre-registered batch arm |
+| Fibrolamellar carcinoma snRNA-seq (lab data, round 0.4b) | 9 primary / 9 normal liver libraries (7 metastatic set aside), 254k nuclei | PRKACA (DNAJB1-PRKACA fusion); CA12, ERBB2 acceptable | tumour state reached by the expression route (tumour nuclei co-clustered with normal hepatocytes); **PRKACA 2nd within its state behind CA12** in the floor and both agent runs, nominated, neratinib found; literature markers fail the state criterion (3/5) |
 
-Across all runs that reached nomination, one decoy was ever nominated without a critic flag (TOP2A,
-before the proliferation flag). Nobody but the author has run the pipeline yet; that is the next test.
+Across all runs that reached nomination, two decoys were ever nominated without a critic flag
+(TOP2A before the proliferation flag; PDGFRB from a CAF programme before the microenvironment flag,
+prompts v11). Nobody but the author has run the pipeline yet; that is the next test.
 
 ## 9. What is in the box
 

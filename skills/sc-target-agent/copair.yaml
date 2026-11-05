@@ -10,7 +10,8 @@ tested_with:
   - Claude Code CLI (claude-code backend, subscription login), sc-target-agent tags results-v1 and results-v3 (ovarian reviewer run, three agent runs)
   - Claude API (claude-sonnet-4-5 via AnthropicModel), sc-target-agent tags prompts-v2 / scoring-v2
   - Scripted deterministic backend (no model; calibration arm), sc-target-agent tags results-v1, results-v2 (HCC reviewer run) and results-v3 (ovarian reviewer run)
-  - "0.4.0 skill text and helper scripts: scripts run on the synthetic dataset and the public ccRCC object; the revised workflow has not yet been exercised end-to-end on a new dataset"
+  - "0.4 round (tag results-v4): skill-driven end-to-end runs on two new designs, IPF vs control lung (GSE135893, non-malignant) and doxorubicin vs vehicle mouse heart (GSE285475, perturbation, marker mode), plus a ccRCC regression pair; prompts v8, scoring v3"
+  - "0.4b round (tag results-v5): the three earlier tumour datasets re-run under the 0.4 skill (HCC rebuilt from GEO, ovarian rebuilt from GEO, fibrolamellar carcinoma snRNA-seq); 7 floors and 7 agent runs; prompts v9-v11; helper scripts run before every run"
 
 environments:
   - conda environment sctarget (environment.yml in the sc-target-agent repository)
@@ -18,7 +19,7 @@ environments:
 
 dependencies:
   - conda
-  - sc-target-agent repository (https://github.com/AndreasStephanou/sc-target-agent), tag results-v3 or later
+  - sc-target-agent repository (https://github.com/AndreasStephanou/sc-target-agent), tag results-v5 or later (protocol 23-23l; design_check / label_check, subcluster(condition=...))
   - Claude Code CLI (logged in) or ANTHROPIC_API_KEY, for the agent run only
   - network access to DGIdb, Open Targets and PubMed (gene-level lookups; offline mode exists for the demo)
   - "helper scripts: anndata, h5py, numpy, pandas, scipy (all in the sctarget environment)"
@@ -33,4 +34,4 @@ data_policy:
     gene symbols are sent to Anthropic (via Claude Code or the API) and gene symbols are sent to DGIdb, Open Targets and
     NCBI E-utilities. The helper scripts send nothing anywhere.
 
-last_validated: null
+last_validated: "2026-11-05"

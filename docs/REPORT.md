@@ -356,3 +356,74 @@ composition route found them. Keys for non-tumour designs fail in a new way (tim
 pre-run checks the skill added (compartment-restricted label check, design check with donor
 nesting and covariates) found the same libraries the critic later flagged. Nobody but the author
 has run any of this.
+
+## 7b. Round 0.4b: the three earlier tumour datasets under the 0.4 skill (HCC, ovarian, fibrolamellar carcinoma)
+
+Same rules as round 0.4. The HCC and ovarian objects had been deleted and were rebuilt from GEO
+with the repository's builders (HCC identical; ovarian 124k cells for the same 29 libraries, with
+region and donor columns in `obs`); the FLC object (the lab's Parse snRNA-seq, 354k nuclei, 9
+primary / 9 normal / 7 metastatic libraries) and its key came from the 2026-11-02 test clone,
+frozen there before any run. Keys unchanged; the pre-registered arms of earlier rounds carried
+over. Protocol 23h-23l; results tables `docs/results_{hcc,ovarian,flc}_v04b.md`; running notes
+`validation_0.4/NOTES.md`. Seven floors, seven agent runs, about 23M input tokens.
+
+**Pre-run checks did their job.** `design_check` and `label_check` reproduced every library anomaly
+the earlier rounds had found after the fact: HCC04N expressing the tumour programme, the two
+tumour-bearing "distant omentum" libraries, FLC83_T and FLC57_T with low tumour content. A second
+rule in the label check, added when the whole-library median-gap rule called every ovarian marker
+uninformative (tumour cells are a minority of tumour libraries), also listed the healthy donor's
+PAX8+ library that holds the benign epithelial inclusion behind FOLR1's `reference_driven` verdict
+(section 6). Two other helper corrections: a covariate nested within the condition (tumour vs
+omentum regions) is no longer called "perfectly confounded", and pairing is no longer reported as
+pseudo-replication.
+
+**HCC.** Floors as in round 0.2: with all libraries GPC3 is unscored (lineage contrast padj 0.20
+with HCC04N in the reference; each tumour hepatocyte cluster's siblings are the other tumour
+clusters, so the pan-tumour gene cancels); without patient 4, **GPC3 1st within its state**
+(round 0.2: 4th), codrituzumab found, nothing above it. The agent run with all libraries recorded
+six states and ranked GPC3 2nd - in a CAF-like stromal state, through the disease-wide contrast;
+in the tumour hepatocyte states it was unscored as before. The within-state rule (23g) reported
+that as recall 1.0, which was right by rule and wrong as a reading; the evaluator now prints the
+lineage of the carrying state and honours an optional `lineage:` on a key's expected state (23i).
+Frozen keys have no such field, so their numbers stand and this one is read as "scored in a
+stromal state, unscored in the tumour states".
+
+**Ovarian.** The floor found the tumour state (5/5) and left FOLR1 unscored although it was the 9th
+largest effect of the sibling contrast: 39th by statistic, inside the stored 40-gene head but
+outside the 20 the floor read, and not labelled an effect gene. 23h takes the effect set over the
+whole stored list; the re-run scores FOLR1 24th. Agent, all libraries: state 6/5, **FOLR1 14th**
+(0.3: 16th), the critic calling it "the best-supported druggable gene" and asking for the
+exclusion arm by library, which is the reading the skill asks for. No-leak arm: floor 35th
+(`reference_driven`); agent strict 5/5, FOLR1 17th, blocking flag, in two runs - the second under
+prompts v9, which say a reference-driven candidate with per-sample support is reported as
+conditional on the identity of the reference cells rather than dropped (23j; the skill had said so
+since 0.4.0 and the prompt had said "drop outright"). The v9 critic named the cells ("fallopian-
+tube-like or mesothelial epithelium, or tumour-contaminated"), named the settling experiment ("a
+reference-only subcluster of cluster 24"), and still took the representative branch, because the
+derived epithelial lineage absorbs mesothelium at this resolution (21b). The tool for the
+settling move now exists (`subcluster(condition=...)`, 23k, prompts v10); it has not yet been
+used in a run. Five agent runs on this dataset now agree: FOLR1 is found in the right state and
+held back by 59-151 benign reference epithelial cells, visible before the run.
+
+**Fibrolamellar carcinoma (first run of this dataset under any version with a result).** The
+tumour state came through the **expression route**: with one condition per library, Harmony on
+the library co-clustered tumour nuclei with normal hepatocytes, and the state is a programme
+inside a shared hepatocyte cluster (2,009 genes up within the cluster: CA12, KRT7, CD24, IRF4).
+The 0.4 rule that the route runs in every analysis is what reached it; the v6 floor on 2026-11-02
+had missed it. Floor and both agent runs: **PRKACA 2nd within its state behind CA12** (both key
+answers), nothing above them, ERBB2 2nd among acceptable genes with neratinib found, PRKACA
+nominated by the agent in both runs; the two agent runs share the same top three in the tumour
+state (nominated-set Jaccard 0.62, top-10 Jaccard 0.54). The key's literature markers again fail
+the state criterion (3/5) because they split between the composition state and the programme
+state - the same key-drafting failure as HCC. The first agent run nominated PDGFRB from the
+CAF-like matrix programme without a flag, the only decoy nominated unflagged in the round; prompts
+v11 (23l) ask the critic to flag every nomination from a non-disease-cell lineage as a
+microenvironment candidate, and the second run flagged FAP, COL1A2 and VWF that way with no decoy
+unflagged.
+
+**What the round says.** The 0.4 skill found a state the previous method missed (FLC), moved every
+floor without touching a key (GPC3 4th to 1st, FOLR1 unscored to scored, PRKACA 6th to 2nd), and
+caught the library problems before tokens were spent. It did not change the two hard verdicts
+(FOLR1 with benign reference epithelium; GPC3 with HCC04N), and it costs about twice as much per
+agent run. Three prompt versions in one round, each verified once, is thin verification. The
+next step is not another method change but an independent run by someone other than the author.
