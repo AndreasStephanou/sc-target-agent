@@ -132,3 +132,20 @@ subcluster a programme cluster of the case lineage when a rare state is plausibl
 Composition flat; one programme (cardiomyocyte cluster 23: Trim63, Nppb, Fbxo32, Nppa significant)
 found but its genes fell outside the statistic-ranked pool; Cdkn1a not induced at this time point
 (key-drafting lesson, key unchanged). Rerun as `dox_calibrate_2` with the 23f pool.
+
+## IPF agent run 2 (`runs/ipf_agent_2`, prompts v8, scoring v3) — 22 min, 4.10M input tokens, 119 tool calls, 1 recovered model error
+
+Eval: **SPP1 profibrotic macrophage state FOUND (lenient 9/5, strict 6/5; cluster 18; SPP1 ranked 3rd,
+CHI3L1 28th)**; aberrant basaloid still missed (best match cluster 1 at 2/5); ITGB6 unranked; 14
+unique nominations (MMP1, MMP7, TNC, ITGA2 | SPP1, MMP9, CTSK, PLA2G7 | FN1 | LRRK2 | MUC5B | TRPV4,
+PLAU, GPR87), precision 0.07 (SPP1), no decoy nominated. v8 changed what it was meant to change:
+five composition states across two lineages (1, 13, 0 epithelial; 18, 15 immune) and the expression
+route run once (7 programme clusters; cluster 2 recorded as a programme). It did NOT subcluster
+cluster 2 despite the new rule, so the rare KRT5-/KRT17+ state remains inside it. Critic: cluster 0
+blocked as a composition shift; cluster 15 and 13 identity genes shared with reference; immune
+libraries S17/S20 resemble control (the pre-registered VUILD59 arm exists; the macrophage state was
+recovered with them in, so the arm is not triggered). Cost note: v8 roughly doubles the analyst's
+tool calls; 4.1M tokens per run on 89k cells.
+
+Decision: no further prompt change on this dataset (the subclustering rule exists in v8 and was not
+followed once; n = 1 is not a pattern); the gap is recorded as the IPF result's limitation.

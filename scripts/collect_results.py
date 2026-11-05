@@ -66,17 +66,25 @@ def main(argv=None):
         except Exception as e:  # a run that stopped before producing state: record it as such
             rows.append({"run": p.name, "arm": arm_label(p), "error": f"{type(e).__name__}: {str(e)[:80]}"})
             continue
-        sr = next(iter(r.state_recovery.values()), {})
-        bm = sr.get("best_match") or {}
-        sb = sr.get("best_match_strict") or {}
+        # every expected state, not only the first: a key may name several (IPF: three), and a run
+        # that recovers one of them must show it
+        srs = r.state_recovery or {}
+        n_states = len(srs)
+        found = [n for n, s in srs.items() if s.get("found")]
+        found_strict = [n for n, s in srs.items() if s.get("found_strict")]
+
+        def _ov(s, key):
+            bm = s.get(key) or {}
+            return f"{bm.get('overlap')}/{s.get('required_overlap')}"
+
         tr = r.target_rank
         rows.append({
             "run": p.name,
             "arm": arm_label(p),
-            "state_found": bool(sr.get("found")),
-            "state_overlap": f"{bm.get('overlap')}/{sr.get('required_overlap')}",
-            "strict_found": bool(sr.get("found_strict")),
-            "strict_overlap": f"{sb.get('overlap')}/{sr.get('required_overlap')}",
+            "state_found": f"{len(found)}/{n_states}" + (f" ({', '.join(found)})" if found else ""),
+            "state_overlap": "; ".join(f"{n}:{_ov(s, 'best_match')}" for n, s in srs.items()),
+            "strict_found": f"{len(found_strict)}/{n_states}" + (f" ({', '.join(found_strict)})" if found_strict else ""),
+            "strict_overlap": "; ".join(f"{n}:{_ov(s, 'best_match_strict')}" for n, s in srs.items()),
             "target_rank": ", ".join(f"{g}:{v if v is not None else '-'}" for g, v in tr.items()),
             "acceptable_rank": ", ".join(f"{g}:{v if v is not None else '-'}" for g, v in (r.acceptable_rank or {}).items()),
             "decoys_above": len(r.decoys_above_target),
