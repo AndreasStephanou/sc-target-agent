@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.2 — 2026-11-05 (round 0.4b: HCC, ovarian and FLC under skill 0.4; in progress)
+
+Helper-script fixes from the pre-run checks on the three rebuilt tumour datasets; no change to the
+repository's method (prompts v8, scoring v3):
+
+- `label_check.py` gains a second rule, independent of the gap between condition medians: a library
+  carrying the other condition's marker at >= 3x its own condition's median (`--outlier-fold`,
+  `--outlier-gap`) is listed. The first rule is blind when the case cells are a minority of every
+  library (ovarian: EPCAM medians 20% vs 0.2%); the second names the two tumour-bearing "distant
+  omentum" libraries and the healthy donor's benign epithelial inclusion before any run. Workflow
+  step 3 says when to read which list.
+- `design_check.py` distinguishes a covariate **nested within the condition** (several levels, each
+  inside one condition: regions, sub-sites, grades) from one perfectly confounded with it, and
+  counts pseudo-replication per donor-condition pair so a paired design is no longer reported as
+  over-counted replication. Workflow step 2 explains the nested case.
+
 ## 0.4.1 — 2026-11-05 (validation round in progress; working copy of the repository, not pushed)
 
 Skill text follows the method changes made during the round (repository protocol sections 23-23f,

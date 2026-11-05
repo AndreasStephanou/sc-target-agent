@@ -1,0 +1,62 @@
+restricted to 15990 cells with author_celltype == 'Hepatocyte'
+
+fraction of cells with >= 1 count(s), per library:
+condition sample  AKR1B10  SPINK1  MDK  GPC3  CYP3A4  n_cells
+   Normal HCC03N      0.6     0.8  6.4   1.8    35.3      827
+   Normal HCC04N     60.4    91.1 56.7  77.3    47.9      326
+   Normal HCC05N      7.5     9.4 20.8   0.0    22.6       53
+   Normal HCC06N      0.8     2.4  8.5   2.8    35.9      248
+   Normal HCC07N      0.0     5.7 15.1   1.9    26.4       53
+   Normal HCC08N      7.1    11.9 28.6   4.8     0.0       42
+   Normal HCC09N      5.0     9.3 73.6   1.4     2.1      140
+   Normal HCC10N     29.3    24.2 32.3   0.0     0.0       99
+    Tumor HCC01T     12.7     1.4 64.8  56.3    16.9       71
+    Tumor HCC02T     77.1    98.2 96.6  98.4     4.2     2157
+    Tumor HCC03T     95.3    72.0 68.7  59.0     1.5     3474
+    Tumor HCC04T     90.5     6.4 84.9   2.2    27.2     2454
+    Tumor HCC05T      8.8    12.2 20.6  27.2    76.9     1226
+    Tumor HCC06T     61.5    65.7 60.3  73.2    64.9      239
+    Tumor HCC07T      5.9    90.6 28.2  50.6     0.0       85
+    Tumor HCC08T      6.5    61.3 95.2  78.4     0.6     1842
+    Tumor HCC09T     46.4    97.2 89.8  86.1     2.2     1489
+    Tumor HCC10T     89.4    89.9 89.3  25.1     0.0     1165
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  AKR1B10: library HCC04N labelled Normal has 60.4% positive (median Normal 6.1%, median Tumor 54.0%) -> closer to Tumor
+  AKR1B10: library HCC01T labelled Tumor has 12.7% positive (median Tumor 54.0%, median Normal 6.1%) -> closer to Normal
+  AKR1B10: library HCC05T labelled Tumor has 8.8% positive (median Tumor 54.0%, median Normal 6.1%) -> closer to Normal
+  AKR1B10: library HCC07T labelled Tumor has 5.9% positive (median Tumor 54.0%, median Normal 6.1%) -> closer to Normal
+  AKR1B10: library HCC08T labelled Tumor has 6.5% positive (median Tumor 54.0%, median Normal 6.1%) -> closer to Normal
+  SPINK1: library HCC04N labelled Normal has 91.1% positive (median Normal 9.4%, median Tumor 68.8%) -> closer to Tumor
+  SPINK1: library HCC01T labelled Tumor has 1.4% positive (median Tumor 68.8%, median Normal 9.4%) -> closer to Normal
+  SPINK1: library HCC04T labelled Tumor has 6.4% positive (median Tumor 68.8%, median Normal 9.4%) -> closer to Normal
+  SPINK1: library HCC05T labelled Tumor has 12.2% positive (median Tumor 68.8%, median Normal 9.4%) -> closer to Normal
+  MDK: library HCC04N labelled Normal has 56.7% positive (median Normal 24.7%, median Tumor 76.8%) -> closer to Tumor
+  MDK: library HCC09N labelled Normal has 73.6% positive (median Normal 24.7%, median Tumor 76.8%) -> closer to Tumor
+  MDK: library HCC05T labelled Tumor has 20.6% positive (median Tumor 76.8%, median Normal 24.7%) -> closer to Normal
+  MDK: library HCC07T labelled Tumor has 28.2% positive (median Tumor 76.8%, median Normal 24.7%) -> closer to Normal
+  GPC3: library HCC04N labelled Normal has 77.3% positive (median Normal 1.9%, median Tumor 57.7%) -> closer to Tumor
+  GPC3: library HCC04T labelled Tumor has 2.2% positive (median Tumor 57.7%, median Normal 1.9%) -> closer to Normal
+  GPC3: library HCC05T labelled Tumor has 27.2% positive (median Tumor 57.7%, median Normal 1.9%) -> closer to Normal
+  GPC3: library HCC10T labelled Tumor has 25.1% positive (median Tumor 57.7%, median Normal 1.9%) -> closer to Normal
+  CYP3A4: library HCC08N labelled Normal has 0.0% positive (median Normal 24.5%, median Tumor 3.2%) -> closer to Tumor
+  CYP3A4: library HCC09N labelled Normal has 2.1% positive (median Normal 24.5%, median Tumor 3.2%) -> closer to Tumor
+  CYP3A4: library HCC10N labelled Normal has 0.0% positive (median Normal 24.5%, median Tumor 3.2%) -> closer to Tumor
+  CYP3A4: library HCC01T labelled Tumor has 16.9% positive (median Tumor 3.2%, median Normal 24.5%) -> closer to Normal
+  CYP3A4: library HCC04T labelled Tumor has 27.2% positive (median Tumor 3.2%, median Normal 24.5%) -> closer to Normal
+  CYP3A4: library HCC05T labelled Tumor has 76.9% positive (median Tumor 3.2%, median Normal 24.5%) -> closer to Normal
+  CYP3A4: library HCC06T labelled Tumor has 64.9% positive (median Tumor 3.2%, median Normal 24.5%) -> closer to Normal
+
+libraries carrying the other condition's marker far above their own condition (>= 3x the median of their condition and >= 2 points above it; independent of the gap between condition medians):
+  AKR1B10: library HCC04N labelled Normal has 60.4% positive (median Normal 6.1%, median Tumor 54.0%; n = 326) -> possible Tumor cells in a Normal library
+  AKR1B10: library HCC10N labelled Normal has 29.3% positive (median Normal 6.1%, median Tumor 54.0%; n = 99) -> possible Tumor cells in a Normal library
+  SPINK1: library HCC04N labelled Normal has 91.1% positive (median Normal 9.4%, median Tumor 68.8%; n = 326) -> possible Tumor cells in a Normal library
+  GPC3: library HCC04N labelled Normal has 77.3% positive (median Normal 1.9%, median Tumor 57.7%; n = 326) -> possible Tumor cells in a Normal library
+  CYP3A4: library HCC01T labelled Tumor has 16.9% positive (median Tumor 3.2%, median Normal 24.5%; n = 71) -> possible Normal cells in a Tumor library
+  CYP3A4: library HCC04T labelled Tumor has 27.2% positive (median Tumor 3.2%, median Normal 24.5%; n = 2454) -> possible Normal cells in a Tumor library
+  CYP3A4: library HCC05T labelled Tumor has 76.9% positive (median Tumor 3.2%, median Normal 24.5%; n = 1226) -> possible Normal cells in a Tumor library
+  CYP3A4: library HCC06T labelled Tumor has 64.9% positive (median Tumor 3.2%, median Normal 24.5%; n = 239) -> possible Normal cells in a Tumor library
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/hcc/label_check.csv

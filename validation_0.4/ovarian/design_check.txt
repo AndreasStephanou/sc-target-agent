@@ -1,0 +1,21 @@
+123889 cells; matrices checked: X: integer (max 1689.0)
+
+condition levels: ['Omentum', 'Tumor']  (case = Tumor)
+  Omentum: 23 samples; cells per sample min/median/max = 606/3836/9513
+  Tumor: 6 samples; cells per sample min/median/max = 2383/3298/6480
+
+donors per condition: {'Omentum': 14, 'Tumor': 6}; libraries per donor max = 3
+  paired design: 6 donor(s) appear in both conditions (['P10', 'P12', 'P13', 'P14', 'P15', 'P9'])
+  note: the within-cluster disease-vs-reference contrast is not blocked by donor; donor effects will inflate reference dispersion. State this in the write-up.
+
+columns skipped as aliases: title: one level per sample (alias of the sample column)
+
+sample-level covariates vs condition (one row per sample):
+  region: 5 levels, Cramer's V = 1.00, 5 level(s) exclusive to one condition -> NESTED WITHIN CONDITION
+  donor_group: 2 levels, Cramer's V = 0.61, 1 level(s) exclusive to one condition -> ok
+
+WARNING: sample imbalance 23 vs 6: the per-sample Mann-Whitney test is dominated by the larger group; report effect sizes alongside p-values
+WARNING: 5 donor-condition pair(s) hold more than one library (P2 (Omentum): 3, P3 (Omentum): 3, P4 (Omentum): 3, P5 (Omentum): 2, P6 (Omentum): 3): libraries from one donor in one condition are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report
+WARNING: covariate 'region' is nested within the condition (every level occurs in one condition only; 5 levels for 2 conditions). If its levels are biological sub-groups of the condition (regions, sub-sites, grades) nothing is lost; if they are processing batches, condition and region cannot be separated. Say which in the write-up
+
+wrote validation_0.4/ovarian/design_check.json

@@ -1,0 +1,43 @@
+HCC07T      0       0     0    510
+HCC08N      0    4795     0      0
+HCC08P      0       0  4142      0
+HCC08T      0       0     0   4833
+HCC09N      0    1962     0      0
+HCC09T      0       0     0   2816
+HCC10L   2843       0     0      0
+HCC10N      0    3072     0      0
+HCC10T      0       0     0   2799
+
+keeping sites ['Tumor', 'Normal']: 63101 of 71915 cells
+
+reading counts (this can take several minutes for a dense text matrix)...
+counts table: 25712 rows x 71915 columns
+orientation: genes x cells
+cells in both counts and metadata: 63101 (counts 71915, metadata 63101)
+integer fraction of a sample of values: 1.000 (should be 1.0 for raw counts)
+
+wrote data/hcc/hcc.h5ad: 63101 cells x 25712 genes
+samples x condition:
+condition  Normal  Tumor
+sample                  
+HCC01T          0   3368
+HCC02T          0   4101
+HCC03N       2601      0
+HCC03T          0   4825
+HCC04N       3396      0
+HCC04T          0   3501
+HCC05N       4656      0
+HCC05T          0   3353
+HCC06N       4465      0
+HCC06T          0   4308
+HCC07N       3740      0
+HCC07T          0    510
+HCC08N       4795      0
+HCC08T          0   4833
+HCC09N       1962      0
+HCC09T          0   2816
+HCC10N       3072      0
+HCC10T          0   2799
+hcc-build-done
+
+[exited with code 0]

@@ -70,7 +70,10 @@ or published marker set for an answer key; the researcher's tolerance for run ti
    more than two levels; sample imbalance; libraries nested in donors; paired donors; and any
    sample-level covariate (batch, chemistry, sex, site) that is **perfectly confounded** with the
    condition - in that case no result can be attributed to the condition and the researcher must
-   decide whether to proceed at all. If the compartment the question is about is nearly absent in
+   decide whether to proceed at all. A covariate whose levels are **nested** within the condition
+   (tissue regions, sub-sites, grades: several levels, each inside one condition) is reported
+   separately: harmless if its levels are biological sub-groups, confounding if they are processing
+   batches; say which in the write-up. If the compartment the question is about is nearly absent in
    both conditions (an immune-sorted deposit, epithelium lost at dissociation), stop: a target test
    aimed at cells the data barely hold is wasted. For a GEO series with per-sample files, fetch two
    libraries first (`scripts/fetch_geo_10x.py`, `scripts/build_from_10x_samples.py`) and look.
@@ -82,7 +85,12 @@ or published marker set for an answer key; the researcher's tolerance for run ti
    rows 4-5) the disease shifts composition rather than replacing the tissue, so whole-library
    fractions are uninformative (IPF: MMP7 medians within 13 points) and the check must run **within
    the marker's compartment** (`--celltype-key population --celltype Epithelial`: MMP7 36% vs 10%).
-   Covariates that exist only in the deposit's metadata (processing batch, chemistry, site) must be
+   When the case cells are a minority of every library and there is no annotation to restrict to
+   (tumour nests in omentum: EPCAM medians 20% vs 0.2%, below the 20-point gap), the first rule
+   calls every marker uninformative; read the script's **second list** instead - libraries carrying
+   the other condition's marker at 3x or more their own condition's median. That list named the two
+   tumour-bearing "distant omentum" libraries and a healthy donor's benign epithelial inclusion
+   (PAX8 5%), the cells that later blocked FOLR1 in round 0.3. Covariates that exist only in the deposit's metadata (processing batch, chemistry, site) must be
    written into `obs` at build time (a column in the sample sheet; `build_from_10x_samples.py`
    carries every sheet column) or the design check cannot see them. The calibration
    run in step 5 adds the marker-free `check_reference_libraries` (within each lineage, does any

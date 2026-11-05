@@ -1,0 +1,19 @@
+63101 cells; matrices checked: X: integer (max 1901.0)
+
+condition levels: ['Normal', 'Tumor']  (case = Tumor)
+  Normal: 8 samples; cells per sample min/median/max = 1962/3568/4795
+  Tumor: 10 samples; cells per sample min/median/max = 510/3434/4833
+
+donors per condition: {'Normal': 8, 'Tumor': 10}; libraries per donor max = 2
+  paired design: 8 donor(s) appear in both conditions (['HCC03', 'HCC04', 'HCC05', 'HCC06', 'HCC07', 'HCC08'])
+  note: the within-cluster disease-vs-reference contrast is not blocked by donor; donor effects will inflate reference dispersion. State this in the write-up.
+
+columns skipped as aliases: site: same partition as the condition column (alias of the condition)
+
+sample-level covariates vs condition (one row per sample):
+  stage: 5 levels, Cramer's V = 0.21, 0 level(s) exclusive to one condition -> ok
+  virus: 3 levels, Cramer's V = 0.12, 0 level(s) exclusive to one condition -> ok
+
+no design warnings
+
+wrote validation_0.4/hcc/design_check.json

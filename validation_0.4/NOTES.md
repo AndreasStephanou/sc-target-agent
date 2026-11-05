@@ -209,3 +209,78 @@ programme). The tumour result is unchanged by the round's seven method changes; 
 secondary states and their candidates.
 
 ## Round closed: tag results-v4 (working copy only)
+
+# Round 0.4b — the three earlier tumour datasets under skill 0.4 / prompts v8 (HCC, ovarian, FLC)
+
+Started 2026-11-05 15:00 after `results-v4`. The HCC and ovarian objects had been deleted from the
+machine, so both were rebuilt from GEO with the repository's own builders; the FLC object (the
+lab's own Parse snRNA-seq, 354,510 nuclei x 41,352 genes, 17.7 GB) was copied from the test clone.
+Keys unchanged from their frozen versions (HCC, ovarian: identical to the original clone; FLC:
+verbatim copy of the test clone's `flc-key-frozen` key, committed here as `flc-key-frozen-v04`
+before any run). Pre-registered arms carried over unchanged: `hcc_nop4` (drop patient 4),
+`ovarian_noleak` (drop GSM8717127, GSM8717133), `flc_clean` (drop FLC83_T, FLC57_T, FLC26_ICBQ).
+
+## Datasets rebuilt (validation_0.4/{hcc,ovarian,flc}/)
+
+- **HCC** GSE149614, `build_from_matrix.py`: 63,101 cells x 25,712 genes, 10 tumour / 8 non-tumour
+  libraries, counts integer in X. Identical dimensions to the round-0.2 object.
+- **Ovarian** GSE286057, `fetch_geo_10x.py --drop peritumoral` + `build_from_10x_samples.py`:
+  123,889 cells x 36,591 genes, 6 tumour / 23 omentum libraries, 29 GSMs as before. The round-0.3
+  write-up quotes 145k cells for the same 29 libraries; the current deposit yields 124k with the
+  same builder, so the earlier figure is either a pre-filter barcode count or an older file set.
+  The sheet now carries `region` and `donor_group` so the design check can see them.
+- **FLC** (lab data): design row 1, tumour vs tissue of origin; `tumor_status` has three levels,
+  the 7 metastatic libraries are excluded by config as the declared second design.
+
+## Pre-run checks
+
+- **HCC design check:** paired (8 donors in both conditions), stage and virus not associated with
+  the condition, no warnings. **Label check** (hepatocyte class; AKR1B10, SPINK1, MDK, GPC3,
+  CYP3A4): HCC04N again expresses the tumour programme (GPC3 77%, SPINK1 91%, AKR1B10 60%) while
+  HCC04T is GPC3-negative (2%): the round-0.2 anomaly reproduced on the rebuilt object. Kept as
+  deposited; `hcc_nop4` is the arm.
+- **Ovarian design check:** 23 vs 6 imbalance; five control donors contribute 2-3 omentum regions
+  (pseudo-replication in the reference, stated, library kept as the sample unit so the frozen key's
+  predictions apply); `region` nested within the condition (a sub-labelling: tumour vs omentum
+  regions, not a batch). **Label check** (EPCAM, PAX8, KRT7, WFDC2, MSLN, whole library): every
+  marker "uninformative" by the median-gap rule because tumour cells are a minority of tumour
+  libraries; the new second rule (issue 9) lists GSM8717133 (P14_distant, EPCAM 10%), GSM8717127
+  (P12_distant, EPCAM 2.5%) and GSM8717110 (P4 lesser omentum, PAX8 5%) - the first two are the
+  pre-registered `ovarian_noleak` exclusions, the third is the healthy donor whose benign
+  Müllerian-type inclusion blocked FOLR1 in round 0.3 (protocol 21), now visible before any run.
+- **FLC design check:** 9 primary / 9 normal / 7 metastatic libraries, counts integer; no donor
+  column in `obs` (pairing is in the library names: 57, 82, 83, 84, 89, 96 and 26, 34 have a T and
+  an N library). **Label check** (CA12, SLC16A14, KRT7, CYP3A4, ALB, PRKACA): reproduces the test
+  clone's pre-run notes - FLC83_T and FLC57_T express the tumour markers at normal levels with
+  CYP3A4 at 52-70% (low tumour content), FLC26_ICBQ (Normal) has SLC16A14 in 40% of nuclei, FCF82_N
+  has little hepatocyte signal; FLC24_MOYV and FLC84_T are CA12-low but SLC16A14-high (tumour
+  heterogeneity, kept). Decisions as written in the test clone on 2026-11-02: all libraries in the
+  primary run; `flc_clean` is the arm.
+
+## Issue 9 (fixed in the skill's helper, generic): the label check was blind to a minority compartment
+
+`label_check.py` compared each library with the two condition medians only for markers whose
+medians differed by 20 points. When the case cells are a minority of every library (tumour nests in
+omentum) no marker reaches the gap and the script reported nothing, although the per-library table
+showed a reference library at 10% EPCAM against a 0.2% median. Second rule added, independent of
+the gap: a library carrying the other condition's marker at >= 3x its own condition's median and
+>= 2 points above it is listed (`--outlier-fold`, `--outlier-gap`). Verified on ovarian (finds the
+two pre-registered exclusions and the benign inclusion), HCC (HCC04N; also lists small tumour
+libraries with normal-hepatocyte CYP3A4, which is the expected admixture) and FLC (FLC26_ICBQ).
+
+## Issue 10 (fixed in the skill's helper, generic): "perfectly confounded" for a sub-labelling of the condition
+
+`design_check.py` called `region` (tumour / proximal / distal / lesser omentum / distant) perfectly
+confounded with the condition and said any result may be a region effect. Every level sits inside
+one condition because the column refines the condition; that is harmless when the levels are
+biological sub-groups and confounding only when they are processing batches. The script now
+reports such a column as NESTED WITHIN CONDITION with that distinction, and keeps PERFECTLY
+CONFOUNDED for a column with as many levels as conditions.
+
+## Issue 11 (fixed in the skill's helper, generic): pairing was reported as pseudo-replication
+
+The donor warning counted libraries per donor, so a paired design (one tumour and one normal
+library per patient) was reported as "8 donors contribute more than one library ... over-counts
+replication". Pseudo-replication is several libraries of one donor in the same condition; the
+count is now per donor-condition pair. HCC: no warning (correctly: pairing only); ovarian: 5
+control donors with 2-3 regions each (correctly flagged).

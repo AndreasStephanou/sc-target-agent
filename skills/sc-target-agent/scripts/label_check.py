@@ -8,6 +8,12 @@ listed as "resembles the opposite condition". This is the check that found swapp
 in ccRCC (CA9), a "normal" liver library expressing the tumour programme (GPC3), and tumour
 cells in "distant omentum" libraries (EPCAM, PAX8).
 
+A second rule, independent of the gap between condition medians, lists a library that carries the
+other condition's marker far above the rest of its own condition (default: >= 3x its condition's
+median and >= 2 points above it). It is the rule that matters when the case cells are a minority
+of every library (tumour nests in omentum; a disease state inside a tissue whose composition is
+otherwise kept), where the first rule reports every marker as uninformative.
+
 The genes are the researcher's choice (a marker they trust for the case condition, ideally not
 the expected target itself, so the check stays independent of the test). The matrix is read in
 row chunks; the whole matrix is never loaded.
@@ -88,6 +94,10 @@ def main(argv=None) -> int:
     ap.add_argument("--celltype", default=None)
     ap.add_argument("--min-gap", type=float, default=0.20,
                     help="only compare libraries for a gene whose condition medians differ by at least this fraction of cells (default 0.20); a weak marker says nothing about labels")
+    ap.add_argument("--outlier-fold", type=float, default=3.0,
+                    help="second rule: list a library whose fraction is >= this many times its own condition's median for a marker that is higher in the other condition (default 3)")
+    ap.add_argument("--outlier-gap", type=float, default=0.02,
+                    help="second rule: and at least this fraction of cells above its own condition's median (default 0.02)")
     ap.add_argument("--csv", default=None, help="write the per-library table here")
     a = ap.parse_args(argv)
 
@@ -163,6 +173,34 @@ def main(argv=None) -> int:
                         print(f"  {g}: library {row[a.sample_key]} labelled {own} has {100*row[g]:.1f}% positive "
                               f"(median {own} {100*med[own]:.1f}%, median {oc} {100*med[oc]:.1f}%) -> closer to {oc}")
         if not any_flag:
+            print("  none")
+
+        # Second rule, independent of the median gap. When the case cells are a minority of every
+        # library (tumour nests in omentum, a disease state inside a tissue that keeps its composition),
+        # the condition medians never differ by 20 points and the first rule is blind; the informative
+        # signal is a library that carries far more of the other condition's marker than the rest of
+        # its own condition. Rule: for a gene whose median is higher in the other condition, a library
+        # is listed when its fraction is >= --outlier-fold times its condition's median and at least
+        # --outlier-gap above it. Found the tumour-bearing "distant omentum" libraries (EPCAM 10%
+        # against a 0.1% median) and a benign epithelial inclusion in a control library (PAX8 5%).
+        print(f"\nlibraries carrying the other condition's marker far above their own condition "
+              f"(>= {a.outlier_fold:g}x the median of their condition and >= {100*a.outlier_gap:.0f} points above it; "
+              f"independent of the gap between condition medians):")
+        any_out = False
+        for g in genes:
+            med = table.groupby(a.condition_key, observed=True)[g].median()
+            for _, row in table.iterrows():
+                own = row[a.condition_key]
+                higher = [c for c in conds if c != own and med[c] > med[own]]
+                if not higher:
+                    continue
+                oc = max(higher, key=lambda c: med[c])
+                if row[g] >= a.outlier_fold * med[own] and row[g] - med[own] >= a.outlier_gap:
+                    any_out = True
+                    print(f"  {g}: library {row[a.sample_key]} labelled {own} has {100*row[g]:.1f}% positive "
+                          f"(median {own} {100*med[own]:.1f}%, median {oc} {100*med[oc]:.1f}%; n = {int(row['n_cells'])}) "
+                          f"-> possible {oc} cells in a {own} library")
+        if not any_out:
             print("  none")
         print("\nA flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. "
               "Decide before any run how it will be handled; exclusion is a config decision with a written reason.")

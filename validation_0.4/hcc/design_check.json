@@ -1,0 +1,60 @@
+{
+  "file": "data/hcc/hcc.h5ad",
+  "n_cells": 63101,
+  "warnings": [],
+  "counts": {
+    "X": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 1901.0,
+      "nonneg": true,
+      "n_checked": 200000
+    }
+  },
+  "condition_levels": [
+    "Normal",
+    "Tumor"
+  ],
+  "samples_per_condition": {
+    "Normal": 8,
+    "Tumor": 10
+  },
+  "donors_per_condition": {
+    "Normal": 8,
+    "Tumor": 10
+  },
+  "libraries_per_donor_max": 2,
+  "donor_condition_pairs_with_several_libraries": 0,
+  "paired_donors": [
+    "HCC03",
+    "HCC04",
+    "HCC05",
+    "HCC06",
+    "HCC07",
+    "HCC08",
+    "HCC09",
+    "HCC10"
+  ],
+  "confounding": {
+    "stage": {
+      "cramers_v": 0.209,
+      "levels": 5,
+      "levels_exclusive_to_one_condition": 0,
+      "perfectly_confounded": false,
+      "too_many_levels_for_n_samples": false,
+      "nested_within_condition": false
+    },
+    "virus": {
+      "cramers_v": 0.125,
+      "levels": 3,
+      "levels_exclusive_to_one_condition": 0,
+      "perfectly_confounded": false,
+      "too_many_levels_for_n_samples": false,
+      "nested_within_condition": false
+    }
+  },
+  "aliases": {
+    "site": "same partition as the condition column (alias of the condition)"
+  }
+}

@@ -1,0 +1,56 @@
+
+fraction of cells with >= 1 count(s), per library:
+tumor_status sample_names  CA12  SLC16A14  KRT7  CYP3A4  ALB  PRKACA  n_cells
+  Metastatic   FLC06_DZIS  22.1      56.2  36.6     9.6 28.9    41.9    13881
+  Metastatic   FLC06_UFNW   8.1      42.8  32.7    11.2 34.5    29.5     4961
+  Metastatic   FLC13_BTLY   5.8      27.7  10.7    23.6 32.6     3.7      242
+  Metastatic   FLC25_BCRB  10.3      26.7  25.9     4.9 15.6     4.5      243
+  Metastatic   FLC25_UYHR  35.6      55.9  16.4     6.0 45.4    33.6    39286
+  Metastatic   FLC26_OAOE  46.1      56.7  52.9     2.6 31.6    31.6    11330
+  Metastatic   FLC30_KPKS  46.7      83.9  78.1     8.7 38.8    57.8    28475
+      Normal      FCF57_N   3.6       5.5   5.0    71.9 87.8     8.6     6749
+      Normal      FCF82_N   8.0      22.5   5.7    11.3 12.7     5.0     1936
+      Normal      FCF84_N   2.5       8.8   5.5    49.8 79.2     4.4     8993
+      Normal      FCF96_N   2.7       9.7   5.3    50.7 82.9    19.9    19036
+      Normal   FLC26_ICBQ   8.9      39.8   5.7    29.9 51.4     6.8     1723
+      Normal   FLC34_PMVV   4.2       8.9   3.3    34.0 50.6     3.9     4054
+      Normal      FLC83_N   6.6       8.4   5.4    22.5 19.2     3.9      333
+      Normal      FLC87_N   2.5       6.7   2.9    69.0 62.2     6.3     6114
+      Normal      FLC89_N   2.5       4.6   8.8    30.5 38.4     8.4    13302
+     Primary      FCF96_T  45.8      52.0  47.0     4.1 61.5    48.1    24448
+     Primary   FLC24_MOYV  11.2      51.2  19.6     2.6 32.2    29.8    12422
+     Primary   FLC26_YJEE  68.1      74.2  52.2     4.8 44.5    47.5     8583
+     Primary   FLC34_YROP  40.6      40.8  31.8     2.8 27.9    31.1    11766
+     Primary      FLC57_T  36.7      31.2  17.5    52.2 69.4    13.0      690
+     Primary      FLC82_T  61.8      46.9  22.7     7.6 28.3    39.0    17398
+     Primary      FLC83_T   7.4      13.9   9.9    69.8 56.2    11.9    13285
+     Primary      FLC84_T  14.4      56.8  20.8     4.1 39.0    28.3    86564
+     Primary      FLC89_T  22.8      52.8  33.3     1.6 30.0    39.1    18696
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  CA12: library FLC24_MOYV labelled Primary has 11.2% positive (median Primary 36.7%, median Normal 3.6%) -> closer to Normal
+  CA12: library FLC83_T labelled Primary has 7.4% positive (median Primary 36.7%, median Normal 3.6%) -> closer to Normal
+  CA12: library FLC84_T labelled Primary has 14.4% positive (median Primary 36.7%, median Normal 3.6%) -> closer to Normal
+  SLC16A14: library FLC13_BTLY labelled Metastatic has 27.7% positive (median Metastatic 55.9%, median Normal 8.8%) -> closer to Normal
+  SLC16A14: library FLC25_BCRB labelled Metastatic has 26.7% positive (median Metastatic 55.9%, median Normal 8.8%) -> closer to Normal
+  SLC16A14: library FLC26_ICBQ labelled Normal has 39.8% positive (median Normal 8.8%, median Metastatic 55.9%) -> closer to Metastatic
+  SLC16A14: library FLC26_ICBQ labelled Normal has 39.8% positive (median Normal 8.8%, median Primary 51.2%) -> closer to Primary
+  SLC16A14: library FLC83_T labelled Primary has 13.9% positive (median Primary 51.2%, median Normal 8.8%) -> closer to Normal
+  KRT7: library FLC13_BTLY labelled Metastatic has 10.7% positive (median Metastatic 32.7%, median Normal 5.4%) -> closer to Normal
+  KRT7: library FLC25_UYHR labelled Metastatic has 16.4% positive (median Metastatic 32.7%, median Normal 5.4%) -> closer to Normal
+  CYP3A4: library FLC13_BTLY labelled Metastatic has 23.6% positive (median Metastatic 8.7%, median Normal 34.0%) -> closer to Normal
+  CYP3A4: library FCF82_N labelled Normal has 11.3% positive (median Normal 34.0%, median Metastatic 8.7%) -> closer to Metastatic
+  CYP3A4: library FCF82_N labelled Normal has 11.3% positive (median Normal 34.0%, median Primary 4.1%) -> closer to Primary
+  CYP3A4: library FLC57_T labelled Primary has 52.2% positive (median Primary 4.1%, median Normal 34.0%) -> closer to Normal
+  CYP3A4: library FLC83_T labelled Primary has 69.8% positive (median Primary 4.1%, median Normal 34.0%) -> closer to Normal
+  ALB: condition medians differ by only 18.8 points; not an informative marker for the labels
+  PRKACA: library FLC13_BTLY labelled Metastatic has 3.7% positive (median Metastatic 31.6%, median Normal 6.3%) -> closer to Normal
+  PRKACA: library FLC25_BCRB labelled Metastatic has 4.5% positive (median Metastatic 31.6%, median Normal 6.3%) -> closer to Normal
+  PRKACA: library FCF96_N labelled Normal has 19.9% positive (median Normal 6.3%, median Metastatic 31.6%) -> closer to Metastatic
+  PRKACA: library FCF96_N labelled Normal has 19.9% positive (median Normal 6.3%, median Primary 31.1%) -> closer to Primary
+  PRKACA: library FLC57_T labelled Primary has 13.0% positive (median Primary 31.1%, median Normal 6.3%) -> closer to Normal
+  PRKACA: library FLC83_T labelled Primary has 11.9% positive (median Primary 31.1%, median Normal 6.3%) -> closer to Normal
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/flc/label_check.csv

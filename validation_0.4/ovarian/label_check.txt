@@ -1,0 +1,57 @@
+
+fraction of cells with >= 1 count(s), per library:
+condition     sample  EPCAM  PAX8  KRT7  WFDC2  MSLN  n_cells
+  Omentum GSM8717101    0.1   0.7  20.3   13.1  28.0     3836
+  Omentum GSM8717102    0.1   1.3  26.3   21.4  41.2     7568
+  Omentum GSM8717103    0.0   1.4  31.9   32.0  51.7     7161
+  Omentum GSM8717104    0.2   1.4  35.8   35.9  69.1     9513
+  Omentum GSM8717105    0.1   2.2  23.2   23.1  46.3     4395
+  Omentum GSM8717106    0.0   0.8   5.1    4.7   9.6     4407
+  Omentum GSM8717107    0.4   1.6  17.6   19.3  45.6     5926
+  Omentum GSM8717108    0.1   1.3   9.6   11.4  30.7     2935
+  Omentum GSM8717109    0.3   2.1  26.4   21.7  42.7     2716
+  Omentum GSM8717110    0.1   5.0   7.9   18.1  46.1     3409
+  Omentum GSM8717111    0.1   0.5  35.1   22.4  44.6     7714
+  Omentum GSM8717112    0.1   0.4  30.3   22.1  40.3     8599
+  Omentum GSM8717113    0.0   0.5  25.4   16.0  39.1     4191
+  Omentum GSM8717114    0.1   1.0  11.6    9.1  17.1     3206
+  Omentum GSM8717115    0.2   0.6  21.8   28.2  61.8     5543
+  Omentum GSM8717116    0.4   2.7  33.3   17.2  43.7     3269
+  Omentum GSM8717117    0.3   1.0  18.0   15.8  26.1     2674
+  Omentum GSM8717120    0.6   0.7   9.6    7.7  10.8     1538
+  Omentum GSM8717123    0.4   0.6   4.0    6.5  14.5     2322
+  Omentum GSM8717127    2.5   3.7   5.0    5.6   5.7     4157
+  Omentum GSM8717130    0.5   1.6  18.4   37.2  47.9     2707
+  Omentum GSM8717133   10.1   6.7   9.1    7.4   4.8     2609
+  Omentum GSM8717136    0.3   2.8   5.8   16.8  22.1      606
+    Tumor GSM8717118    1.6   4.2   9.8   10.1  12.6     2383
+    Tumor GSM8717121   32.2  27.3  32.2   60.5  18.2     6480
+    Tumor GSM8717125   21.2  14.2  13.7   31.5  21.2     4669
+    Tumor GSM8717128   18.5  14.6  20.7   46.0  19.0     3612
+    Tumor GSM8717131   47.1  34.5  40.4   33.6  25.1     2760
+    Tumor GSM8717134    9.7  10.4  13.7   18.7  11.0     2984
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  EPCAM: condition medians differ by only 19.7 points; not an informative marker for the labels
+  PAX8: condition medians differ by only 13.1 points; not an informative marker for the labels
+  KRT7: condition medians differ by only 1.2 points; not an informative marker for the labels
+  WFDC2: condition medians differ by only 15.3 points; not an informative marker for the labels
+  MSLN: library GSM8717101 labelled Omentum has 28.0% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+  MSLN: library GSM8717106 labelled Omentum has 9.6% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+  MSLN: library GSM8717114 labelled Omentum has 17.1% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+  MSLN: library GSM8717117 labelled Omentum has 26.1% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+  MSLN: library GSM8717120 labelled Omentum has 10.8% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+  MSLN: library GSM8717123 labelled Omentum has 14.5% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+  MSLN: library GSM8717127 labelled Omentum has 5.7% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+  MSLN: library GSM8717133 labelled Omentum has 4.8% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+  MSLN: library GSM8717136 labelled Omentum has 22.1% positive (median Omentum 40.3%, median Tumor 18.6%) -> closer to Tumor
+
+libraries carrying the other condition's marker far above their own condition (>= 3x the median of their condition and >= 2 points above it; independent of the gap between condition medians):
+  EPCAM: library GSM8717127 labelled Omentum has 2.5% positive (median Omentum 0.2%, median Tumor 19.9%; n = 4157) -> possible Tumor cells in a Omentum library
+  EPCAM: library GSM8717133 labelled Omentum has 10.1% positive (median Omentum 0.2%, median Tumor 19.9%; n = 2609) -> possible Tumor cells in a Omentum library
+  PAX8: library GSM8717110 labelled Omentum has 5.0% positive (median Omentum 1.3%, median Tumor 14.4%; n = 3409) -> possible Tumor cells in a Omentum library
+  PAX8: library GSM8717133 labelled Omentum has 6.7% positive (median Omentum 1.3%, median Tumor 14.4%; n = 2609) -> possible Tumor cells in a Omentum library
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/ovarian/label_check.csv

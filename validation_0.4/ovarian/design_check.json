@@ -1,0 +1,62 @@
+{
+  "file": "data/ovarian/ovarian.h5ad",
+  "n_cells": 123889,
+  "warnings": [
+    "sample imbalance 23 vs 6: the per-sample Mann-Whitney test is dominated by the larger group; report effect sizes alongside p-values",
+    "5 donor-condition pair(s) hold more than one library (P2 (Omentum): 3, P3 (Omentum): 3, P4 (Omentum): 3, P5 (Omentum): 2, P6 (Omentum): 3): libraries from one donor in one condition are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report",
+    "covariate 'region' is nested within the condition (every level occurs in one condition only; 5 levels for 2 conditions). If its levels are biological sub-groups of the condition (regions, sub-sites, grades) nothing is lost; if they are processing batches, condition and region cannot be separated. Say which in the write-up"
+  ],
+  "counts": {
+    "X": {
+      "present": true,
+      "encoding": "csr_matrix",
+      "integer": true,
+      "max": 1689.0,
+      "nonneg": true,
+      "n_checked": 200000
+    }
+  },
+  "condition_levels": [
+    "Omentum",
+    "Tumor"
+  ],
+  "samples_per_condition": {
+    "Omentum": 23,
+    "Tumor": 6
+  },
+  "donors_per_condition": {
+    "Omentum": 14,
+    "Tumor": 6
+  },
+  "libraries_per_donor_max": 3,
+  "donor_condition_pairs_with_several_libraries": 5,
+  "paired_donors": [
+    "P10",
+    "P12",
+    "P13",
+    "P14",
+    "P15",
+    "P9"
+  ],
+  "confounding": {
+    "region": {
+      "cramers_v": 1.0,
+      "levels": 5,
+      "levels_exclusive_to_one_condition": 5,
+      "perfectly_confounded": true,
+      "too_many_levels_for_n_samples": false,
+      "nested_within_condition": true
+    },
+    "donor_group": {
+      "cramers_v": 0.608,
+      "levels": 2,
+      "levels_exclusive_to_one_condition": 1,
+      "perfectly_confounded": false,
+      "too_many_levels_for_n_samples": false,
+      "nested_within_condition": false
+    }
+  },
+  "aliases": {
+    "title": "one level per sample (alias of the sample column)"
+  }
+}

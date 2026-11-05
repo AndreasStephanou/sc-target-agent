@@ -183,10 +183,14 @@ def main(argv=None) -> int:
             findings["donors_per_condition"] = {k: int(v) for k, v in donors_per_cond.items()}
             findings["libraries_per_donor_max"] = int(libs_per_donor.max())
             print(f"\ndonors per condition: {dict((k, int(v)) for k, v in donors_per_cond.items())}; libraries per donor max = {int(libs_per_donor.max())}")
-            if (libs_per_donor > 1).any():
-                multi = libs_per_donor[libs_per_donor > 1]
-                shown = ", ".join(f"{k}: {int(v)}" for k, v in multi.head(5).items())
-                warn(f"{len(multi)} donor(s) contribute more than one library ({shown}{', ...' if len(multi) > 5 else ''}): libraries from one donor are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report")
+            # pseudo-replication is several libraries of one donor IN THE SAME CONDITION (regions,
+            # technical replicates); one library per condition from a donor is pairing, not inflation
+            libs_per_donor_cond = obs.groupby([a.donor_key, a.condition_key], observed=True)[a.sample_key].nunique()
+            multi = libs_per_donor_cond[libs_per_donor_cond > 1]
+            findings["donor_condition_pairs_with_several_libraries"] = int(len(multi))
+            if len(multi):
+                shown = ", ".join(f"{d} ({c}): {int(v)}" for (d, c), v in multi.head(5).items())
+                warn(f"{len(multi)} donor-condition pair(s) hold more than one library ({shown}{', ...' if len(multi) > 5 else ''}): libraries from one donor in one condition are not independent replicates; the sample column over-counts replication. Either use the donor as sample_key (pool its libraries) or state the inflation in the report")
             both = set()
             for d, grp in obs.groupby(a.donor_key, observed=True):
                 if grp[a.condition_key].nunique() > 1:
@@ -232,9 +236,16 @@ def main(argv=None) -> int:
         if sparse_levels and not (perfectly and ct.shape[0] == 2):
             print(f"  {c}: {ct.shape[0]} levels for {len(sample_meta)} samples; association with condition cannot be estimated (V = {v:.2f} is inflated). Check by hand if it matters.")
             continue
-        status = "PERFECTLY CONFOUNDED" if perfectly else ("strongly associated" if v >= 0.7 else "ok")
+        # every level inside one condition and more levels than conditions: the column refines the
+        # condition (tissue regions, sub-sites, grades) or is a batch that was never crossed with it
+        nested = bool(perfectly and ct.shape[0] > ct.shape[1])
+        findings["confounding"][c]["nested_within_condition"] = nested
+        status = ("NESTED WITHIN CONDITION" if nested else "PERFECTLY CONFOUNDED") if perfectly else ("strongly associated" if v >= 0.7 else "ok")
         print(f"  {c}: {ct.shape[0]} levels, Cramer's V = {v:.2f}, {exclusive} level(s) exclusive to one condition -> {status}")
-        if perfectly:
+        if nested:
+            warn(f"covariate {c!r} is nested within the condition (every level occurs in one condition only; {ct.shape[0]} levels for {ct.shape[1]} conditions). "
+                 f"If its levels are biological sub-groups of the condition (regions, sub-sites, grades) nothing is lost; if they are processing batches, condition and {c} cannot be separated. Say which in the write-up")
+        elif perfectly:
             warn(f"covariate {c!r} is perfectly confounded with the condition (every level occurs in only one condition): condition and {c} cannot be separated; any result may be a {c} effect")
         elif v >= 0.7:
             warn(f"covariate {c!r} is strongly associated with the condition (Cramer's V {v:.2f}); check it before interpreting enrichment")
