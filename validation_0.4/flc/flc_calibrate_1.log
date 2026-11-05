@@ -1,1 +1,30 @@
 Thu Nov  5 03:02:08 PM EST 2026
+run dir : runs/flc_calibrate_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=45 tools=44 errors=0  stop=end_turn
+  target   turns=51 tools=50 errors=0  stop=end_turn
+  critic   turns=26 tools=25 errors=0  stop=end_turn
+report  : runs/flc_calibrate_1/report.md
+elapsed : 2760.8s
+Evaluation of runs/flc_calibrate_1 vs flc.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'FLC_tumour_cells': missed  (cluster 6, marker overlap 3/5 needed: CA12, KRT7, PRKACA)
+    strict (agent-recorded genes only): missed  (cluster 6, overlap 3/5, 15 genes recorded)
+target ranks (within its state): {'PRKACA': 2}  state: {'PRKACA': '6 (L1)'}  global: {'PRKACA': 3}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'CA12': 1, 'SLC16A14': None, 'AURKA': None, 'ERBB2': None, 'MTOR': None, 'KRT7': 7, 'CYP19A1': None}
+above first true target: 0 not in answer key -> known-wrong decoys: none; novel candidates: none
+nominated: ['VWF', 'F2RL3', 'ANO2', 'ITGA6', 'PLVAP', 'SLC7A5', 'SLC6A3', 'FA2H', 'FST', 'MUC3A', 'CA12', 'CA5A', 'MUC5B', 'TESC', 'H2AC6', 'PRKACA', 'APOA4', 'HKDC1', 'TXNRD1', 'CD55']  precision: 0.1
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 121 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/flc.yaml --model scripted --run-dir runs/flc_calibrate_1 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/flc_calibrate_1/report.md: the executive summary (design, key numbers), section 1 (QC: cells kept, per-type removal) and section 2 (which clusters were enriched, split candidates, doublet/stress suspects, programme clusters)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/flc.yaml runs/flc_calibrate_1
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.
+flc calibrate exit=0
+Thu Nov  5 03:48:57 PM EST 2026

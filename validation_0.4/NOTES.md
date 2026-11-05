@@ -347,6 +347,16 @@ pre-run label check and the `ovarian_noleak` arm name), said FOLR1 "needs the ex
 it is called tumour-specific", and recorded that the arm had not been run - rather than dropping
 the gene. Pre-registered arm run as `ovarian_noleak_calibrate_v04_1` and `ovarian_noleak_agent_v04_1`.
 
+## FLC scripted floor (`runs/flc_calibrate_1`, 46 min, 121 calls, 0 errors)
+
+Primary vs normal liver, 9 vs 9 libraries, metastatic set aside (254k nuclei through QC and
+Scrublet; the floor's slowest run). Tumour state recorded (cluster 6, derived lineage L1), key
+markers 3/5 (CA12, KRT7, PRKACA; five needed, so "missed" by the key's own threshold);
+**PRKACA 2nd within its state behind CA12** (both key answers; global 3rd), recall@5 1.0,
+nothing above them, KRT7 7th, no decoy ranked or nominated; drugs: none of the trialled agents
+(no PRKACA inhibitor exists; ENMD-2076/neratinib/everolimus not reached by the floor). The v6
+floor in the test clone (2026-11-02) had PRKACA 6th with four novel genes above it and markers 1/5.
+
 ## Issue 11 (fixed in the skill's helper, generic): pairing was reported as pseudo-replication
 
 The donor warning counted libraries per donor, so a paired design (one tumour and one normal
