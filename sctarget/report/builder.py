@@ -254,6 +254,8 @@ def build_markdown(session: AnalysisSession) -> str:
             })
         rows.sort(key=lambda r: -(r.get("score") or 0))
         md.append(_table(rows, [("gene", "Gene"), ("cluster", "State"), ("class", "Class"), ("attribution", "Attribution"), ("score", "Score"), ("compounds", "Known compounds"), ("direction", "Therapeutic direction"), ("confidence", "Nominator confidence"), ("critic", "Critic flags")]))
+        if objective == "marker":
+            md.append("\n> **Objective `marker`:** these are condition-specific *response genes*, ranked by effect size, within-cluster specificity and consistency across replicates. Compounds and direction are listed for information only and did not enter the score.\n")
         md.append("\n> **Direction is a human check.** For each candidate, state whether the listed compounds inhibit or activate it and whether that is the direction this design needs. A `reference_driven` or `ambient_like` attribution means the signal is not from these cells; `shared_with_reference` means a lineage or pan-condition gene; for a programme state (`basis: program`) it means *not induced*. A candidate set aside by attribution while the per-library evidence supports it should be reported as conditional on the reference cells identified, not dropped.\n")
     md.append(_fig_md(report_figs.get("candidate_heatmap")))
     for s in summaries:
