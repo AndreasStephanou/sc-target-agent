@@ -226,8 +226,13 @@ Labelled **G** (general to the method) or **O** (observed in the tumour datasets
 - **O** The proliferation flag was motivated by tumours; its behaviour on genuinely expanding
   populations in non-malignant designs is untested.
 - **O** Nomination precision 0.1-0.3; the nominator rarely subclusters unasked.
-- **O** The scripted candidate pool is a fixed top-20 per contrast; a significant gene ranked lower
-  is never scored by the calibration arm (FOLR1 sat 39th).
+- **O** The candidate pool is finite: the most significant genes by statistic plus the largest
+  significant effects (protocol 23f, after FOLR1 sat 39th by statistic and the cardiomyocyte
+  atrophy genes sat outside the pool in the doxorubicin floor); a real gene can still fall outside it.
+- **G** Programme-basis states (a lineage that exists in both conditions and runs a different
+  programme) are judged by the within-cluster, replicate-aware contrast: attribution, consistency and
+  the relative programme criterion follow that basis (protocol 23/23b/23d). Before those rules the
+  expression route reported false negatives on exactly the designs it exists for.
 - Validated only on four tumour datasets (canine ameloblastoma vs another oral carcinoma; ccRCC,
   HCC and ovarian omental metastasis vs matched tissue). `marker` mode has run only on synthetic
   data. No non-malignant disease, perturbation, blood, brain or paired-only design has been run.

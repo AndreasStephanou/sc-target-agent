@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.1 — 2026-11-05 (validation round in progress; working copy of the repository, not pushed)
+
+Skill text follows the method changes made during the round (repository protocol sections 23-23f,
+prompts v7-v8, scoring unchanged at v3):
+
+- Expression route runs on the base clustering; same-lineage clusters do not compete in the
+  programme criterion; programme-basis attribution and consistency follow the within-cluster
+  contrast; one nomination per gene (23, 23b, 23d). The synthetic `marker`-mode calibration, which
+  failed before the round, now passes.
+- Candidate pool keeps the largest significant effects as well as the most significant statistics
+  (23f); `flags.md` documents the `pool` field.
+- Scripted floor and analyst prompt cover the top enriched cluster of every lineage; the expression
+  route runs once in every analysis; a programme cluster of the case lineage is subclustered when a
+  rare state is plausible (23e, prompts v8).
+- `inspect` matches canonical markers case-insensitively (mouse objects had an empty composition
+  line) and the epithelial warning is conditional on the question (23c).
+- Label checks run within the marker's compartment in non-malignant and perturbation designs;
+  covariates known only from the deposit are added to the sample sheet so they reach `obs`.
+- Third key-drafting failure mode recorded (time-point-dependent read-out).
+- Report rewritten: executive summary (design statement, key numbers, top candidates with a
+  direction column), evaluation section, figure index; publication style with PNG + PDF + SVG per
+  figure; new design, abundance, candidate-evidence and volcano figures; `rebuild_report.py`.
+
 ## 0.4.0 — 2026-11-05 (draft; not yet run end-to-end on a new dataset)
 
 Rewrite of the skill text for accuracy and generality beyond tumour-vs-normal designs; no change

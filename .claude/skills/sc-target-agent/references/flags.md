@@ -27,6 +27,25 @@ gives the generalised reading; "tumour reading" the one validated so far.
 | `missing_evidence:<field>` | term treated as 0 | the lookup failed or returned nothing (HTTP 429 once emptied the Open Targets fields; re-run the lookup) |
 | `rare_reference_counterpart` | none (informational) | a small reference population (< `min_reference_frac_of_condition`, default 0.5% of reference cells) also expresses it: an on-target consideration to identify, not a disqualification |
 
+## Programme-basis states (protocol 23d)
+
+For a state with `basis: program` the cluster exists in both conditions, so the reference cells of
+the same cluster are the control. `disease_wide` then means *induced in disease within the cluster*
+(replicate-aware within-cluster contrast: padj below threshold and log2FC at or above
+`differential_expression.min_log2fc`); `shared_with_reference` means *not induced*;
+`reference_driven`, `weak` and `ambient_like` keep their meaning. Consistency is per-sample
+induction (each disease sample's within-cluster mean above the median of the reference samples'),
+and the cut-off is "fewer than two thirds of disease samples" exactly. A gene is nominated once
+even when two clusters of one lineage carry the programme.
+
+## Candidate pool (`top_up` of a pseudobulk contrast; protocol 23f)
+
+Each pseudobulk result stores the 40 most significant genes by test statistic (`pool: stat`) and up
+to 20 further genes with the largest significant effects, log2FC >= 1 (`pool: effect`). The scripted
+nominator scores up to 60; the model's brief shows the 30 most significant plus every `effect` gene.
+A strong programme (hundreds of significant genes) ranked by statistic alone puts abundant genes
+with small fold changes first; the largest inductions are what a reader usually wants to see.
+
 ## Attribution statuses (`reference_pool_in_cluster`, from `condition_attribution`)
 
 | status | meaning | consequence |

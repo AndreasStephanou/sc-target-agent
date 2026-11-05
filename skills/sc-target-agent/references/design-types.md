@@ -78,6 +78,15 @@ druggable-looking genes that a naive ranking would put up and that the method sh
 Write in the key **what the test is** (ranked first; found and ranked among; recovered in the
 expected lineage) and which pre-registered exclusion arm exists, before the first run.
 
+Three key-drafting failure modes have now been seen, each recorded in the write-up and never fixed
+by editing the key: a target regulated at the protein level (EPAS1, ccRCC); literature state
+markers that are not consistent across replicates in the dataset (HCC); and a response gene that is
+real but **not at the sampled time point** (Cdkn1a two weeks into weekly doxorubicin: not induced,
+while the cardiomyocyte atrophy and natriuretic genes Trim63, Fbxo32, Nppa, Nppb were). For a
+perturbation, ask when the read-out peaks relative to when the cells were collected, and put
+time-robust read-outs (the lineage-level consequence) in the expected list and the acute ones in
+`acceptable`.
+
 ## The no-key protocol
 
 Most real users have no known answer. Without a key the evaluator does not apply, and nothing in
