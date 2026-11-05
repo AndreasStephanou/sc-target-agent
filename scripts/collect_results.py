@@ -85,7 +85,8 @@ def main(argv=None):
             "state_overlap": "; ".join(f"{n}:{_ov(s, 'best_match')}" for n, s in srs.items()),
             "strict_found": f"{len(found_strict)}/{n_states}" + (f" ({', '.join(found_strict)})" if found_strict else ""),
             "strict_overlap": "; ".join(f"{n}:{_ov(s, 'best_match_strict')}" for n, s in srs.items()),
-            "target_rank": ", ".join(f"{g}:{v if v is not None else '-'}" for g, v in tr.items()),
+            "target_rank": ", ".join(f"{g}:{v if v is not None else '-'}" + (f" (state {r.target_state.get(g)})" if v is not None else "") for g, v in tr.items()),
+            "target_rank_global": ", ".join(f"{g}:{v if v is not None else '-'}" for g, v in (getattr(r, 'target_rank_global', None) or {}).items()),
             "acceptable_rank": ", ".join(f"{g}:{v if v is not None else '-'}" for g, v in (r.acceptable_rank or {}).items()),
             "decoys_above": len(r.decoys_above_target),
             "novel_above": len(r.novel_above_target),
@@ -100,7 +101,7 @@ def main(argv=None):
         })
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    cols = ["run", "arm", "state_found", "state_overlap", "strict_found", "strict_overlap", "target_rank", "acceptable_rank", "decoys_above", "novel_above", "decoys_unflagged", "n_nominated", "precision", "drug_recall", "tool_calls", "tool_errors", "input_tokens", "pass"]
+    cols = ["run", "arm", "state_found", "state_overlap", "strict_found", "strict_overlap", "target_rank", "target_rank_global", "acceptable_rank", "decoys_above", "novel_above", "decoys_unflagged", "n_nominated", "precision", "drug_recall", "tool_calls", "tool_errors", "input_tokens", "pass"]
     lines = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
     for row in rows:
         lines.append("| " + " | ".join(str(row.get(c, row.get("error", ""))) if c != "arm" else str(row.get("arm", "")) for c in cols) + " |")

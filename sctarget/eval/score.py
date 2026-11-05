@@ -38,8 +38,10 @@ class EvalResult:
     prompt_version: int = 1
     scoring_version: int = 1
     state_recovery: dict[str, Any] = field(default_factory=dict)
-    target_rank: dict[str, int | None] = field(default_factory=dict)
-    acceptable_rank: dict[str, int | None] = field(default_factory=dict)  # acceptable (non-expected) targets: reported, never scored
+    target_rank: dict[str, int | None] = field(default_factory=dict)         # best rank WITHIN a recorded state's own ranking (the key's "ranked first in its state")
+    target_rank_global: dict[str, int | None] = field(default_factory=dict)  # rank in the merged ranking of all states (penalises lineage coverage; reported, not scored)
+    target_state: dict[str, str | None] = field(default_factory=dict)        # the state whose ranking gives target_rank
+    acceptable_rank: dict[str, int | None] = field(default_factory=dict)  # acceptable (non-expected) targets, within-state best: reported, never scored
     target_recall_at_k: float | None = None
     k: int = 5
     drug_recall: float | None = None
@@ -156,13 +158,31 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
     acceptable = set(gt["acceptable_targets"]) | set(expected)
     decoys = set(gt["decoy_targets"])
 
-    res.target_rank = {g: (order.index(g) + 1 if g in order else None) for g in expected}
+    # within-state ranks (protocol 23g): a target's rank is judged in the ranking of the state that
+    # carries it, as every key is worded ("ranked first in its state"). The merged ranking is kept as
+    # target_rank_global; it falls as more lineages are characterised, which is not a defect.
+    per_state: dict[str, list[str]] = {str(cl): [r["gene"] for r in sorted(rows, key=lambda r: int(r.get("rank") or 10**6))] for cl, rows in facts.get("ranked_targets", {}).items()}
+
+    def _best(g: str) -> tuple[int | None, str | None]:
+        hits = [(genes.index(g) + 1, cl) for cl, genes in per_state.items() if g in genes]
+        return min(hits) if hits else (None, None)
+
+    res.target_rank_global = {g: (order.index(g) + 1 if g in order else None) for g in expected}
+    res.target_rank, res.target_state = {}, {}
+    for g in expected:
+        rk, cl = _best(g)
+        res.target_rank[g], res.target_state[g] = rk, cl
     acc_only = [g for g in gt.get("acceptable_targets", []) if g not in expected]
-    res.acceptable_rank = {g: (order.index(g) + 1 if g in order else None) for g in acc_only}
+    res.acceptable_rank = {g: _best(g)[0] for g in acc_only}
     if expected:
         res.target_recall_at_k = sum(1 for g in expected if res.target_rank[g] is not None and res.target_rank[g] <= res.k) / len(expected)
-    first_hit = min([r for r in res.target_rank.values() if r is not None], default=None)
-    above = order[: first_hit - 1] if first_hit is not None else order
+    # genes above the first expected target, in the state where it ranks best; with no hit, every ranked gene
+    hits = [(r, g) for g, r in res.target_rank.items() if r is not None]
+    if hits:
+        first_hit, first_gene = min(hits)
+        above = per_state[res.target_state[first_gene]][: first_hit - 1]
+    else:
+        above = order
     res.false_leads = [g for g in above if g not in acceptable]
     res.decoys_above_target = [g for g in above if g in decoys]
     res.novel_above_target = [g for g in res.false_leads if g not in decoys]
@@ -225,7 +245,7 @@ def format_eval(res: EvalResult) -> str:
         lines.append(f"    strict (agent-recorded genes only): {'FOUND' if v.get('found_strict') else 'missed'}  (cluster {sb.get('cluster')}, overlap {sb.get('overlap')}/{v['required_overlap']}, {sb.get('n_recorded_genes', 0)} genes recorded)")
         if "cell_level" in v:
             lines.append(f"    cell-level P/R/F1: {v['cell_level']['precision']}/{v['cell_level']['recall']}/{v['cell_level']['f1']}")
-    lines.append(f"target ranks: {res.target_rank}   recall@{res.k}: {res.target_recall_at_k}")
+    lines.append(f"target ranks (within its state): {res.target_rank}  state: {res.target_state}  global: {res.target_rank_global}   recall@{res.k}: {res.target_recall_at_k}")
     if res.acceptable_rank:
         lines.append(f"acceptable-target ranks (reported, not scored): {res.acceptable_rank}")
     lines.append(f"above first true target: {len(res.false_leads)} not in answer key -> known-wrong decoys: {res.decoys_above_target or 'none'}; novel candidates: {res.novel_above_target or 'none'}")

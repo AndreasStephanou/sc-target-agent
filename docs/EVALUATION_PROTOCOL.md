@@ -701,3 +701,21 @@ pool with the genes of its "clean programme", discarding the effect-pool genes a
 programme's list follows the same pool rule (40 by statistic + 20 largest strong effects) and the
 ambient step removes suspect genes from the stored pool instead of restricting it to the
 programme head. Re-run as `dox_calibrate_3`.
+
+### 23g. Target rank is judged within the state that carries it
+
+ccRCC regression run under prompts v8 (`runs/ccrcc_agent_v04_1`): tumour state found (lenient 9/5,
+strict 8/5), CA9 ranked 1st in both tumour states (scores 0.91 and 0.92, ahead of EGLN3), no decoy
+nominated, EGLN3's direction flagged again, CD70 and FOLH1 again above the key - yet the evaluator
+printed "CA9: 6". The merged ranking of all states put the endothelium and stroma programmes' genes
+(FOLH1, VWF, ACE at 1.0) above the tumour state's top gene, because v8 now records the top enriched
+cluster of every lineage. Every key is worded "ranked first in its state"; the merged rank
+penalises exactly the lineage coverage the method should have.
+
+**Change (evaluation definition; no analysis change):** `target_rank` and `acceptable_rank` are
+the best rank within a recorded state's own ranking, with the state named (`target_state`);
+the merged rank is kept as `target_rank_global` and reported, not scored. Genes "above the first
+true target" are counted in the state where it ranks best. For runs with one recorded state the
+numbers are unchanged; for earlier multi-state runs the within-state rank can only be equal or
+better than the published global one. All results tables of this round are regenerated under the
+new definition and say so in their header.

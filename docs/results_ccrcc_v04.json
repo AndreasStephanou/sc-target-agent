@@ -1,0 +1,23 @@
+[
+  {
+    "run": "ccrcc_agent_v04_1",
+    "arm": "claude-code; prompts v8; scoring v3; de novo clustering",
+    "state_found": "1/1 (ccRCC_tumour_cells)",
+    "state_overlap": "ccRCC_tumour_cells:9/5",
+    "strict_found": "1/1 (ccRCC_tumour_cells)",
+    "strict_overlap": "ccRCC_tumour_cells:8/5",
+    "target_rank": "EPAS1:-",
+    "target_rank_global": "EPAS1:-",
+    "acceptable_rank": "CA9:1, VEGFA:-",
+    "decoys_above": 0,
+    "novel_above": 95,
+    "decoys_unflagged": 0,
+    "n_nominated": 11,
+    "precision": 0.09,
+    "drug_recall": 0.0,
+    "tool_calls": 87,
+    "tool_errors": 0,
+    "input_tokens": 2190301,
+    "pass": false
+  }
+]
