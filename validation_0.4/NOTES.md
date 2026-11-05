@@ -347,6 +347,16 @@ pre-run label check and the `ovarian_noleak` arm name), said FOLR1 "needs the ex
 it is called tumour-specific", and recorded that the arm had not been run - rather than dropping
 the gene. Pre-registered arm run as `ovarian_noleak_calibrate_v04_1` and `ovarian_noleak_agent_v04_1`.
 
+## Ovarian no-leak arm, scripted floor (`runs/ovarian_noleak_calibrate_v04_1`, 14 min)
+
+Without GSM8717127/GSM8717133: tumour epithelium found (cluster 24, lenient 6/5 incl. FOLR1;
+strict 2/5); **FOLR1 35th of 83 within its state** (score 0.17, state_specific, flag
+`reference_driven`, sample consistency 1.0; round 0.3's no-leak floor: 96th), EPCAM 4th, TACSTD2
+18th; the top of the state is disease_wide epithelial genes (DEFB1, ASS1, MMP7). No decoy. The
+`reference_driven` flag is the benign FOLR1+ Müllerian-type inclusion of a healthy donor
+(protocol 21, 21b) - the library the new label-check rule lists as GSM8717110 (PAX8 5%) - which the
+arm by construction does not remove. The limitation stands exactly as frozen in 0.3.
+
 ## FLC scripted floor (`runs/flc_calibrate_1`, 46 min, 121 calls, 0 errors)
 
 Primary vs normal liver, 9 vs 9 libraries, metastatic set aside (254k nuclei through QC and
