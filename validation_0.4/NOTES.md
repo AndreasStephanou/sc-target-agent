@@ -149,3 +149,16 @@ tool calls; 4.1M tokens per run on 89k cells.
 
 Decision: no further prompt change on this dataset (the subclustering rule exists in v8 and was not
 followed once; n = 1 is not a pattern); the gap is recorded as the IPF result's limitation.
+
+## DOX floor re-runs 2-4 (protocol 23f and addenda)
+
+`dox_calibrate_2` (pool rule in `_run_pseudobulk` only): unchanged — `disease_programs` rebuilt the
+programme list from its own statistic head and the ambient step truncated the stored pool to it.
+`dox_calibrate_3` (programme list follows the pool rule; ambient step removes suspects only): the
+pool now holds Nppb, Ankrd1, Myh7, but the scripted nominator took the first 20 pool genes, all
+statistic-ranked. `dox_calibrate_4` (nominator takes the statistic head plus every effect gene):
+Nppb ranked 12th (score 0.22; `weak`: detected in < 10% of the cluster's disease cells), Myh7
+21st, Ankrd1 28th; Ciart, Ces1d, Ndufa6, Mb lead. The floor now reports what the data hold: a
+cardiomyocyte metabolic / structural programme with natriuretic and atrophy genes present but
+sparse at two weeks; Cdkn1a not induced. Three touches to reach one pool rule end-to-end is the
+cost of a pool that was built in three places; all three now share `_candidate_pool`.
