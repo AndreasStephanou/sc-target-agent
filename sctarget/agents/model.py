@@ -333,16 +333,20 @@ class ScriptedModel:
             pb = f.get("pseudobulk_de", {}).get(f"{cl}:{contrast}", {})
             from ..tools.targets import excluded_gene
 
-            pb_genes = [r["gene"] for r in pb.get("top_up", []) if not excluded_gene(r["gene"])][:20] or st.get("genes", [])[:20]
+            def _pool(rows, n_stat=20):  # the n most significant plus every effect-pool gene (protocol 23f)
+                rows = [r for r in rows if not excluded_gene(r["gene"])]
+                return [r["gene"] for r in rows if r.get("pool") != "effect"][:n_stat] + [r["gene"] for r in rows if r.get("pool") == "effect"]
+
+            pb_genes = _pool(pb.get("top_up", [])) or st.get("genes", [])[:20]
             # cell-level markers are kept as well: for a pure state they often carry the biology
             # the pseudobulk list misses (e.g. receptors expressed in 70% of cells at modest counts)
             mk_key = next((k for k in f.get("markers", {}) if k.startswith(f"{cl}_vs_")), None)
             mk_genes = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:15]
             cp = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_compartment", {})
-            cp_genes = [r["gene"] for r in cp.get("top_up", []) if not excluded_gene(r["gene"])][:20]
+            cp_genes = _pool(cp.get("top_up", []))
             ln = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_lineage", {})
-            ln_genes = [r["gene"] for r in ln.get("top_up", []) if not excluded_gene(r["gene"])][:20]
-            genes = list(dict.fromkeys(pb_genes + mk_genes + cp_genes + ln_genes))  # <= 75; markers and disease-wide genes never truncated away
+            ln_genes = _pool(ln.get("top_up", []))
+            genes = list(dict.fromkeys(pb_genes + mk_genes + cp_genes + ln_genes))  # markers and disease-wide genes never truncated away
             steps.append(ToolUse("gene_specificity", {"genes": genes, "cluster": cl}))
             steps.append(ToolUse("condition_attribution", {"genes": genes, "cluster": cl}))
             if species not in ("homo_sapiens", "human"):
