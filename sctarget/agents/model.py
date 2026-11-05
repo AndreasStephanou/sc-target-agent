@@ -198,7 +198,7 @@ class ScriptedModel:
             if not self._step.get("programs_tried"):
                 self._step["programs_tried"] = True
                 steps.append(ToolUse("record_finding", {"kind": "summary", "title": "Switching to the expression route", "detail": "No cluster is enriched in the disease condition after subclustering and re-clustering. Testing whether shared cell types run a disease-specific program instead (pseudobulk disease vs reference within each cluster).", "confidence": "medium"}))
-                steps.append(ToolUse("disease_programs", {"cluster_key": str(f.get("clustering", {}).get("cluster_key", "")).split("_sub")[0] or None}))
+                steps.append(ToolUse("disease_programs", {"cluster_key": None}))  # tool defaults to the base clustering (protocol 23)
                 steps.append("__analyst_programs__")
                 return steps
             steps.append(ToolUse("record_finding", {"kind": "summary", "title": "No disease-specific state found", "detail": "Neither the composition route (differential abundance, subclustering, re-clustering) nor the expression route (within-cluster disease programs) found a disease-specific state at the configured thresholds.", "confidence": "medium"}))
@@ -209,7 +209,7 @@ class ScriptedModel:
         # the case where the composition hits are weak and the real signal is a program shift
         if not self._step.get("programs_tried"):
             self._step["programs_tried"] = True
-            steps.append(ToolUse("disease_programs", {"cluster_key": str(f.get("clustering", {}).get("cluster_key", "")).split("_sub")[0] or None}))
+            steps.append(ToolUse("disease_programs", {"cluster_key": None}))  # tool defaults to the base clustering (protocol 23)
             steps.append("__analyst_programs__")
         for cl in enriched:
             dom = comp.get(cl, {}).get("dominant_celltype")

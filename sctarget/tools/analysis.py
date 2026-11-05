@@ -589,6 +589,11 @@ def integrate_and_cluster(
         "params": {"n_pcs": n_pcs, "n_neighbors": n_neighbors, "resolution": resolution, "n_top_genes": n_top_genes},
         "figure": fig_path,
     }
+    # the first clustering established in the session is the BASE clustering: lineage-wide tests
+    # (disease_programs) run on it, so later subclustering or high-resolution re-clustering cannot
+    # fragment a lineage below the detection thresholds (protocol section 23)
+    prev_base = session.facts.get("clustering", {}).get("base_cluster_key")
+    out["base_cluster_key"] = prev_base if prev_base and prev_base in a.obs else key
     session.facts["clustering"] = out
     return out
 
@@ -1377,7 +1382,10 @@ def _run_pseudobulk(
     Includes an ambient-RNA check: programs that are mostly the dominant disease state's
     signature, or that recur across unrelated cell types, are marked ambient_suspect instead of
     disease_altered, and a clean_program_genes list (program minus suspect genes) is reported.
-    Use after differential_abundance finds nothing, or alongside it to catch program shifts.""",
+    Use after differential_abundance finds nothing, or alongside it to catch program shifts.
+    Leave cluster_key unset: the test then runs on the BASE clustering (the first one established),
+    because a program shift is lineage-wide and a subclustered or high-resolution re-clustering
+    splits the lineage into pieces each too small to reach min_sig_genes.""",
     input_schema={
         "properties": {
             "cluster_key": {"type": ["string", "null"]},
@@ -1407,7 +1415,8 @@ def disease_programs(
     min_base_mean: float = 10.0,
 ) -> dict[str, Any]:
     a = session.require_adata()
-    key = cluster_key or session.cluster_key
+    base_key = session.facts.get("clustering", {}).get("base_cluster_key")
+    key = cluster_key or (base_key if base_key and base_key in a.obs else None) or session.cluster_key
     if not key or key not in a.obs:
         raise ValueError("no cluster key available; run integrate_and_cluster first")
     sizes = a.obs[key].astype(str).value_counts()
@@ -1453,6 +1462,13 @@ def disease_programs(
         counts_ = df["n_sig_up_strong"].fillna(0)
         for cl in df.index:
             others = counts_.drop(cl)
+            if dom:
+                # clusters of the SAME lineage that share the program are evidence for a lineage-wide
+                # shift, not competitors; the relative criterion compares against other lineages only
+                # (protocol section 23: two keratinocyte clusters each carried the planted program and
+                # cancelled each other out under "3x any other cluster")
+                other_lineage = [c for c in others.index if dom.get(str(c)) != dom.get(str(cl))]
+                others = others.loc[other_lineage] if other_lineage else others.iloc[0:0]
             if counts_[cl] >= small_program_min and counts_[cl] >= 3 * (others.max() if len(others) else 0):
                 df.loc[cl, "disease_altered"] = True
 
@@ -1528,6 +1544,7 @@ def disease_programs(
     session.facts["disease_programs"] = {"cluster_key": key, "disease_altered_clusters": altered, "ambient_suspect_clusters": suspects, "table": df.reset_index().to_dict(orient="records"), "ambient_note": ambient_note}
     return {
         "cluster_key": key,
+        "base_clustering_used": bool(base_key and key == base_key),
         "contrast": "disease_vs_reference_within_cluster (pseudobulk per sample)",
         "skipped_composition_enriched_clusters": skipped,
         "disease_altered_clusters": altered,

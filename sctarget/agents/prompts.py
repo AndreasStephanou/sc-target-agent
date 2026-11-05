@@ -25,6 +25,13 @@ PROMPT_VERSION history
      to request, not a missing tool. Motivated by the ovarian/omentum reviewer run (GSE286057): 151
      benign epithelial cells (0.16% of reference cells) inside the tumour cluster made FOLR1
      reference_driven and blocking.
+  7  analyst is told to call `disease_programs` without cluster_key so the expression route runs on
+     the BASE clustering (the tool now defaults to it; the scripted route does the same). Motivated by
+     the 0.4 validation round (synthetic program mode, 400 cells/sample): after a flat composition
+     the route re-clustered at resolution 2.0 and then tested programs on the 15 fragments, where
+     the keratinocyte program showed 3 strong genes per piece instead of ~30 in the whole lineage;
+     "no disease-specific state found" on data that holds one. Any perturbation or non-malignant
+     dataset (program shift, no new state) would have taken this path.
 """
 
 from __future__ import annotations
@@ -32,7 +39,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 6
+PROMPT_VERSION = 7
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -116,7 +123,10 @@ clusters sharing that dominant cell type, resolution 1.5) and repeat steps 2-3. 
 re-run `integrate_and_cluster` with reuse_existing=null at resolution 2.0, and also try
 `differential_abundance(within_celltype=True)`.
 If composition is genuinely flat, switch to the EXPRESSION route: `disease_programs` tests,
-within each cluster, disease samples vs reference samples (pseudobulk). A cluster with many
+within each cluster, disease samples vs reference samples (pseudobulk). Call it WITHOUT
+cluster_key: it then runs on the base clustering (the first one established), because a program
+shift is lineage-wide and the subclustered or resolution-2.0 clustering splits each lineage into
+pieces too small to reach the gene-count criterion. A cluster with many
 disease-driven genes is a disease-altered program in a shared cell type. Record it with
 `record_finding(kind='disease_state', basis='program', ...)` using the within-cluster top genes.
 Running `disease_programs` is also worthwhile when composition DID change, to catch program

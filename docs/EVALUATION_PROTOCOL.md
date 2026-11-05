@@ -565,3 +565,53 @@ Tag `results-v3`: four datasets, the attribution representativeness guard (linea
 prompts v6, the GEO tools, composition check, 429 backoff and transient-retry. `docs/results_ovarian.md`
 holds all seven ovarian runs including the two rescores; `docs/REPORT.md` section 6 is the write-up.
 Method frozen here pending independent use by another CoPAIR fellow.
+
+## 23. Validation round 0.4: the expression route must run on the base clustering
+
+A new round began with the 0.4 skill (design classification, pre-run design and label checks,
+no-key protocol), aimed at the two design types never run: non-malignant disease (IPF, GSE135893)
+and perturbation (doxorubicin vs vehicle, GSE285475). Its first free step, the scripted calibration
+on the program-mode synthetic dataset (`make_synthetic --mode program`, 400 cells/sample, seed 0),
+ended with "No disease-specific state found" on data where every CAA keratinocyte runs a ~2.5x
+program on 8 genes.
+
+Cause (run.jsonl): with composition flat, the scripted analyst subclustered, then re-clustered
+globally at resolution 2.0, and then called `disease_programs` on that clustering
+(`sct_leiden_r2`, 15 clusters of 95-466 cells). The keratinocyte lineage was split into several
+pieces; each piece showed 3 strong genes (SNAP25, GAP43, NEFL), below the absolute (30) and
+relative (5, 3x any other cluster) criteria. The unit test (`tests/test_program_route.py`, 200
+cells/sample, seed 2) passed because its route never reached the re-clustering step. The code
+comment in the other branch already stated the rule ("on the base clustering, so subclusters do
+not fragment the test"); it was applied in one branch and not the other.
+
+**Change (tool default + prompts v7; no scoring change):** `integrate_and_cluster` records
+`base_cluster_key` (the first clustering established in the session; preserved across subcluster,
+merge and re-clustering). `disease_programs` defaults to it when `cluster_key` is not given and
+reports `base_clustering_used`. The scripted route passes no key in either branch. The analyst
+prompt says to call the tool without a key and why. Regression test added
+(`test_disease_programs_defaults_to_base_clustering_after_recluster`). Generic: a program shift is
+lineage-wide by definition; the right partition for testing it is the coarsest one, whatever the
+dataset.
+
+**Also:** `sctarget.py calibrate` now defaults to scoring version 3 like `run` (the calibration
+above was silently scored under v1 because the config did not name a version), so the scripted
+floor and the agent are scored alike.
+
+Why this matters beyond the synthetic case: tumour datasets create new states and take the
+composition route; a perturbation or a non-malignant disease shifts programs inside existing
+lineages and takes exactly the path that was broken. The 0.4 round would have reported two false
+negatives.
+
+### 23b. Same-lineage clusters must not compete in the relative programme criterion
+
+With the base clustering restored, the same calibration still failed: keratinocyte clusters 1 and
+0 showed 9 and 6 strong genes (the whole planted set), but the relative criterion ("at least
+small_program_min strong genes AND at least 3x any other cluster") compared each against the other
+keratinocyte cluster, so 9 < 3 x 6 and neither was flagged. A programme shared by two clusters of
+one lineage is evidence for a lineage-wide shift, not against it.
+
+**Change (tool only):** `disease_programs` compares a cluster's strong-gene count against clusters
+of OTHER lineages only (dominant lineage from the lineage key); same-lineage clusters are
+excluded from the "any other cluster" maximum. The absolute criterion is unchanged. Regression test
+extended (the flagged clusters must all be keratinocyte). Generic: whatever the tissue, the
+lineage that runs the programme may be split over several clusters at the base resolution.

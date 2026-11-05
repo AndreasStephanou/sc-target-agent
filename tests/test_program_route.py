@@ -57,3 +57,29 @@ def test_program_route_end_to_end(program_cfg):
     assert ev.target_rank["ERBB4"] == 1
     assert not ev.decoys_nominated_unflagged
     assert ev.passed
+
+
+def test_disease_programs_defaults_to_base_clustering_after_recluster(program_cfg, tmp_path):
+    """Protocol 23: a high-resolution re-clustering must not fragment the lineage-wide program test.
+
+    Reproduces the 0.4 validation failure: after the composition route re-clustered at resolution
+    2.0, disease_programs ran on the fragments and found 3 strong genes per piece instead of the
+    program. With base_cluster_key tracked, the tool defaults to the first clustering."""
+    cfg, _ = program_cfg
+    s = AnalysisSession.create(cfg, tmp_path / "tool")
+    A.load_dataset(s)
+    first = A.integrate_and_cluster(s, reuse_existing="leiden")
+    assert s.facts["clustering"]["base_cluster_key"] == first["cluster_key"]
+    second = A.integrate_and_cluster(s, reuse_existing=None, use_harmony=False, resolution=2.0, n_pcs=30)
+    assert second["cluster_key"] != first["cluster_key"]
+    assert s.facts["clustering"]["base_cluster_key"] == first["cluster_key"], "re-clustering must not replace the base key"
+    assert s.cluster_key == second["cluster_key"], "the active key is still the new clustering"
+    dp = A.disease_programs(s)  # no cluster_key: must use the base clustering
+    assert dp["cluster_key"] == first["cluster_key"]
+    assert dp["base_clustering_used"] is True
+    assert len(dp["disease_altered_clusters"]) >= 1  # one or more keratinocyte clusters, all of the same lineage
+    doms = {dp["table"].loc[c, "dominant_celltype"] for c in dp["disease_altered_clusters"]}
+    assert doms == {"keratinocyte"}
+    # explicit key still wins
+    dp2 = A.disease_programs(s, cluster_key=second["cluster_key"])
+    assert dp2["cluster_key"] == second["cluster_key"]
