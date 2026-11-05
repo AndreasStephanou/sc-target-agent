@@ -1,1 +1,30 @@
 Thu Nov  5 03:35:50 PM EST 2026
+run dir : runs/ovarian_noleak_calibrate_v04_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=49 tools=48 errors=0  stop=end_turn
+  target   turns=60 tools=59 errors=0  stop=end_turn
+  critic   turns=17 tools=16 errors=0  stop=end_turn
+report  : runs/ovarian_noleak_calibrate_v04_1/report.md
+elapsed : 847.4s
+Evaluation of runs/ovarian_noleak_calibrate_v04_1 vs ovarian.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'HGSOC_tumour_epithelium': FOUND  (cluster 24, marker overlap 6/5 needed: CD24, CLDN4, EPCAM, FOLR1, KRT7, WFDC2)
+    strict (agent-recorded genes only): missed  (cluster 24, overlap 2/5, 15 genes recorded)
+target ranks (within its state): {'FOLR1': 35}  state: {'FOLR1': '24 (L1)'}  global: {'FOLR1': 243}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'MUC16': None, 'MSLN': None, 'TACSTD2': 18, 'CLDN6': None, 'ERBB2': None, 'EPCAM': 4}
+above first true target: 32 not in answer key -> known-wrong decoys: none; novel candidates: ['DEFB1', 'ASS1', 'MMP7', 'APOA1', 'CDKN2A', 'PSENEN', 'IGFBP2', 'S100A1', 'CLDN3', 'UCP2', 'LCN2', 'MDK', 'KLK6', 'WFDC2', 'SPINT2', 'CLDN4', 'PKM', 'SLC34A2', 'SMIM22', 'S100A2', 'CD47', 'MAL', 'CLDN7', 'HMGA1', 'CRABP2', 'TSPAN1', 'JUP', 'MAL2', 'COX5A', 'CXXC5', 'H19', 'COX5B']
+nominated: ['DEFB1', 'ASS1', 'MMP7', 'EPCAM', 'APOA1', 'CTLA4', 'IL2RA', 'LTA', 'DUSP4', 'TIGIT', 'SPP1', 'APOE', 'APOC1', 'CSTB', 'ADAMDEC1', 'TDO2', 'COL10A1', 'INHBA', 'COL1A1', 'RGS5', 'IGKC', 'IGHG1', 'IGLC2', 'IGLC3', 'IGHG3', 'SERPINE1', 'IGF1', 'CXCL12', 'LTF']  precision: 0.034482758620689655
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 125 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/ovarian_noleak.yaml --model scripted --run-dir runs/ovarian_noleak_calibrate_v04_1 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/ovarian_noleak_calibrate_v04_1/report.md: the executive summary (design, key numbers), section 1 (QC: cells kept, per-type removal) and section 2 (which clusters were enriched, split candidates, doublet/stress suspects, programme clusters)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/ovarian.yaml runs/ovarian_noleak_calibrate_v04_1
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.
+exit=0
+Thu Nov  5 03:50:02 PM EST 2026

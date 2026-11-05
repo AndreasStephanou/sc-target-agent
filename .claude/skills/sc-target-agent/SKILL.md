@@ -242,6 +242,12 @@ Labelled **G** (general to the method) or **O** (observed in the tumour datasets
   programme) are judged by the within-cluster, replicate-aware contrast: attribution, consistency and
   the relative programme criterion follow that basis (protocol 23/23b/23d). Before those rules the
   expression route reported false negatives on exactly the designs it exists for.
+- **G** When every library is one condition, the integration (Harmony on the library) cannot tell
+  library from condition and may absorb part of the disease signal: in the fibrolamellar carcinoma
+  snRNA-seq, tumour nuclei co-clustered with normal hepatocytes and the tumour state was reached
+  only by the expression route (2,009 genes up within the cluster; PRKACA 2nd behind CA12). The
+  route therefore runs in every analysis, also in tumour designs; a composition-only reading of
+  such a dataset would have been a false negative.
 - Validated only on four tumour datasets (canine ameloblastoma vs another oral carcinoma; ccRCC,
   HCC and ovarian omental metastasis vs matched tissue). `marker` mode has run only on synthetic
   data. No non-malignant disease, perturbation, blood, brain or paired-only design has been run.
