@@ -1,1 +1,40 @@
 Thu Nov  5 03:49:11 PM EST 2026
+run dir : runs/flc_agent_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=15 tools=38 errors=0  stop=end_turn
+  target   turns=16 tools=38 errors=0  stop=end_turn
+  critic   turns= 7 tools=17 errors=0  stop=end_turn
+report  : runs/flc_agent_1/report.md
+elapsed : 2202.4s
+Evaluation of runs/flc_agent_1 vs flc.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'FLC_tumour_cells': missed  (cluster 10, marker overlap 3/5 needed: AKAP12, CA12, TESC)
+    strict (agent-recorded genes only): missed  (cluster 10, overlap 3/5, 15 genes recorded)
+target ranks (within its state): {'PRKACA': 2}  state: {'PRKACA': '6 (L1)'}  global: {'PRKACA': 7}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'CA12': 1, 'SLC16A14': None, 'AURKA': None, 'ERBB2': 2, 'MTOR': None, 'KRT7': 7, 'CYP19A1': None}
+above first true target: 0 not in answer key -> known-wrong decoys: none; novel candidates: none
+nominated: ['SLC7A5', 'ERBB2', 'FST', 'CA12', 'CA5A', 'VWF', 'ITGA6', 'PRKACA', 'FAP', 'PDGFRB', 'INHBA']  precision: 0.2727272727272727
+decoys nominated - flagged by critic: none; UNFLAGGED: ['PDGFRB']
+drug recall: 0.25  found: ['neratinib']
+tool calls: 95 (0 errors)   tokens: {'input_tokens': 2481637, 'output_tokens': 42906}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/flc.yaml --model claude-code --run-dir runs/flc_agent_1 --scoring-version 3
+
+Done. Read runs/flc_agent_1/report.md: the executive summary, then section 4 (critic flags), then section 3 (ranking, with target_class, attribution and flags). Every number traces to runs/flc_agent_1/run.jsonl.
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/flc.yaml runs/flc_agent_1
+exit=0
+Evaluation of runs/flc_agent_1 vs flc.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'FLC_tumour_cells': missed  (cluster 10, marker overlap 3/5 needed: AKAP12, CA12, TESC)
+    strict (agent-recorded genes only): missed  (cluster 10, overlap 3/5, 15 genes recorded)
+target ranks (within its state): {'PRKACA': 2}  state: {'PRKACA': '6 (L1)'}  global: {'PRKACA': 7}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'CA12': 1, 'SLC16A14': None, 'AURKA': None, 'ERBB2': 2, 'MTOR': None, 'KRT7': 7, 'CYP19A1': None}
+above first true target: 0 not in answer key -> known-wrong decoys: none; novel candidates: none
+nominated: ['SLC7A5', 'ERBB2', 'FST', 'CA12', 'CA5A', 'VWF', 'ITGA6', 'PRKACA', 'FAP', 'PDGFRB', 'INHBA']  precision: 0.2727272727272727
+decoys nominated - flagged by critic: none; UNFLAGGED: ['PDGFRB']
+drug recall: 0.25  found: ['neratinib']
+tool calls: 95 (0 errors)   tokens: {'input_tokens': 2481637, 'output_tokens': 42906}
+PASS: False
+
+Thu Nov  5 04:25:57 PM EST 2026

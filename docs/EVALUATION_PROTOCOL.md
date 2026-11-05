@@ -803,6 +803,26 @@ set). Tested (`tests/test_subcluster_condition.py`). The critic prompt (v10) nam
 settling move for a representative-but-doubtful `reference_driven` verdict. Not re-run on the
 ovarian arm in this round: the fix is recorded, its first use will be reported when it happens.
 
+### 23l. Prompts v11: nominated genes from a non-disease-cell lineage carry a microenvironment flag (round 0.4b)
+
+Motivating failure: FLC agent run 1 (`runs/flc_agent_1`, prompts v8). The tumour state was found
+by the expression route and PRKACA ranked 2nd in it behind CA12 with ERBB2 2nd (neratinib found),
+but PDGFRB, nominated from the CAF-like fibroblast programme (cluster 8), carried no critic flag -
+the only decoy nominated unflagged in the round. The FLC key lists PDGFRB and COL1A1 as decoys
+because the fibrous lamellae are the tumour's scaffold, not the tumour cell. The same pattern ran
+unlabelled through earlier rounds (FOLH1 and ESM1 from tumour endothelium in HCC and ccRCC, CD70
+and TREM2 from TAMs), where every key lists KDR, FLT1, PDGFRB, COL1A1 or CSF1R as decoys for that
+reason. The critic prompt asked about proliferation and attribution, not about compartment.
+
+Change (critic prompt only, v11; scoring unchanged): every nominated gene whose state is not of the
+disease cells' lineage (stroma, vessels, immune in a tumour design) carries a flag naming the
+lineage and saying it is a microenvironment candidate, not a target on the disease cells; the
+nomination may stand as a microenvironment hypothesis. The scripted critic is not changed: it
+has no notion of the disease cells' lineage (the config does not name it), and inventing one
+from the data would be a second rule to validate. Verified by a second FLC agent run
+(`runs/flc_agent_2`, also the dataset's first stability pair); the outcome is recorded in
+`validation_0.4/NOTES.md` whatever it is.
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new

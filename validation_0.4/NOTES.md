@@ -416,6 +416,25 @@ missed it. A design in which every library is one condition cannot separate libr
 in the integration; this is the general reason the expression route must always run, and it should
 be said in the design-types reference.
 
+## FLC agent run 1 (`runs/flc_agent_1`, prompts v8, scoring v3) — 37 min, 2.48M input tokens, 95 calls, 0 errors -> protocol 23l
+
+Five states: tumour-lineage epithelial cluster 0 (L0), disease-enriched hepatocyte cluster 10,
+tumour endothelium (cluster 20), and two programme states - **cluster 6, the hepatocyte/biliary-
+like programme in a shared L1 cluster, which is where the key's answers sit**, and a CAF-like
+matrix programme (cluster 8). **PRKACA 2nd within its state behind CA12; ERBB2 2nd among
+acceptable (neratinib found); PRKACA nominated** (rank 8 of 11 nominations, "kinase, clinically
+actionable, H-89/fasudil"); recall@5 1.0, nothing above the key answers, KRT7 7th; precision 0.27
+(three key genes of eleven). The v6 run in the test clone had PRKACA unranked, 89 genes above the
+first acceptable gene, and PDGFRB unflagged. Key state again "missed" at 3/5 markers (AKAP12,
+CA12, TESC in cluster 10; the key needs 5 of 14 literature markers, which in this dataset split
+across the composition state and the programme state).
+
+**One decoy nominated unflagged: PDGFRB**, from the CAF-like fibroblast programme, recorded as "the
+most druggable (14 approved inhibitors, but non-selective)". The critic reviewed attribution and
+cycling and never asked which compartment the gene is in. Prompts v11 (23l): every nominated gene
+from a non-disease-cell lineage carries a microenvironment flag naming the lineage. FLC agent run 2
+under v11 serves as verification and as the dataset's stability pair.
+
 ## Issue 11 (fixed in the skill's helper, generic): pairing was reported as pseudo-replication
 
 The donor warning counted libraries per donor, so a paired design (one tumour and one normal

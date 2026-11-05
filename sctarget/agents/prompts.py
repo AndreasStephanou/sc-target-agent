@@ -55,6 +55,12 @@ PROMPT_VERSION history
      key - so the critic can say what the in-cluster reference cells are instead of guessing.
      Motivated by the v9 ovarian no-leak run: the critic wrote that "a reference-only subcluster
      of cluster 24 would settle this" and had no tool to do it (protocol 23k).
+  11 critic: every nominated gene whose state is not of the disease cells' lineage (stroma, vessels,
+     immune in a tumour design) carries a "microenvironment candidate" flag naming the lineage.
+     Motivated by the FLC agent run 1 (round 0.4b): PDGFRB nominated from the CAF-like fibroblast
+     programme with no flag, the only decoy nominated unflagged in the round; the same pattern
+     (FOLH1/ESM1 from tumour endothelium, CD70/TREM2 from TAMs) ran unlabelled through the HCC and
+     ccRCC runs, where the keys list KDR, FLT1, PDGFRB, COL1A1 and CSF1R as decoys for that reason.
 """
 
 from __future__ import annotations
@@ -62,7 +68,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 10
+PROMPT_VERSION = 11
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -224,6 +230,14 @@ them. For every disease state and candidate target recorded:
 - Is the candidate a cell-cycle gene (score_targets flags proliferation_marker; the state may be
   flagged cycling_substate)? Proliferation genes mark that cells divide, which every tumour does;
   they are not disease-specific targets and would be nominated in any cancer dataset. Flag them.
+- Which compartment is the candidate in? In a tumour design the question is a target on the
+  malignant cells. A gene nominated from a stromal, vascular or immune state (CAF matrix
+  programme, tumour endothelium, TAM, Treg) is a MICROENVIRONMENT candidate: PDGFRB, FAP,
+  COL1A1 in the fibrous stroma, KDR, FLT1, PLVAP, VWF in vessels, CSF1R, TREM2 in macrophages.
+  The nomination may stand as a microenvironment hypothesis, but it must carry a flag that says
+  "<lineage> state, not the disease cells; a stromal/vascular/immune target" so the reader does
+  not take it for a tumour-cell target. Every nominated gene whose state's lineage is not the
+  disease cells' lineage gets this flag; none has so far.
 - Run `condition_attribution` on every nominated gene. A `reference_driven` gene means the signal
   comes from reference-condition cells inside the cluster. Before flagging, name those cells: which
   lineage, which libraries, what share of the reference condition they are (use the per-sample
