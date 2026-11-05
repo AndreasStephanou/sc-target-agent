@@ -85,7 +85,7 @@ def main(argv=None):
             "state_overlap": "; ".join(f"{n}:{_ov(s, 'best_match')}" for n, s in srs.items()),
             "strict_found": f"{len(found_strict)}/{n_states}" + (f" ({', '.join(found_strict)})" if found_strict else ""),
             "strict_overlap": "; ".join(f"{n}:{_ov(s, 'best_match_strict')}" for n, s in srs.items()),
-            "target_rank": ", ".join(f"{g}:{v if v is not None else '-'}" + (f" (state {r.target_state.get(g)})" if v is not None else "") for g, v in tr.items()),
+            "target_rank": ", ".join(f"{g}:{v if v is not None else '-'}" + (f" (state {r.target_state.get(g)}" + (f", {(getattr(r, 'target_state_lineage', None) or {}).get(g)}" if (getattr(r, 'target_state_lineage', None) or {}).get(g) else "") + ")" if v is not None else "") for g, v in tr.items()),
             "target_rank_global": ", ".join(f"{g}:{v if v is not None else '-'}" for g, v in (getattr(r, 'target_rank_global', None) or {}).items()),
             "acceptable_rank": ", ".join(f"{g}:{v if v is not None else '-'}" for g, v in (r.acceptable_rank or {}).items()),
             "decoys_above": len(r.decoys_above_target),
