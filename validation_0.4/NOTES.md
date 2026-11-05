@@ -106,3 +106,29 @@ cluster is invisible. (a) is fixed as protocol 23e (lineage coverage); (b) is le
 has `subcluster`, and is a stated floor limitation. ITGB6 reaches significance only in the AT2
 programme at log2 0.88 (below the 1.0 strong-gene threshold): the key's expected target is demanding
 at compartment resolution and will probably need the aberrant basaloid subcluster to rank.
+
+## IPF agent run 1 (`runs/ipf_agent_1`, prompts v7, scoring v3, Claude Code backend) — 14.5 min, 1.70M input tokens, 72 tool calls, 2 recovered model errors
+
+Eval: three key states missed (basaloid best match cluster 1 at 2/5: KRT17, MMP7); ITGB6 unranked;
+8 unique nominations (MMP1, MMP7, TNC, ITGA2 from the basal cluster; SCTR, AGTR2 from the IPF-only
+AT2 cluster; MUC5B, GPR87 from the secretory cluster), precision 0 against the key, no decoy
+nominated. Critic: cluster 0 is a composition shift (within-lineage log2 0.54), S15 (control) looks
+disease-like in epithelium, cluster 13 not distinct from normal AT2, MMP7 pan-epithelial.
+
+Reading against the authors' annotation (evaluation only): the agent found the same five enriched
+clusters as the floor (epithelial 1, 0, 13; immune 15, 18), recorded only the three epithelial
+ones and never characterised the macrophage clusters — the same lineage-coverage gap fixed for the
+scripted floor in 23e, now observed in the model. It never ran `disease_programs` (the prompt made it
+optional when composition had changed), and never subclustered cluster 2, so the KRT5-/KRT17+
+aberrant basaloid cells (341 of 374 inside cluster 2) stayed hidden; what it called "aberrant
+basal-like" (cluster 1) is the basal-cell expansion of bronchiolisation, real IPF biology with the
+wrong name. Its nominations are defensible biology (MMP1/MMP7/TNC in IPF basal/epithelium are
+published) and the key's acceptable list did not contain them; they are novel candidates, not
+errors. -> prompts v8: lineage coverage, run the expression route once in every analysis, and
+subcluster a programme cluster of the case lineage when a rare state is plausible.
+
+## DOX scripted floor (`runs/dox_calibrate_1`) — see protocol 23f
+
+Composition flat; one programme (cardiomyocyte cluster 23: Trim63, Nppb, Fbxo32, Nppa significant)
+found but its genes fell outside the statistic-ranked pool; Cdkn1a not induced at this time point
+(key-drafting lesson, key unchanged). Rerun as `dox_calibrate_2` with the 23f pool.

@@ -123,7 +123,7 @@ def _eval_section(session: AnalysisSession) -> str:
         ev = json.loads(p.read_text())
     except Exception:  # noqa: BLE001
         return ""
-    md = ["## 6. Evaluation against the frozen answer key\n"]
+    md = ["## 6. Evaluation against the frozen answer key\n"]  # numbering: sections 7-8 follow whether or not this one exists
     md.append(f"Key: `{ev.get('ground_truth')}` · prompts v{ev.get('prompt_version')} · scoring v{ev.get('scoring_version')} · **{'PASS' if ev.get('passed') else 'not passed'}** under the key's own criteria.\n\n")
     rows = []
     for name, r in (ev.get("state_recovery") or {}).items():
@@ -369,8 +369,9 @@ def build_markdown(session: AnalysisSession) -> str:
         if text:
             md.append(f"**{role}:** {text}\n\n")
 
-    # ---- 6. evaluation (only with a key)
-    md.append(_eval_section(session))
+    # ---- 6. evaluation (only with a key; without one the heading reads 'not scored')
+    ev_md = _eval_section(session)
+    md.append(ev_md if ev_md else "## 6. Evaluation\n\n_No frozen answer key was scored for this run (no `eval.json`). Without a key the sanity checks of the no-key protocol apply: lineage markers classed shared_with_reference, artefact genes flagged, stability across repeat runs, per-library panels, direction._\n")
 
     # ---- 7. provenance
     md.append("## 7. Provenance\n")

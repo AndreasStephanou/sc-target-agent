@@ -32,6 +32,13 @@ PROMPT_VERSION history
      the keratinocyte program showed 3 strong genes per piece instead of ~30 in the whole lineage;
      "no disease-specific state found" on data that holds one. Any perturbation or non-malignant
      dataset (program shift, no new state) would have taken this path.
+  8  analyst: (i) characterise the top enriched cluster of every lineage before a second cluster of
+     the same lineage (up to 5); (ii) run `disease_programs` once in every analysis, not only when
+     composition is flat; (iii) subcluster a programme cluster of the case lineage when its program
+     names a known rare state. Motivated by the IPF agent run 1 (GSE135893): five enriched clusters
+     in two lineages, three epithelial states recorded and the two macrophage clusters never
+     characterised; the expression route never run; the 374 KRT5-/KRT17+ aberrant basaloid cells
+     left inside a 5,559-cell transitional cluster that carried their program.
 """
 
 from __future__ import annotations
@@ -39,7 +46,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 7
+PROMPT_VERSION = 8
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -87,7 +94,11 @@ Procedure:
 2. `cluster_composition` and `differential_abundance`. A disease-specific state is a cluster
    that is (a) enriched in disease samples by per-sample proportion, (b) present in >= 2 disease
    samples, and (c) not merely a cell type that is more abundant in the disease tissue.
-3. For each disease-enriched cluster (max 3): identify its parent cell type from
+3. For each disease-enriched cluster (up to 5; take the TOP ENRICHED CLUSTER OF EVERY LINEAGE before a
+   second cluster of the same lineage - in a non-malignant disease epithelium, macrophages and
+   fibroblasts all shift, and an enriched immune or stromal cluster is as much a finding as an
+   epithelial one; recording three epithelial states and no immune one when immune clusters were
+   enriched is a known failure): identify its parent cell type from
    `cluster_composition`, then run `find_markers` and `pseudobulk_de` AGAINST SIBLING CLUSTERS
    OF THE SAME CELL TYPE (reference_clusters), so that you find state-specific genes, not
    cell-type markers. ALSO run `pseudobulk_de(contrast='disease_vs_reference_within_compartment')`
@@ -122,19 +133,24 @@ First `subcluster` the clusters of the cell type that leans most towards the dis
 clusters sharing that dominant cell type, resolution 1.5) and repeat steps 2-3. If that fails,
 re-run `integrate_and_cluster` with reuse_existing=null at resolution 2.0, and also try
 `differential_abundance(within_celltype=True)`.
-If composition is genuinely flat, switch to the EXPRESSION route: `disease_programs` tests,
-within each cluster, disease samples vs reference samples (pseudobulk). Call it WITHOUT
-cluster_key: it then runs on the base clustering (the first one established), because a program
-shift is lineage-wide and the subclustered or resolution-2.0 clustering splits each lineage into
-pieces too small to reach the gene-count criterion. A cluster with many
-disease-driven genes is a disease-altered program in a shared cell type. Record it with
+ALWAYS run the EXPRESSION route once, after the composition route and whether or not composition
+changed: `disease_programs` tests, within each cluster, disease samples vs reference samples
+(pseudobulk). It is one call; in perturbations and most non-malignant disease the main signal is a
+program shift inside an existing lineage, and a run that skips it reports only composition. Call it
+WITHOUT cluster_key: it then runs on the base clustering (the first one established), because a
+program shift is lineage-wide and the subclustered or resolution-2.0 clustering splits each lineage
+into pieces too small to reach the gene-count criterion. A cluster with many disease-driven genes
+is a disease-altered program in a shared cell type. Record it with
 `record_finding(kind='disease_state', basis='program', ...)` using the within-cluster top genes.
-Running `disease_programs` is also worthwhile when composition DID change, to catch program
-shifts in cell types that are not enriched - but read its ambient_warning: when a disease-enriched
-population dominates the disease samples, its transcripts appear as background in every other
-nucleus from those samples, and clusters marked ambient_suspect are NOT disease states. Use
-clean_program_genes for anything you do record. If both routes find nothing, record a summary
-finding explaining this.""",
+Read its ambient_warning: when a disease-enriched population dominates the disease samples, its
+transcripts appear as background in every other nucleus from those samples, and clusters marked
+ambient_suspect are NOT disease states. Use clean_program_genes for anything you do record.
+Rare states hide inside programme clusters: if a large cluster of the case lineage carries a
+disease program whose genes are those of a known rare disease state (for example a senescence /
+EMT program in a transitional epithelial cluster), `subcluster` that one cluster (resolution 1.0)
+and re-run `differential_abundance` on the subclusters - a disease-only sub-state of a few hundred
+cells is invisible at the base resolution and is often the state the literature names. If both
+routes find nothing, record a summary finding explaining this.""",
     "target": PREAMBLE
     + """
 Role: TARGET NOMINATOR. For each recorded disease state, nominate druggable target genes.
