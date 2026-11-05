@@ -1,1 +1,30 @@
 Thu Nov  5 03:04:25 PM EST 2026
+run dir : runs/hcc_calibrate_v04_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=45 tools=44 errors=0  stop=end_turn
+  target   turns=54 tools=53 errors=0  stop=end_turn
+  critic   turns=29 tools=28 errors=0  stop=end_turn
+report  : runs/hcc_calibrate_v04_1/report.md
+elapsed : 594.5s
+Evaluation of runs/hcc_calibrate_v04_1 vs hcc.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'HCC_malignant_hepatocyte': missed  (cluster 10, marker overlap 0/5 needed: )
+    strict (agent-recorded genes only): missed  (cluster 10, overlap 0/5, 15 genes recorded)
+target ranks (within its state): {'GPC3': None}  state: {'GPC3': None}  global: {'GPC3': None}   recall@5: 0.0
+acceptable-target ranks (reported, not scored): {'AFP': None, 'MDK': 83}
+above first true target: 362 not in answer key -> known-wrong decoys: ['TOP2A', 'MKI67']; novel candidates: ['FOLH1', 'MMP9', 'CA2', 'SPP1', 'PGF', 'COL1A2', 'CXCL13', 'CYP17A1', 'SCD', 'MAGEA1', 'SQLE', 'ESM1', 'KCNE3', 'THY1', 'TNFRSF4', 'COL15A1', 'COL4A2', 'GGH', 'GPNMB', 'CTHRC1', 'IGFBP5', 'COL4A1', 'CLGN', 'ANGPTL2', 'IGFBP3', 'CD52', 'SPARC', 'CD27', 'TUBG1', 'GEM', 'MAGEA3', 'HSPA6', 'DSCR8', 'UNC5B', 'PLOD1', 'KIF20A', 'NDUFA4L2', 'ASPH', 'SLC26A6', 'CAPG', 'GNAI1', 'TPM1', 'CACYBP', 'MYO1B', 'DNAJA4', 'ID3', 'DNAJB4', 'TMEM204', 'CD82', 'PLK1', 'P4HA2', 'HIST1H1A', 'ITGA1', 'CDK1', 'SPAG5', 'STIP1', 'BIRC5', 'MND1', 'ERBB3', 'NEK2', 'FN1', 'COLEC12', 'FOLR2', 'MMP12', 'APOBEC3H', 'CCNA2', 'RFC4', 'APOE', 'TMEM106C', 'CDC25C', 'BATF', 'CCNB1', 'CDCA3', 'TMEM14A', 'PLA2G7', 'DTYMK', 'GTSE1', 'CD70', 'KIAA1524', 'DDAH2', 'CD209', 'CTAG2', 'CCNB2', 'MAGED2', 'PPIL1', 'CHORDC1', 'CXCL11', 'FDPS', 'SLC40A1', 'TF', 'CTSB', 'CP', 'CENPA', 'C1QB', 'C1QC', 'BUB1B', 'CDKN3', 'CDC20', 'FABP3', 'UBE2C', 'C1QA', 'GAGE1', 'ITGB1', 'WDYHV1', 'NME1', 'BANF1', 'BUB1', 'HSBP1', 'CBR1', 'GPR34', 'CCL13', 'NUF2', 'LAGE3', 'PLD3', 'ASPM', 'NSMCE2', 'MSR1', 'UQCC2', 'KIF14', 'DEPDC1', 'RPN2', 'PKD2L1', 'KIF23', 'KIF2C', 'CDKN2C', 'GSTO1', 'LMAN2', 'CD84', 'F12', 'PLA2G2D', 'CCL8', 'TFR2', 'SNRPC', 'PAGE5', 'CENPF', 'RNASE1', 'C2', 'HJURP', 'NDFIP2', 'SLC12A5', 'MS4A4A', 'ATP6V0D2', 'MLXIPL', 'VBP1', 'CKAP2L', 'MCM7', 'HSPA5', 'CDCA8', 'CCL3L3', 'ARL3', 'CENPE', 'FADS1', 'MAD2L1', 'NUSAP1', 'ITGAD', 'FADS2', 'AURKB', 'PTTG1', 'PPP1R16A', 'FTL', 'AURKA', 'TLCD1', 'GINS2', 'UGT2A1', 'MRPS23', 'LAPTM4B', 'CIT', 'SGOL2', 'NDC80', 'KNG1', 'SPIC', 'KIF15', 'PSG9', 'NUDT1', 'TMEM26', 'SPC24', 'PLTP', 'GMNN', 'SH3BGRL3', 'EEF1A2', 'LIPA', 'FABP4', 'VCAM1', 'REG4', 'TUBA1B', 'WDR45B', 'APOC1', 'APOB', 'ARHGAP18', 'LPIN3', 'SLC35B1', 'SMC2', 'SDC3', 'KIF18A', 'PSMD4', 'HMGN2', 'IDI1', 'KPNA2', 'TXNRD1', 'CXCL12', 'SNRPD2', 'TP53INP1', 'GALM', 'C6orf1', 'LILRB5', 'A1BG', 'CYP2D6', 'ERCC6L', 'CSF1R', 'RAN', 'MRPL42', 'GLO1', 'C20orf27', 'CCL2', 'CD5L', 'UQCRB', 'XAGE1B', 'BAG3', 'TBCE', 'LGMN', 'RP11-284G10.1', 'ZFAND2A', 'NPC2', 'SLC50A1', 'RP11-116D2.1', 'IGF1', 'PGK1', 'RP11-95M15.1', 'ANXA5', 'SLC25A39', 'ALDOA', 'TIMD4', 'CYP8B1', 'AKR1B10', 'APOC2', 'DAB2', 'RP11-295G20.2', 'FAM72D', 'MSMO1', 'ABCA6', 'PNPLA3', 'CTSD', 'H6PD', 'CTB-50L17.14', 'CENPM', 'AKR1C2', 'CHI3L1', 'AMBP', 'PIF1', 'CORO1B', 'GAPLINC', 'AGR2', 'NQO1', 'TFF2', 'PCOLCE2', 'GPLD1', 'CHRD', 'STEAP1', 'RAC3', 'CCL15', 'LGI4', 'ANP32E', 'MT1H', 'EGLN3', 'SEPP1', 'AK4', 'TMEM230', 'MRPL13', 'TXN', 'TMEM150A', 'PCNP', 'ANGPTL4', 'GSTA2', 'STMN1', 'RSL24D1', 'ALDOC', 'PAIP2', 'H2AFZ', 'GALE', 'MORF4L1', 'CKS2', 'KIF20B', 'C11orf58', 'SAP18', 'ITIH1', 'ST13', 'MYL12B', 'GAPDH', 'HMGB2', 'ENO1', 'UBA52', 'NKTR', 'NUPR1', 'RNF213', 'GATAD1', 'LGALS3BP', 'PSMA8', 'H3F3B', 'SYCE2', 'CD4', 'ITGA9', 'BNIP3', 'AGT', 'EPHX1', 'IRGM', 'NEAT1', 'DDI2', 'NGFRAP1', 'SCPEP1', 'PRDX1', 'ASGR1', 'HMGB1', 'ATP5E', 'GSTA1', 'PTGR1', 'COX7C', 'CMPK1', 'SCOC-AS1', 'PDIA6', 'LGALS4', 'NEK6', 'NDUFV2', 'YWHAE', 'UBR3', 'NACA', 'DBH-AS1', 'RPLP0', 'VEGFA', 'TUBB', 'RAB13', 'CALU', 'INSR', 'SLC38A2', 'SLC7A8', 'KIAA1147', 'PIN4', 'CALCOCO1', 'CDK4', 'TYMS', 'IGHE', 'SEPT11', 'NME5', 'CSTB', 'KLHL6-AS1', 'CETP', 'PTPRCAP', 'CTC-537E7.3', 'CTC-367J11.1', 'CLEC4G', 'DNAH1', 'RP1-142L7.5', 'TM4SF18', 'KCND3', 'COL18A1', 'PNPLA7', 'XDH', 'CPS1', 'SLC13A5', 'CKS1B', 'CD1B']
+nominated: ['CYP17A1', 'MAGEA1', 'SQLE', 'GGH', 'CLGN', 'MMP9', 'SPP1', 'GPNMB', 'COLEC12', 'FOLR2', 'TMEM106C', 'PPIL1', 'SCD', 'FOLH1', 'CA2', 'PGF', 'COL1A2', 'ESM1', 'CXCL13', 'CD52', 'CD27', 'GEM', 'HSPA6']  precision: 0.0
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.0  found: []
+tool calls: 127 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: False
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/hcc.yaml --model scripted --run-dir runs/hcc_calibrate_v04_1 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/hcc_calibrate_v04_1/report.md: the executive summary (design, key numbers), section 1 (QC: cells kept, per-type removal) and section 2 (which clusters were enriched, split candidates, doublet/stress suspects, programme clusters)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/hcc.yaml runs/hcc_calibrate_v04_1
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.
+hcc calibrate exit=0
+Thu Nov  5 03:14:24 PM EST 2026

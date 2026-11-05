@@ -333,9 +333,16 @@ class ScriptedModel:
             pb = f.get("pseudobulk_de", {}).get(f"{cl}:{contrast}", {})
             from ..tools.targets import excluded_gene
 
-            def _pool(rows, n_stat=20):  # the n most significant plus every effect-pool gene (protocol 23f)
+            def _pool(rows, n_stat=20, n_effect=20, min_log2fc=1.0):
+                # the n most significant, plus the n_effect largest significant effects among every
+                # other stored gene (protocol 23f, boundary fixed in 23h: the effect set is taken over
+                # the whole stored pool, not only over the rows the tool labelled 'effect', so a gene
+                # at significance rank 21-40 with a top effect is kept)
                 rows = [r for r in rows if not excluded_gene(r["gene"])]
-                return [r["gene"] for r in rows if r.get("pool") != "effect"][:n_stat] + [r["gene"] for r in rows if r.get("pool") == "effect"]
+                head = [r["gene"] for r in rows if r.get("pool") != "effect"][:n_stat]
+                rest = [r for r in rows if r["gene"] not in head and (r.get("log2fc") or 0) >= min_log2fc]
+                rest = sorted(rest, key=lambda r: -(r.get("log2fc") or 0))[:n_effect]
+                return head + [r["gene"] for r in rest]
 
             pb_genes = _pool(pb.get("top_up", [])) or st.get("genes", [])[:20]
             # cell-level markers are kept as well: for a pure state they often carry the biology

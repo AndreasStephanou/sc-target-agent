@@ -720,6 +720,24 @@ numbers are unchanged; for earlier multi-state runs the within-state rank can on
 better than the published global one. All results tables of this round are regenerated under the
 new definition and say so in their header.
 
+### 23h. The floor's effect pool is taken over the whole stored candidate list (round 0.4b)
+
+Motivating failure: ovarian scripted floor on the rebuilt object (`runs/ovarian_calibrate_v04_1`).
+The tumour cluster was found (5/5) and FOLR1 was significant in its sibling contrast (log2FC 4.8,
+padj 5e-8), the 39th most significant gene and the 9th largest effect. `_candidate_pool` (23f)
+stores the 40 most significant rows as `pool = 'stat'` and then up to 20 of the largest remaining
+effects as `pool = 'effect'`; the scripted target role read the first 20 `stat` rows plus every
+`effect` row. A gene at significance rank 21-40 is therefore in neither set, whatever its effect,
+while a weaker effect outside the head is kept. FOLR1 was again unscored by the floor, as in round
+0.3 (then: outside a fixed top-20).
+
+Change (scripted floor only; agent backends read the full stored list): the floor's pool is the 20
+most significant rows plus the 20 largest significant effects (log2FC >= 1) among **all other
+stored rows**, whether the tool labelled them `stat` or `effect`. Tested
+(`tests/test_candidate_pool_boundary.py`). The stored table and its `pool` column are unchanged, so
+the agent's view and the report are unaffected. Verified by re-running the ovarian floor
+(`runs/ovarian_calibrate_v04_2`); the result is recorded in `validation_0.4/NOTES.md` whatever it is.
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new
