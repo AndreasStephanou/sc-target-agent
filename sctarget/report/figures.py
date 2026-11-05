@@ -145,7 +145,12 @@ def abundance_overview(session, name: str = "abundance_overview") -> str | None:
     clusters = [str(r["cluster"]) for r in rows]
     enriched = {str(c) for c in da.get("disease_enriched_clusters", [])}
     comp = {str(r["cluster"]): r for r in session.facts.get("cluster_composition", [])}
-    lineages = [str(comp.get(c, {}).get("dominant_celltype") or "?") for c in clusters]
+
+    def _lineage_of(c: str) -> str:
+        r = comp.get(c) or (comp.get(c.split("+")[0]) if "+" in c else None) or {}  # a merged cluster takes its pieces' lineage
+        return str(r.get("dominant_celltype") or "?")
+
+    lineages = [_lineage_of(c) for c in clusters]
     pal = lineage_palette(lineages)
     lib_tot = pd.Series(libs).value_counts()
     fig, ax = plt.subplots(figsize=(max(SINGLE_COL, min(DOUBLE_COL, 0.22 * len(clusters) + 1.0)), 2.6))
@@ -453,12 +458,18 @@ def _state_contrasts(session, cluster: str) -> list[tuple[str, str]]:
     basis = state_basis(session, str(cluster))
     if basis == "program":
         return [("disease_vs_reference_within_cluster", "disease vs reference within the cluster")]
-    out = [("cluster_vs_reference_clusters", "state vs sibling clusters")]
+    out = [("cluster_vs_reference_clusters", "vs sibling clusters")]
     rt = session.facts.get("ranked_targets", {}).get(str(cluster), [])
     axis = next((r.get("lineage_axis_source") for r in rt if r.get("lineage_axis_source")), None)
     if axis:
-        out.append((str(axis), str(axis).replace("disease_vs_reference_within_", "disease vs reference, ") + " (lineage contrast, shared by the lineage's states)"))
+        out.append((str(axis), "lineage contrast: disease vs reference, " + str(axis).replace("disease_vs_reference_within_", "")))
     return out
+
+
+def _table_signature(df: pd.DataFrame) -> str:
+    """Content signature: the same contrast saved once per state must be drawn once."""
+    head = df.head(25)
+    return f"{len(df)}|" + "|".join(f"{g}:{v:.3f}" for g, v in zip(head["gene"].astype(str), head["log2fc"].astype(float)))
 
 
 def state_volcanoes(session, name: str = "state_volcanoes", max_states: int = 6) -> str | None:
@@ -479,7 +490,7 @@ def state_volcanoes(session, name: str = "state_volcanoes", max_states: int = 6)
             df, path = _contrast_table(session, cl, contrast)
             if df is None or len(df) <= 20 or path is None:
                 continue
-            key = str(Path(path).resolve())
+            key = _table_signature(df)
             if key not in panels:
                 panels[key] = {"df": df, "label": label, "states": [], "genes": set()}
             panels[key]["states"].append(cl)
@@ -509,11 +520,12 @@ def state_volcanoes(session, name: str = "state_volcanoes", max_states: int = 6)
             ax.axvline(v, color=NEUTRAL, lw=0.5, ls=":")
         ax.set_xlabel("log2 fold change")
         ax.set_ylabel("-log10 padj")
-        ax.set_title(f"state{'s' if len(it['states']) > 1 else ''} {', '.join(it['states'])}: {it['label']}", fontsize=6)
+        title = f"state{'s' if len(it['states']) > 1 else ''} {', '.join(it['states'])}: {it['label']}"
+        ax.set_title(title if len(title) <= 48 else title[:46] + "…", fontsize=6)
         panel_label(ax, chr(ord("a") + k))
         despine(ax)
     for ax in axes.ravel()[len(items):]:
         ax.axis("off")
-    fig.tight_layout()
+    fig.tight_layout(w_pad=1.5)
     p = session.save_figure(name, fig, "Replicate-aware pseudobulk contrasts behind the recorded states (vermilion: up in disease, blue: down; padj < 0.05 and |log2FC| >= 1): each state's own defining contrast, and the lineage contrast that carried its scoring, drawn once when several states share it. Nominated candidates in bold; the eight most significant up-regulated genes labelled.")
     return str(p.relative_to(session.run_dir))
