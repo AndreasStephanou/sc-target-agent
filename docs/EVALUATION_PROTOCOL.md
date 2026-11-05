@@ -719,3 +719,15 @@ true target" are counted in the state where it ranks best. For runs with one rec
 numbers are unchanged; for earlier multi-state runs the within-state rank can only be equal or
 better than the published global one. All results tables of this round are regenerated under the
 new definition and say so in their header.
+
+## 24. results-v4
+
+Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new
+design types run blind from frozen keys (IPF GSE135893, non-malignant; doxorubicin heart GSE285475
+wild-type arms, perturbation in `marker` mode), the expression route repaired in four places,
+the candidate pool rule, lineage coverage in the floor and the prompt, within-state target rank in
+the evaluator, the 0.4 report (executive summary, publication figures, PDF/SVG), `rebuild_report.py`,
+`build_from_mtx.py`, and the 0.4.1 skill package in `skills/` and `.claude/skills/`. Results:
+`docs/results_ipf_v04.md`, `docs/results_dox_v04.md`, `docs/results_ccrcc_v04.md`; write-up
+`docs/REPORT.md` section 7; running notes `validation_0.4/NOTES.md`. 89 tests. Nothing pushed;
+this is a working copy awaiting the author's review of each method change.

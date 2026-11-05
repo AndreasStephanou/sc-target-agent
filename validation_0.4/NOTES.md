@@ -199,3 +199,13 @@ The evaluator's merged rank put CA9 6th behind endothelium/stroma genes — a me
 lineage coverage, fixed as protocol 23g (within-state rank; merged rank kept as
 `target_rank_global`). Cost 2.19M vs 0.6-1.7M in earlier rounds: v8's coverage and the expression
 route add calls.
+
+## ccRCC regression run 2 (`runs/ccrcc_agent_v04_2`) and stability — 11.3 min, 2.88M tokens, 89 calls, 0 errors
+
+State found (lenient 8/5, strict 8/5; merged cluster 0+1+2+3); CA9 1st within its state, VEGFA 9th;
+16 nominations, no decoy. Stability over the two v8 runs: top-10 Jaccard 0.33, nominated-set
+Jaccard 0.42, rank-1 gene CA9 in both runs' tumour state (FOLH1 in both runs' endothelium
+programme). The tumour result is unchanged by the round's seven method changes; the variation is in
+secondary states and their candidates.
+
+## Round closed: tag results-v4 (working copy only)

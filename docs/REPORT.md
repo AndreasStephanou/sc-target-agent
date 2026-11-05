@@ -344,7 +344,9 @@ FOLH1 above the key, no decoy. The merged target rank fell to 6th because v8 rec
 endothelium and stroma states too; the evaluator now judges the rank within the state that carries
 the target (23g) and keeps the merged rank as information. v8 roughly doubles the analyst's tool
 calls: 1.2-4.1M input tokens per run in this round against 0.6-2.3M before. Stability pair on
-ccRCC: [second run pending at the time of writing].
+ccRCC under v8: both runs find the tumour state strictly (9/5 and 8/5) with CA9 first in its state
+and no decoy; top-10 Jaccard 0.33, nominated-set Jaccard 0.42, rank-1 gene CA9 in both; the
+variation is in the secondary states (TAM, endothelium, stroma) and their candidates, as before.
 
 **What the round says about generality.** The code was design-agnostic; the method was not, in
 four places, all on the expression route, all invisible on tumours, all generic once seen. The
