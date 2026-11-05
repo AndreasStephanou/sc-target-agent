@@ -248,14 +248,14 @@ class ScriptedModel:
         pb = f.get("pseudobulk_de", {}).get(f"{cl}:cluster_vs_reference_clusters", {})
         from ..tools.targets import excluded_gene
 
-        up = [r["gene"] for r in pb.get("top_up", []) if not excluded_gene(r["gene"])][:40]
+        up = [r["gene"] for r in pb.get("top_up", []) if not excluded_gene(r["gene"])][:60]
         if not up:
             mk_key = next((k for k in f.get("markers", {}) if k.startswith(f"{cl}_vs_")), None)
-            up = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:40]
+            up = [r["gene"] for r in f.get("markers", {}).get(mk_key, []) if not excluded_gene(r["gene"])][:60]
         cp = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_compartment", {})
-        cp_genes = [r["gene"] for r in cp.get("top_up", []) if not excluded_gene(r["gene"])][:40]
+        cp_genes = [r["gene"] for r in cp.get("top_up", []) if not excluded_gene(r["gene"])][:60]
         ln = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_lineage", {})
-        ln_genes = [r["gene"] for r in ln.get("top_up", []) if not excluded_gene(r["gene"])][:40]
+        ln_genes = [r["gene"] for r in ln.get("top_up", []) if not excluded_gene(r["gene"])][:60]
         if cp_genes or ln_genes:  # recorded signature: what defines the state among its siblings AND what separates it from normal
             up = list(dict.fromkeys(up[:8] + ln_genes[:8] + cp_genes[:8] + up[8:] + ln_genes[8:] + cp_genes[8:]))
         cycling = f.get("cycling_clusters", {}).get(str(cl))
@@ -295,7 +295,7 @@ class ScriptedModel:
         for cl in altered:
             r = rows[cl]
             pb = f.get("pseudobulk_de", {}).get(f"{cl}:disease_vs_reference_within_cluster", {})
-            up = [x["gene"] for x in pb.get("top_up", []) if not excluded_gene(x["gene"])][:40]
+            up = [x["gene"] for x in pb.get("top_up", []) if not excluded_gene(x["gene"])][:60]
             steps.append(ToolUse("enrichment", {"genes": up}))
             steps.append(ToolUse("plot_genes", {"genes": up[:4], "title": f"cluster {cl} disease program"}))
             steps.append(

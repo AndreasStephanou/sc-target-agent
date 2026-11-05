@@ -996,6 +996,16 @@ def pseudobulk_de(
     return out
 
 
+def _candidate_pool(sig_up: pd.DataFrame, n_stat: int = 40, n_effect: int = 20, min_log2fc: float = 1.0) -> pd.DataFrame:
+    """Top n_stat significant genes by statistic, then up to n_effect of the largest significant
+    effects (log2FC >= min_log2fc) not already included; each row carries pool = 'stat' | 'effect'."""
+    head = sig_up.head(n_stat).copy()
+    head["pool"] = "stat"
+    strong = sig_up[(sig_up["log2fc"] >= min_log2fc) & ~sig_up.index.isin(head.index)].sort_values("log2fc", ascending=False).head(n_effect).copy()
+    strong["pool"] = "effect"
+    return pd.concat([head, strong]).reset_index()
+
+
 def _run_harmony(a, batch_key: str, seed: int) -> np.ndarray:
     """Harmony on X_pca via harmonypy directly. harmonypy < 1 returns PCs x cells, >= 1 (incl. 2.x)
     returns cells x PCs (and may return a torch tensor); scanpy's wrapper assumes the old layout and
@@ -1351,7 +1361,12 @@ def _run_pseudobulk(
             "replicates": {"target": n_t, "reference": n_r},
             "n_sig_up": int(len(sig_up)),
             "n_sig_down": int(len(sig_down)),
-            "top_up": sig_up.head(50).reset_index().to_dict(orient="records"),
+            # candidate pool (protocol 23f): the 40 most significant genes by statistic PLUS up to 20
+            # of the largest significant effects (log2FC >= 1) not already among them. A strong
+            # programme can have hundreds of significant genes; ranking by statistic alone favoured
+            # abundant genes with small fold changes and left the largest inductions (DOX heart:
+            # Trim63, Nppb, Fbxo32) outside the pool.
+            "top_up": _candidate_pool(sig_up).to_dict(orient="records"),
             "lineage_coverage": lineage_cov,
         }
     return {
@@ -1365,7 +1380,7 @@ def _run_pseudobulk(
         "n_sig_down": int(len(sig_down)),
         "n_low_expression_excluded": n_low_expr_dropped,
         "n_target_replicates_dropped_small_share": n_dropped_small_share,
-        "ranking": f"top_up is sorted by test statistic among genes with baseMean >= {min_base_mean}",
+        "ranking": f"top_up: the most significant genes by test statistic among genes with baseMean >= {min_base_mean}, followed by the largest significant effects (pool = 'effect') not already listed",
         "_sig_up": sig_up,
     }
 

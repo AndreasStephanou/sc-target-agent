@@ -673,3 +673,24 @@ ordering. The agent prompt already leaves the order to the model; nothing change
 Floor limitation stated rather than patched: the scripted route never subclusters an enriched or
 programme cluster, so a rare state inside one (the 374 KRT5-/KRT17+ aberrant basaloid cells inside
 the 5,559-cell transitional cluster) is invisible to it. The agent has `subcluster`.
+
+### 23f. The candidate pool keeps the largest significant effects, not only the most significant statistics
+
+DOX floor (`runs/dox_calibrate_1`, 4 vs 4 wild-type hearts, `objective: marker`): composition flat
+as predicted; the expression route found one programme, in a cardiomyocyte cluster (377 genes up,
+91 strong), whose within-cluster contrast carries the canonical cardiomyocyte doxorubicin response
+(Trim63 padj 7e-6, Nppb, Fbxo32, Nppa - all acceptable genes of the frozen key). None reached the
+candidate pool: `top_up` stored the 50 most significant genes by test statistic, the scripted route
+took 40 of them, and the atrophy and natriuretic genes ranked 137th-650th by statistic because
+abundant structural genes with small fold changes dominate the statistic in a 3-vs-3 pseudobulk.
+**Change:** `top_up` = the 40 most significant genes plus up to 20 of the largest significant
+effects (log2FC >= 1) not already listed, each row labelled `pool = stat | effect`; the scripted
+candidate set takes up to 60; the nominator's brief shows the 30 most significant plus every
+effect-pool gene. Generic; the tumour runs are unaffected except for a slightly larger pool.
+
+Key-drafting lesson (recorded, key unchanged): the expected target Cdkn1a (p21) is not induced in
+this dataset at two weeks (down in the cardiomyocyte programme, log2 -0.8; modest and
+non-significant elsewhere), as the pre-run label check had hinted. The p53 read-out is a
+time-point-dependent response; the lineage-level atrophy / natriuretic response is what the data
+hold. This joins EPAS1 (protein-level target) and the HCC literature markers as the third
+key-drafting failure mode: a read-out that is real but not at the sampled time.

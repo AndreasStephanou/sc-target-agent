@@ -227,8 +227,11 @@ def stage_prompt(role: str, facts: dict[str, Any], cfg: dict[str, Any]) -> str:
     if role == "target":
         states = facts.get("findings", {}).get("disease_state", [])
         pb_all = facts.get("pseudobulk_de", {})
-        pb = {k: {"method": v.get("method"), "n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30]} for k, v in pb_all.items() if "compartment" not in k}
-        cp = {k: {"n_sig_up": v.get("n_sig_up"), "top_up_genes": [r["gene"] for r in v.get("top_up", [])][:30], "lineage_coverage": v.get("lineage_coverage")} for k, v in pb_all.items() if "compartment" in k or "within_lineage" in k}
+        def _brief_genes(rows):  # the 30 most significant plus the largest significant effects (protocol 23f)
+            return [r["gene"] for r in rows if r.get("pool") != "effect"][:30] + [r["gene"] for r in rows if r.get("pool") == "effect"]
+
+        pb = {k: {"method": v.get("method"), "n_sig_up": v.get("n_sig_up"), "top_up_genes": _brief_genes(v.get("top_up", []))} for k, v in pb_all.items() if "compartment" not in k}
+        cp = {k: {"n_sig_up": v.get("n_sig_up"), "top_up_genes": _brief_genes(v.get("top_up", [])), "lineage_coverage": v.get("lineage_coverage")} for k, v in pb_all.items() if "compartment" in k or "within_lineage" in k}
         mk = {k: [r["gene"] for r in rows][:30] for k, rows in facts.get("markers", {}).items()}
         return (
             header
