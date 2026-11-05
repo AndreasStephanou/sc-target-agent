@@ -107,7 +107,13 @@ class AnalysisSession:
         from .report.style import save_all
 
         safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in name)
-        stem = self.run_dir / "figures" / f"{len(self.figures) + 1:02d}_{safe}"
+        # next free index on disk (a report rebuilt in place must not overwrite or collide with the
+        # run's own figures), never lower than the in-memory count
+        figdir = self.run_dir / "figures"
+        figdir.mkdir(parents=True, exist_ok=True)
+        used = [int(p.name[:2]) for p in figdir.iterdir() if p.name[:2].isdigit() and p.name[2:3] == "_"]
+        idx = max([len(self.figures)] + used) + 1
+        stem = figdir / f"{idx:02d}_{safe}"
         written = save_all(fig, stem)
         import matplotlib.pyplot as plt
 

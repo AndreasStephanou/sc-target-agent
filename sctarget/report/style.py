@@ -106,7 +106,8 @@ def panel_label(ax: Any, letter: str, x: float = -0.12, y: float = 1.05) -> None
 
 def lineage_palette(names: list[str]) -> dict[str, str]:
     names = list(dict.fromkeys(str(n) for n in names))
-    base = [OKABE_ITO[k] for k in ("blue", "green", "orange", "purple", "sky", "yellow", "vermilion", "black")]
+    # lineage colours never reuse the condition colours (blue = reference, vermilion = disease)
+    base = [OKABE_ITO[k] for k in ("green", "orange", "purple", "sky", "black")]  # no yellow: unreadable on white
     if len(names) <= len(base):
         return {n: base[i] for i, n in enumerate(names)}
     import matplotlib.pyplot as plt

@@ -157,8 +157,10 @@ def abundance_overview(session, name: str = "abundance_overview") -> str | None:
         per_lib = pd.Series(libs[m]).value_counts()
         for lib in lib_tot.index:
             prop = per_lib.get(lib, 0) / lib_tot[lib]
+            if prop <= 0:
+                continue  # a library with no cells in the cluster is omitted (log scale)
             is_dis = conds[libs == lib][0] == session.disease
-            ax.scatter(xi + (0.16 if is_dis else -0.16) + rng.uniform(-0.06, 0.06), max(prop, 1e-4), s=7, color=DISEASE_COLOR if is_dis else REFERENCE_COLOR, alpha=0.85, edgecolor="none", zorder=3)
+            ax.scatter(xi + (0.16 if is_dis else -0.16) + rng.uniform(-0.06, 0.06), prop, s=7, color=DISEASE_COLOR if is_dis else REFERENCE_COLOR, alpha=0.85, edgecolor="none", zorder=3)
     ax.set_yscale("log")
     ax.set_ylabel("fraction of library")
     ax.set_xticks(range(len(clusters)))
@@ -174,7 +176,7 @@ def abundance_overview(session, name: str = "abundance_overview") -> str | None:
     ax.legend(handles=handles, ncol=min(5, len(handles)), loc="upper center", bbox_to_anchor=(0.5, -0.28), handlelength=1.0, columnspacing=0.8)
     despine(ax)
     fig.tight_layout()
-    p = session.save_figure(name, fig, "Per-library cluster proportions (log scale), one point per library, coloured by condition; cluster labels coloured by dominant lineage; shaded clusters passed the replicate-aware enrichment test (log2 ratio shown).")
+    p = session.save_figure(name, fig, "Per-library cluster proportions (log scale; libraries with no cells in a cluster omitted), one point per library, coloured by condition; cluster labels coloured by dominant lineage; shaded clusters passed the replicate-aware enrichment test (log2 ratio shown).")
     return str(p.relative_to(session.run_dir))
 
 
@@ -243,12 +245,13 @@ def library_expression_panel(session, genes: list[str], name: str, title: str | 
         despine(ax)
     for ax in axes.ravel()[len(genes):]:
         ax.axis("off")
-    axes.ravel()[0].scatter([], [], color=DISEASE_COLOR, label=f"{session.disease} libraries")
-    axes.ravel()[0].scatter([], [], color=REFERENCE_COLOR, label=f"{' / '.join(session.reference)} libraries")
-    axes.ravel()[0].legend(loc="upper left")
+    handles = [plt.Line2D([], [], marker="o", ls="", color=DISEASE_COLOR, label=f"{session.disease} libraries"),
+               plt.Line2D([], [], marker="o", ls="", color=REFERENCE_COLOR, label=f"{' / '.join(session.reference)} libraries"),
+               plt.Rectangle((0, 0), 1, 1, color=LIGHT, alpha=0.5, label="recorded state")]
+    fig.legend(handles=handles, loc="upper right", ncol=3, bbox_to_anchor=(0.99, 1.0))
     if title:
         fig.suptitle(title, fontsize=8, fontweight="bold", x=0.01, ha="left")
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
     p = session.save_figure(name, fig, f"Per-library pseudobulk expression of {', '.join(genes)} by lineage and recorded state (shaded); one point per library, coloured by condition, boxes per condition (libraries with < {min_cells} cells in a group omitted). A real candidate has most disease libraries above the reference ones in its own lineage.")
     return str(p.relative_to(session.run_dir))
 
@@ -404,14 +407,12 @@ def candidate_heatmap(session, name: str = "candidate_evidence", max_rows: int =
             recs.append((g, cl, rec))
     recs.sort(key=lambda t: -(t[2].get("score") or 0))
     M = np.array([[fn(rec) for _, fn in comps] for _, _, rec in recs])
-    fig, (ax, axs) = plt.subplots(1, 2, figsize=(MID_COL, 0.22 * len(recs) + 0.9), gridspec_kw={"width_ratios": [len(comps), 1.2], "wspace": 0.05})
+    fig, (ax, axs, axc) = plt.subplots(1, 3, figsize=(DOUBLE_COL, max(1.6, 0.24 * len(recs) + 1.1)), gridspec_kw={"width_ratios": [len(comps), 1.4, 0.15], "wspace": 0.08}, constrained_layout=True)
     im = ax.imshow(M, cmap=SEQUENTIAL_CMAP, vmin=0, vmax=1, aspect="auto")
     ax.set_xticks(range(len(comps)))
-    ax.set_xticklabels([c for c, _ in comps], rotation=45, ha="right")
+    ax.set_xticklabels([c for c, _ in comps], rotation=40, ha="right")
     ax.set_yticks(range(len(recs)))
-    ax.set_yticklabels([f"{g}  (state {cl})" for g, cl, _ in recs])
-    for i, (_, _, rec) in enumerate(recs):
-        ax.text(len(comps) - 0.5 + 0.08, i, f"{rec.get('target_class') or ''} · {rec.get('attribution') or ''}", va="center", ha="left", fontsize=5, color=NEUTRAL, transform=ax.transData, clip_on=False)
+    ax.set_yticklabels([f"{g}  (state {cl})  ·  {rec.get('target_class') or '–'} · {rec.get('attribution') or '–'}" for g, cl, rec in recs])
     for s_ in ("top", "right", "left", "bottom"):
         ax.spines[s_].set_visible(False)
     ax.set_title("Evidence components of the nominated candidates (0-1, as used by the score)")
@@ -421,7 +422,7 @@ def candidate_heatmap(session, name: str = "candidate_evidence", max_rows: int =
     axs.set_xlim(0, 1)
     axs.set_xlabel("score")
     despine(axs, left=True)
-    cb = fig.colorbar(im, ax=[ax, axs], shrink=0.6, pad=0.25, location="bottom")
+    cb = fig.colorbar(im, cax=axc)
     cb.set_label("component value (0-1)")
     cb.outline.set_visible(False)
     p = session.save_figure(name, fig, "Evidence behind each nominated candidate: the components of the deterministic score, each scaled 0-1 as the score uses them (effect sizes capped at log2FC 4), with target class and attribution; right, the final score. Druggability counts compounds and does not know the therapeutic direction.")
