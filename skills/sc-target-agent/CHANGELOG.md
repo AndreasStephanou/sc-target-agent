@@ -19,6 +19,8 @@ prompts v7-v8, scoring unchanged at v3):
 - Label checks run within the marker's compartment in non-malignant and perturbation designs;
   covariates known only from the deposit are added to the sample sheet so they reach `obs`.
 - Third key-drafting failure mode recorded (time-point-dependent read-out).
+- Evaluator reports a target's rank within the state that carries it (23g); results tables report every expected state.
+- Round outcomes: IPF SPP1 macrophage state recovered strictly under prompts v8 (1 of 3 key states; ITGB6 unranked); doxorubicin programme found, expected read-out absent at the sampled time; ccRCC regression clean with a two-run stability pair.
 - Report rewritten: executive summary (design statement, key numbers, top candidates with a
   direction column), evaluation section, figure index; publication style with PNG + PDF + SVG per
   figure; new design, abundance, candidate-evidence and volcano figures; `rebuild_report.py`.
