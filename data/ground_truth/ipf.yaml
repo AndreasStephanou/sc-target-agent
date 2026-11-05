@@ -1,0 +1,79 @@
+# Frozen answer key for GSE135893 (Habermann et al. 2020, Sci Adv 6:eaba1972): idiopathic pulmonary
+# fibrosis (IPF) vs non-fibrotic control lung, human scRNA-seq. Design row 4 of the 0.4 skill
+# (non-malignant disease vs healthy; the reference holds every lineage). Drafted BEFORE any run on this
+# dataset from the primary literature named below; never edited after the first run.
+#
+# Design as built: 12 IPF donors (19 libraries, pooled to donor) vs 10 control donors (12 libraries);
+# the other ILD diagnoses (NSIP, cHP, sarcoidosis, unclassifiable ILD; 8 donors) were dropped at build
+# and are a separate, later design, not part of this test. Sample_Source is partly aligned with the
+# condition (NTI contributed IPF only, DNA contributed controls only; Vanderbilt both): if the result
+# hinges on site, the pre-registered second arm restricts to Vanderbilt donors (7 IPF vs 7 control)
+# via dataset.exclude_samples with the reason written in the config.
+#
+# WHAT THE TEST IS (written in advance). IPF has no approved drug with a single, transcript-level,
+# state-specific target (nintedanib is a multi-kinase inhibitor; pirfenidone's target is unresolved;
+# nerandomilast, approved 2025, inhibits PDE4B, which is broadly expressed). The PRIMARY metric is
+# therefore state recovery (lenient and strict) of the two disease cell states that four independent
+# studies agree on; the SECONDARY metric is whether the pipeline finds and ranks ITGB6 among the real
+# clinical-stage IPF targets (listed as acceptable), not whether it beats them. A composition finding
+# (the aberrant basaloid state exists only in disease) is expected and is the right answer, not a
+# failure of the "programme" expectation written in the skill's design table; that expectation is
+# tested here and will be corrected in the skill if wrong.
+#
+# Predictions recorded in advance: (1) the aberrant basaloid state is disease-only, so the composition
+# route should find it; (2) SPP1+ macrophages are strongly disease-enriched but present at low level
+# in controls, so attribution may call some of their genes shared_with_reference; (3) MMP7 will be a
+# top epithelial candidate - it is the best-validated IPF biomarker but not a drug target, so it is a
+# state marker here and, if nominated, a "novel" candidate, not a decoy; (4) proliferation flags may
+# appear on the "Proliferating Macrophages" population, a real expansion; the cycle genes themselves
+# must not be nominated.
+name: ipf_gse135893
+disease: IPF
+reference: [Control]
+
+expected_states:
+  # Aberrant basaloid / KRT5-KRT17+ epithelial cells (Habermann 2020 Fig. 3; Adams et al. 2020 Sci Adv
+  # 6:eaba1983 "aberrant basaloid"): basal-like (KRT17, KRT8/18, TP63-low), mesenchymal (VIM, FN1,
+  # COL1A1, TGFBI), senescence (CDKN1A, CDKN2A, GDF15), SOX4/SOX9, MMP7, PTGS2, integrin avb6 (ITGB6, ITGAV).
+  - name: aberrant_basaloid_epithelium
+    parent_cell_type: Epithelial
+    marker_genes: [KRT17, KRT8, KRT18, SOX4, SOX9, MMP7, GDF15, CDKN1A, CDKN2A, VIM, FN1, COL1A1, TGFBI, ITGB6, ITGAV, PTGS2]
+    min_marker_overlap: 5
+  # Profibrotic SPP1+ macrophages (Morse et al. 2019 Eur Respir J 54:1802441; Reyfman et al. 2019 AJRCCM
+  # 199:1517; Habermann 2020): SPP1, TREM2, GPNMB, LGALS3, MMP9, CCL18, CHI3L1, CD9, FABP5, LIPA, PLA2G7, APOE.
+  - name: SPP1_profibrotic_macrophages
+    parent_cell_type: Immune
+    marker_genes: [SPP1, TREM2, GPNMB, LGALS3, MMP9, CCL18, CHI3L1, CD9, FABP5, LIPA, PLA2G7, APOE]
+    min_marker_overlap: 5
+  # Fibrotic (CTHRC1+) fibroblasts (Tsukui et al. 2020 Nat Commun 11:1920; Habermann 2020 "HAS1 High"):
+  # scored but not required - the fibroblast compartment is small in this deposit (about 4% of cells).
+  - name: CTHRC1_fibrotic_fibroblasts
+    parent_cell_type: Mesenchymal
+    marker_genes: [CTHRC1, COL1A1, COL3A1, POSTN, TNC, FAP, COL8A1, SFRP2, LRRC15, FN1]
+    min_marker_overlap: 4
+
+# ITGB6: integrin beta-6, the epithelial activator of latent TGF-beta in fibrotic lung; induced in
+# injured/aberrant basaloid epithelium, absent from healthy alveolar epithelium at the transcript level.
+# Clinical-stage target: bexotegrast (PLN-74809, oral avb6/avb1 inhibitor; INTEGRIS-IPF phase 2a, 2024;
+# BEACON-IPF phase 2b/3 2024-2025) and BG00011/STX-100 (anti-avb6 antibody, phase 2b stopped 2019).
+# Transcript-level and lineage-restricted, so an expression-based method CAN find it.
+expected_targets: [ITGB6]
+
+# Real IPF targets (approved, failed in phase 3, or in trials) that are legitimate to nominate but are
+# not the test: ITGAV (partner of ITGB6); PDE4B (nerandomilast, approved 2025; broadly expressed);
+# PDGFRA / PDGFRB / FGFR1 (nintedanib); LOXL2 (simtuzumab, failed); CCN2 = CTGF (pamrevlumab, failed 2023);
+# ENPP2 = autotaxin (ziritaxestat, failed); IL11 / IL11RA (anti-IL11 antibodies in trials); LRRC15 (fibroblast
+# ADC target); FAP (fibroblast activation protein); TGFB1 / TGFBR1 / TGFBR2; SPP1, TREM2, CCL18, CHI3L1,
+# GDF15 (macrophage / senescence axis, preclinical or biomarker-stage).
+acceptable_targets: [ITGAV, PDE4B, PDGFRA, PDGFRB, FGFR1, LOXL2, CCN2, ENPP2, IL11, IL11RA, LRRC15, FAP, TGFB1, TGFBR1, TGFBR2, SPP1, TREM2, CCL18, CHI3L1, GDF15]
+expected_drugs: [bexotegrast]
+
+# Decoys: druggable-looking genes a naive ranking would put up and the method should flag.
+#  proliferation: MKI67, TOP2A, UBE2C (the "Proliferating Macrophages" population is a real expansion)
+#  dissociation stress / immediate-early: HSPA1A, HSPA1B, FOS, JUN
+#  interferon response (shared across inflammatory lung disease and infection): IFIT1, ISG15
+#  lineage markers: KRT5, TP63 (basal), SFTPC (AT2), EPCAM (pan-epithelial), PTPRC, CD68, MARCO, FABP4
+#  (macrophage / alveolar macrophage; FABP4 is DOWN in IPF macrophages), ACTA2 (smooth muscle /
+#  myofibroblast lineage), PECAM1 (endothelial)
+decoy_targets: [MKI67, TOP2A, UBE2C, HSPA1A, HSPA1B, FOS, JUN, IFIT1, ISG15, KRT5, TP63, SFTPC, EPCAM, PTPRC, CD68, MARCO, FABP4, ACTA2, PECAM1]
+per_cell_truth: null

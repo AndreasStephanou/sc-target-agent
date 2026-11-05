@@ -1,0 +1,29 @@
+# Pre-registered second arm for IPF (GSE135893): Vanderbilt-sourced donors only (7 IPF vs 7 control),
+# to be run only if the primary result hinges on Sample_Source, which is partly aligned with the
+# condition in the primary arm (NTI contributed IPF only; DNA contributed controls only). Declared in
+# the frozen key's header before any run. Identical to config/ipf.yaml otherwise.
+dataset:
+  path: data/ipf/ipf.h5ad
+  species: homo_sapiens
+  sample_key: sample
+  condition_key: condition
+  celltype_key: population
+  disease: IPF
+  reference: [Control]
+  condition_descriptions:
+    IPF: "idiopathic pulmonary fibrosis, explanted lung at transplant (Vanderbilt donors only)"
+    Control: "non-fibrotic control lung, declined donor organs (Vanderbilt donors only)"
+  counts_layer: counts
+  already_processed: false
+  reuse_clustering: null
+  forbidden_obs_columns: [author_celltype, Status, library]
+  exclude_samples: [THD0001, THD0002, THD0005, TILD001, TILD006, TILD010, TILD015, TILD028]
+  exclude_samples_reason: "pre-registered site arm: Sample_Source is partly aligned with the condition in the primary arm (NTI = IPF only: TILD001, TILD006, TILD010, TILD015, TILD028; DNA = controls only: THD0001, THD0002, THD0005). This arm keeps the one site that contributed both conditions (Vanderbilt: 7 IPF, 7 control) so that site and condition can be separated. Run only if the primary result hinges on site."
+analysis:
+  lineages:
+    ignore_annotation: false
+targets:
+  objective: target
+  scoring_version: 3
+agent:
+  max_turns_per_role: 60

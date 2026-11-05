@@ -1,0 +1,39 @@
+# IPF vs control lung, GSE135893 (Habermann et al. 2020). Design row 4 (non-malignant disease vs healthy;
+# the reference holds every lineage). Primary arm: all 22 donors. Built by scripts/build_from_mtx.py:
+# IPF and Control diagnoses kept; NSIP / cHP / sarcoidosis / unclassifiable ILD dropped at build (a
+# separate design, not part of this test); libraries pooled to donor (obs['sample'] = Sample_Name,
+# obs['library'] = orig.ident; 8 donors contributed 2-3 libraries).
+#
+# Pre-run checks (validation_0.4/ipf_*): raw counts integer in X and layers['counts']; 12 IPF vs 10
+# control donors; Sample_Source partly aligned with condition (NTI: IPF only; DNA: controls only;
+# Vanderbilt: both; Cramer's V 0.65) -> pre-registered second arm config/ipf_vanderbilt.yaml.
+# Whole-tissue marker fractions were uninformative for the labels (medians within 20 points), as
+# expected for a disease that shifts composition rather than replacing tissue; the label check was
+# therefore run within compartments (epithelial: MMP7, KRT17, ITGB6, GDF15; immune: SPP1, TREM2, GPNMB).
+dataset:
+  path: data/ipf/ipf.h5ad
+  species: homo_sapiens
+  sample_key: sample                      # donor (libraries pooled); the independent biological unit
+  condition_key: condition
+  celltype_key: population                # authors' 4 compartments (Epithelial / Immune / Endothelial / Mesenchymal): lineages
+  disease: IPF
+  reference: [Control]
+  condition_descriptions:
+    IPF: "idiopathic pulmonary fibrosis, explanted lung at transplant (12 donors, 2 sites)"
+    Control: "non-fibrotic control lung, declined donor organs (10 donors, 2 sites)"
+  counts_layer: counts
+  already_processed: false                # raw counts: QC, Harmony, Leiden recomputed
+  reuse_clustering: null
+  # author_celltype encodes the paper's conclusions (KRT5-/KRT17+, SPP1 macrophages ...) and would leak
+  # the answer; Status is an alias of the condition; library identifies the donor's regions
+  forbidden_obs_columns: [author_celltype, Status, library]
+  exclude_samples: []
+  exclude_samples_reason: null
+analysis:
+  lineages:
+    ignore_annotation: false
+targets:
+  objective: target
+  scoring_version: 3
+agent:
+  max_turns_per_role: 60
