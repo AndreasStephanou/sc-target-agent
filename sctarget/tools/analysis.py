@@ -605,7 +605,14 @@ def integrate_and_cluster(
     chosen resolution, producing labels like '0.1', '0.2' in a new cluster key that keeps all
     other cells' labels unchanged. Use when a disease-specific state may be hidden inside a
     coarse cluster: subclustering one cell type isolates rare states that global clustering
-    merges. Sets the new key as the session cluster key; re-run differential_abundance after.""",
+    merges. Sets the new key as the session cluster key; re-run differential_abundance after.
+    With `condition` set, only the cells of that condition inside the clusters are split (labels
+    '<cluster>.<condition>.0', ...), the session cluster key is NOT changed, and the result names
+    the new key: a diagnostic split. Use it to identify the reference cells inside a disease
+    state's cluster when condition_attribution calls a candidate reference_driven (are they
+    mesothelium, a benign epithelial inclusion, a rare progenitor, or tumour spill-over?): then
+    find_markers on the new key with the subcluster labels, and report the candidate as
+    conditional on what they are.""",
     input_schema={
         "properties": {
             "clusters": {"type": "array", "items": {"type": "string"}, "description": "clusters to subcluster together"},
@@ -613,13 +620,14 @@ def integrate_and_cluster(
             "resolution": {"type": "number", "default": 1.0},
             "n_pcs": {"type": "integer", "default": 20},
             "n_neighbors": {"type": "integer", "default": 15},
+            "condition": {"type": ["string", "null"], "default": None, "description": "split only the cells of this condition (a value of the condition column) inside the clusters; the session cluster key is left unchanged"},
         },
         "required": ["clusters"],
     },
     roles=ANALYST,
     mutates_state=True,
 )
-def subcluster(session: AnalysisSession, clusters: list[str], cluster_key: str | None = None, resolution: float = 1.0, n_pcs: int = 20, n_neighbors: int = 15) -> dict[str, Any]:
+def subcluster(session: AnalysisSession, clusters: list[str], cluster_key: str | None = None, resolution: float = 1.0, n_pcs: int = 20, n_neighbors: int = 15, condition: str | None = None) -> dict[str, Any]:
     a = session.require_adata()
     _ensure_lognorm(session)
     key = cluster_key or session.cluster_key
@@ -628,8 +636,13 @@ def subcluster(session: AnalysisSession, clusters: list[str], cluster_key: str |
     clusters = [str(c) for c in clusters]
     labels = a.obs[key].astype(str)
     mask = labels.isin(clusters).to_numpy()
+    if condition is not None:
+        cond_vals = a.obs[session.condition_key].astype(str)
+        if str(condition) not in set(cond_vals.unique()):
+            raise ValueError(f"condition {condition!r} is not a value of {session.condition_key}: {sorted(cond_vals.unique())}")
+        mask &= (cond_vals == str(condition)).to_numpy()
     if mask.sum() < 50:
-        raise ValueError(f"only {int(mask.sum())} cells in {clusters}; too few to subcluster")
+        raise ValueError(f"only {int(mask.sum())} cells in {clusters}" + (f" from condition {condition!r}" if condition is not None else "") + "; too few to subcluster")
     seed = int(session.cfg.agent.get("seed", 0))
     sub = a[mask].copy()
     n_top = int(min(2000, max(300, sub.n_vars // 5), sub.n_vars - 1))
@@ -639,17 +652,23 @@ def subcluster(session: AnalysisSession, clusters: list[str], cluster_key: str |
     sc.tl.pca(sub, n_comps=n_pcs, mask_var="highly_variable", random_state=seed)
     sc.pp.neighbors(sub, n_neighbors=min(n_neighbors, sub.n_obs - 1), use_rep="X_pca", random_state=seed)
     sc.tl.leiden(sub, resolution=resolution, key_added="_sub", random_state=seed, flavor="igraph", n_iterations=2, directed=False)
-    prefix = "+".join(clusters)
-    new_key = f"{key}_sub"
+    prefix = "+".join(clusters) + (f".{condition}" if condition is not None else "")
+    new_key = f"{key}_sub" if condition is None else f"{key}_sub_{condition}"
     new_labels = labels.copy()
     new_labels.loc[sub.obs_names] = [f"{prefix}.{s}" for s in sub.obs["_sub"].astype(str)]
     a.obs[new_key] = new_labels.astype(str)
-    session.cluster_key = new_key
-    a.obs[[new_key]].rename(columns={new_key: "cluster"}).to_csv(session.run_dir / "cluster_assignments.csv")
     sizes = a.obs[new_key].value_counts()
     new_sizes = {k: int(v) for k, v in sizes.items() if k.startswith(prefix + ".")}
-    session.facts["clustering"] = {**session.facts.get("clustering", {}), "cluster_key": new_key, "method": f"subclustered {clusters} at resolution {resolution} on top of {key}", "n_clusters": int(len(sizes))}
-    return {"cluster_key": new_key, "subclustered": clusters, "n_subclusters": len(new_sizes), "subcluster_sizes": new_sizes, "params": {"resolution": resolution, "n_pcs": n_pcs, "n_neighbors": n_neighbors, "n_top_genes": n_top}}
+    if condition is None:
+        session.cluster_key = new_key
+        a.obs[[new_key]].rename(columns={new_key: "cluster"}).to_csv(session.run_dir / "cluster_assignments.csv")
+        session.facts["clustering"] = {**session.facts.get("clustering", {}), "cluster_key": new_key, "method": f"subclustered {clusters} at resolution {resolution} on top of {key}", "n_clusters": int(len(sizes))}
+    out = {"cluster_key": new_key, "subclustered": clusters, "n_subclusters": len(new_sizes), "subcluster_sizes": new_sizes, "params": {"resolution": resolution, "n_pcs": n_pcs, "n_neighbors": n_neighbors, "n_top_genes": n_top}}
+    if condition is not None:
+        out["condition"] = condition
+        out["note"] = (f"Diagnostic split of the {condition} cells inside {clusters}; the session cluster key is still {key}. "
+                       f"Run find_markers on cluster_key={new_key!r} with one of the new labels (vs the others, or vs the {condition} cells of the lineage) to see what these cells are.")
+    return out
 
 
 @tool(

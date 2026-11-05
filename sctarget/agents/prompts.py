@@ -50,6 +50,11 @@ PROMPT_VERSION history
      withheld FOLR1 (approved agent) as "not a safe target", the fourth run to set the gene aside
      after finding it in the right state; the skill text (0.4) had stated the conditional reading
      since the round began and the prompt said "drop outright".
+  10 critic: the settling move for a representative-but-doubtful `reference_driven` verdict is
+     named - `subcluster(clusters=[state], condition=<reference>)` then `find_markers` on the new
+     key - so the critic can say what the in-cluster reference cells are instead of guessing.
+     Motivated by the v9 ovarian no-leak run: the critic wrote that "a reference-only subcluster
+     of cluster 24 would settle this" and had no tool to do it (protocol 23k).
 """
 
 from __future__ import annotations
@@ -57,7 +62,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 9
+PROMPT_VERSION = 10
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -229,6 +234,11 @@ them. For every disease state and candidate target recorded:
   identity of those cells - record a major flag that says what they are and what would settle it
   (a reference-only subcluster, a histology check, an exclusion arm), not a blocking flag that
   drops the gene. The reader needs the candidate and the condition, not the candidate's absence.
+  When the doubt is what the in-cluster reference cells ARE, settle it yourself: call
+  `subcluster` with `clusters=[the state's cluster]` and `condition=<the reference condition>`
+  (a diagnostic split; the session clustering is untouched), then `find_markers` on the key it
+  returns for each new label - mesothelium, a benign epithelial inclusion, a rare progenitor and
+  tumour spill-over have different markers - and write what they are into the flag.
   Read the `reference_pool_in_cluster` column first: when it says too_thin or rare_in_reference, the
   in-cluster reference cells did not decide the class, and a `rare_reference_counterpart` gene is
   one that a small normal population (< 0.5% of reference cells) also expresses - report it as an

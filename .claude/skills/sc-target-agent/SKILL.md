@@ -151,7 +151,15 @@ or published marker set for an answer key; the researcher's tolerance for run ti
      discard it: identify the reference cells** (which lineage, which libraries, how many, what
      markers) and report the candidate as *conditional on that population*. A rare benign
      population expressing the gene (`rare_reference_counterpart`) is an on-target consideration,
-     not a disqualification;
+     not a disqualification. When the tools answer "the reference holds this lineage in bulk" with
+     a **derived** lineage, that answer is only as fine as the lineage: in the omentum design the
+     derived epithelial lineage absorbed mesothelium, so 151 benign epithelial cells read as a
+     representative counterpart and FOLR1 was held back in five agent runs (prompts v8 and v9, the
+     latter stating the conditional rule). The settling move, which the critic named and did not
+     take, is a **reference-only subcluster of the state's cluster** (`subcluster` restricted to
+     reference cells, then markers): mesothelium (CALB2, UPK3B, MSLN) and benign Müllerian-type
+     epithelium (PAX8, KRT19, WFDC2, FOLR1) separate at once, and the candidate is then reported as
+     conditional on the named population, with the histology or exclusion arm that would settle it;
    - **therapeutic direction**: druggability counts compounds and does not know whether inhibiting
      the gene helps. For every top candidate, state whether the listed compounds inhibit or
      activate and whether that is the therapeutic direction for this design (a PHD inhibitor

@@ -784,6 +784,25 @@ recorded in `validation_0.4/NOTES.md` whatever it is. The rule is general: it ap
 in which the reference holds a small population expressing the candidate (benign inclusions, rare
 progenitors, a tissue-resident counterpart of a disease state).
 
+### 23k. `subcluster(condition=...)`: a diagnostic split of one condition's cells inside a cluster (round 0.4b)
+
+Motivating case: the v9 ovarian no-leak run (23j). The critic wrote that the `reference_driven`
+verdict on FOLR1 "depends on reference cell identity", that the 151 cells "may be normal
+fallopian-tube-like or mesothelial epithelium, or tumour-contaminated", and that "a reference-only
+subcluster of cluster 24 would settle this" - and had no tool to do it: `subcluster` split all
+cells of a cluster and switched the session's cluster key, which is not a move a critic should
+make. The same question arises in every design where the reference holds a small population
+expressing the candidate.
+
+Change (tool; no method or scoring change): `subcluster` takes an optional `condition`. With it,
+only the cells of that condition inside the chosen clusters are re-clustered (labels
+`<cluster>.<condition>.<k>` in a new key `<key>_sub_<condition>`), the session cluster key and
+`cluster_assignments.csv` are left unchanged, and the result tells the caller to run
+`find_markers` on the new key. Available to the analyst and the critic (the tool's existing role
+set). Tested (`tests/test_subcluster_condition.py`). The critic prompt (v10) names it as the
+settling move for a representative-but-doubtful `reference_driven` verdict. Not re-run on the
+ovarian arm in this round: the fix is recorded, its first use will be reported when it happens.
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new

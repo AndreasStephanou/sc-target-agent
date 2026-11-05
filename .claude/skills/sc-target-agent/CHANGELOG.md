@@ -15,6 +15,16 @@ repository's method (prompts v8, scoring v3):
   inside one condition: regions, sub-sites, grades) from one perfectly confounded with it, and
   counts pseudo-replication per donor-condition pair so a paired design is no longer reported as
   over-counted replication. Workflow step 2 explains the nested case.
+- Attribution reading rule extended (step 6): when "the reference holds the lineage" is answered by
+  a derived lineage, the settling move is a reference-only subcluster of the state's cluster
+  (`subcluster(..., condition=<reference>)`, repository protocol 23k, prompts v10); the omentum case
+  is given as the worked example. Limitation added: with one condition per library the integration
+  on the library can absorb the disease signal (FLC tumour nuclei co-clustered with normal
+  hepatocytes); the expression route is what finds the state, so it runs in every analysis.
+- Repository changes this round that the skill relies on: scripted floor's effect pool taken over the
+  whole stored list (23h); evaluator prints the lineage of the state carrying a target and honours an
+  optional `lineage:` on an expected state (23i; new keys should name it); prompts v9/v10 report a
+  reference-driven candidate with per-sample support as conditional rather than dropping it (23j).
 
 ## 0.4.1 — 2026-11-05 (validation round in progress; working copy of the repository, not pushed)
 
