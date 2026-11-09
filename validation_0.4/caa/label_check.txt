@@ -1,0 +1,37 @@
+
+fraction of cells with >= 1 count(s), per library:
+condition    sample  PEG3  BNC2  RBFOX1  ERBB4  PTPRC  n_cells
+      CAA sample_10  71.6  95.1    71.8   45.8    9.5    11117
+      CAA sample_16  64.4  86.6    59.8   66.4   23.0    15535
+      CAA sample_22  86.7  97.1    84.3   69.9    4.1    17494
+      CAA  sample_7  66.9  95.7    94.8   31.1    6.1    13291
+      CAA  sample_8  82.4  95.8    58.3   56.2    5.5    17691
+      CAA  sample_9  59.0  93.0    46.7   31.9   11.8    11652
+     HGIN sample_13  15.5  79.3    20.4   14.0    7.5     1389
+     HGIN sample_14   6.4  64.5    13.7    8.9    3.6     1661
+     HGIN sample_24  17.5  74.1    13.8   10.8    5.9     2085
+     OSCC  sample_1   5.5  74.7    18.3   11.9    4.7    15738
+     OSCC sample_18   5.1  67.3    22.1   13.5   10.5     2855
+     OSCC sample_19   3.1  70.3    21.7   24.3    4.9    10487
+     OSCC  sample_2   6.2  70.5    30.1   18.9   13.4    12087
+     OSCC sample_20   4.8  63.6    36.9   36.4    8.6    10374
+     OSCC sample_29   6.7  76.1    19.9   10.5   18.4     6283
+     OSCC  sample_3  10.7  73.7    18.8   10.4    3.0     5284
+     OSCC  sample_4   6.8  85.6    26.8   31.5   13.6    15162
+     OSCC  sample_5   4.8  82.9    43.5   12.5   10.6    12851
+     OSCC  sample_6   6.3  64.0    18.5    9.7   17.5    21931
+
+libraries that resemble the opposite condition (per gene; only genes whose condition medians differ by >= 20 points are informative):
+  BNC2: library sample_4 labelled OSCC has 85.6% positive (median OSCC 72.1%, median CAA 95.4%) -> closer to CAA
+  ERBB4: library sample_7 labelled CAA has 31.1% positive (median CAA 51.0%, median OSCC 13.0%) -> closer to OSCC
+  ERBB4: library sample_9 labelled CAA has 31.9% positive (median CAA 51.0%, median OSCC 13.0%) -> closer to OSCC
+  ERBB4: library sample_20 labelled OSCC has 36.4% positive (median OSCC 13.0%, median CAA 51.0%) -> closer to CAA
+  PTPRC: condition medians differ by only 4.7 points; not an informative marker for the labels
+
+libraries carrying the other condition's marker far above their own condition (>= 3x the median of their condition and >= 2 points above it; independent of the gap between condition medians):
+  none
+
+A flagged library is a prompt to look (swapped label, contaminated sample, low purity), not a verdict. Decide before any run how it will be handled; exclusion is a config decision with a written reason.
+
+wrote validation_0.4/caa/label_check.csv
+

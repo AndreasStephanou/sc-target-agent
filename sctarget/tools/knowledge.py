@@ -202,7 +202,16 @@ class KnowledgeClient:
                         # ortholog exists but the symbol lookup failed: keep the query symbol, flag it
                         out[g] = {"human_symbol": g, "all_human_symbols": [], "human_ensembl_ids": ids, "type": hs[0].get("type"), "symbol_unverified": True, "source": "partial"}
                 else:
-                    out[g] = {"human_symbol": None, "type": "no_ortholog", "source": src}
+                    # Compara lists no human homologue. For a non-model species whose reference
+                    # assembly moved (dog CanFam3.1 -> ROS_Cfam_1.0) this is often an annotation gap,
+                    # not biology (protocol 23n, part 2: GABRB1 in the CAA run). If the query symbol
+                    # is itself a human gene, keep it on a named, visible assumption; a symbol that
+                    # names no human gene stays no_ortholog.
+                    hg, hsrc = self._request("ensembl_lookup", "GET", f"https://rest.ensembl.org/lookup/symbol/homo_sapiens/{g}", None, params={"content-type": "application/json"}, timeout=60)
+                    if isinstance(hg, dict) and hg.get("id", "").startswith("ENSG"):
+                        out[g] = {"human_symbol": g, "human_ensembl_ids": [hg["id"]], "type": "same_symbol_human_gene", "symbol_unverified": True, "compara": "no_ortholog", "source": f"{src}; human lookup {hsrc}"}
+                    else:
+                        out[g] = {"human_symbol": None, "type": "no_ortholog", "source": src}
             elif self.offline and g in fx:
                 out[g] = {**fx[g], "source": "fixture"}
             else:
@@ -358,6 +367,7 @@ def map_orthologs(session: AnalysisSession, genes: list[str], from_species: str 
     # 1) a precomputed mapping shipped inside the AnnData (dataset.human_symbol_var) wins:
     #    it is offline, reproducible, and under the analyst's control (e.g. made once with biomaRt)
     col = session.cfg.dataset.get("human_symbol_var")
+    var_empty: list[str] = []
     if col and session.adata is not None and col in session.adata.var:
         var = session.adata.var[col]
         for g in genes:
@@ -366,11 +376,19 @@ def map_orthologs(session: AnalysisSession, genes: list[str], from_species: str 
                 if isinstance(hs, str) and hs and hs.lower() not in ("nan", "none", ""):
                     res[g] = {"human_symbol": hs, "type": "var_column", "source": f"var[{col}]"}
                 else:
-                    res[g] = {"human_symbol": None, "type": "no_ortholog", "source": f"var[{col}]"}
+                    # An empty entry means the precomputed table had nothing for this gene, not that
+                    # no ortholog exists (biomaRt leaves a gene out for either reason). It falls
+                    # through to Ensembl like a gene absent from the table (protocol 23n); until
+                    # then GABRB1 and GPC5 in the CAA run came back "no_ortholog" while the
+                    # druggability lookup used the same symbol as if it were human.
+                    var_empty.append(g)
         remaining = [g for g in genes if g not in res]
     # 2) everything else goes to Ensembl (cached)
     if remaining:
         res.update(_client(session).orthologs(remaining, sp))
+        for g in var_empty:
+            if g in res:
+                res[g] = {**res[g], "var_column_empty": True, "source": f"var[{col}] empty; {res[g].get('source')}"}
     res = {g: res[g] for g in genes if g in res}
     session.facts.setdefault("orthologs", {}).update(res)
     unmapped = [g for g, v in res.items() if not v.get("human_symbol")]

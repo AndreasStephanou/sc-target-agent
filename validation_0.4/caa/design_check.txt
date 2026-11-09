@@ -1,0 +1,26 @@
+204967 cells; matrices checked: X: integer (max 293.0); layers/counts: integer (max 293.0)
+
+condition levels: ['CAA', 'HGIN', 'OSCC']  (case = CAA)
+  CAA: 6 samples; cells per sample min/median/max = 11117/14413/17691
+  HGIN: 3 samples; cells per sample min/median/max = 1389/1661/2085
+  OSCC: 10 samples; cells per sample min/median/max = 2855/11287/21931
+
+donors per condition: {'CAA': 6, 'HGIN': 3, 'OSCC': 10}; libraries per donor max = 2
+  paired design: 2 donor(s) appear in both conditions (['Apollo', 'Micah'])
+  note: the within-cluster disease-vs-reference contrast is not blocked by donor; donor effects will inflate reference dispersion. State this in the write-up.
+
+columns skipped as aliases: sample_tube_number: one level per sample (alias of the sample column); sample_names: one level per sample (alias of the sample column); tumor_status: same partition as the condition column (alias of the condition)
+
+sample-level covariates vs condition (one row per sample):
+  BRAF_status: 3 levels, Cramer's V = 0.77, 2 level(s) exclusive to one condition -> strongly associated
+  breed_status: 15 levels for 19 samples; association with condition cannot be estimated (V = 0.80 is inflated). Check by hand if it matters.
+  Sex: 2 levels, Cramer's V = 0.30, 0 level(s) exclusive to one condition -> ok
+  Age: 8 levels, Cramer's V = 0.69, 6 level(s) exclusive to one condition -> ok
+  Tumor_Location: 5 levels, Cramer's V = 0.45, 1 level(s) exclusive to one condition -> ok
+
+WARNING: 3 condition levels: the pipeline compares one case against the rest; set dataset.disease to one value and dataset.reference to the others, or split into pairwise runs
+WARNING: sample imbalance 10 vs 3: the per-sample Mann-Whitney test is dominated by the larger group; report effect sizes alongside p-values
+WARNING: covariate 'BRAF_status' is strongly associated with the condition (Cramer's V 0.77); check it before interpreting enrichment
+
+wrote validation_0.4/caa/design_check.json
+

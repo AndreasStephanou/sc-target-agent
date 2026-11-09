@@ -32,6 +32,13 @@ def main(argv: list[str] | None = None) -> None:
         print(format_eval(res))
         with open(Path(d) / "eval.json", "w") as fh:
             json.dump(res.to_dict(), fh, indent=2)
+        try:  # section 6 of the report is rewritten from eval.json (the report predates the scoring)
+            from sctarget.report.builder import refresh_eval_section
+
+            if refresh_eval_section(d):
+                print(f"report.md / report.html: evaluation section refreshed in {d}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"(report not refreshed: {exc})")
         print()
     out = {"runs": results}
     if args.stability and len(args.run_dirs) > 1:

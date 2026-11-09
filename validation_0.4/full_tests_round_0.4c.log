@@ -1,0 +1,4 @@
+    cmap.set_bad(na_color)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+100 passed, 1 skipped, 66 warnings in 477.55s (0:07:57)

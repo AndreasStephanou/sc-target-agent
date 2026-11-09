@@ -62,6 +62,26 @@ def test_online_mode_never_uses_fixtures_on_failure(tmp_path, monkeypatch):
     assert m["ERBB4"]["type"] == "assumed_same_symbol" and m["ERBB4"]["source"] == "none"
 
 
+def test_compara_gap_falls_back_to_human_symbol(tmp_path, monkeypatch):
+    """Protocol 23n part 2: Compara lists no human homologue (dog GABRB1 on the moved assembly) but the
+    symbol is a human gene -> keep it, flagged; a symbol naming no human gene stays no_ortholog."""
+    monkeypatch.setenv("SCTARGET_CACHE_DIR", str(tmp_path))
+    c = KnowledgeClient(offline=False, timeout=0.001, retries=0)
+
+    def fake(kind, method, url, payload, params=None, timeout=None):
+        if kind == "ensembl_homology":
+            return {"data": [{"id": "ENSCAFG00845008573", "homologies": []}]}, "live"
+        if url.endswith("/lookup/symbol/homo_sapiens/GABRB1"):
+            return {"id": "ENSG00000163288", "display_name": "GABRB1"}, "live"
+        return None, "none"  # no human gene of that name
+
+    monkeypatch.setattr(c, "_request", fake)
+    m = c.orthologs(["GABRB1", "ENSCAFG00000099999"], "canis_lupus_familiaris")
+    assert m["GABRB1"]["human_symbol"] == "GABRB1" and m["GABRB1"]["type"] == "same_symbol_human_gene"
+    assert m["GABRB1"]["symbol_unverified"] is True and m["GABRB1"]["compara"] == "no_ortholog"
+    assert m["ENSCAFG00000099999"]["type"] == "no_ortholog" and m["ENSCAFG00000099999"]["human_symbol"] is None
+
+
 def test_offline_mode_uses_fixtures(tmp_path, monkeypatch):
     monkeypatch.setenv("SCTARGET_CACHE_DIR", str(tmp_path))
     c = KnowledgeClient(offline=True)
@@ -91,12 +111,16 @@ def test_map_orthologs_prefers_var_column(cfg, tmp_path):
     s.adata.var["human_symbol"] = pd.Series(index=s.adata.var_names, dtype=object)
     s.adata.var.loc["ERBB4", "human_symbol"] = "ERBB4"
     s.adata.var.loc["KRT14", "human_symbol"] = "KRT14"
-    s.adata.var.loc["GENE0001", "human_symbol"] = ""          # no ortholog
+    s.adata.var.loc["GENE0001", "human_symbol"] = ""          # not in the precomputed table
     out = K.map_orthologs(s, genes=["ERBB4", "KRT14", "GENE0001", "NOTINDATA1"])
     assert out["mapping"]["ERBB4"]["type"] == "var_column"
-    assert out["mapping"]["GENE0001"]["human_symbol"] is None and "GENE0001" in out["unmapped"]
+    # protocol 23n: an empty table entry is "unknown", not "no ortholog": the gene falls through to
+    # the client like a gene absent from var, and the result says the table was empty for it
+    g1 = out["mapping"]["GENE0001"]
+    assert g1["type"] != "no_ortholog" and g1.get("var_column_empty") is True and g1["source"].startswith("var[human_symbol] empty;")
+    assert "GENE0001" not in out["unmapped"]  # offline client: assumed_same_symbol / fixture, flagged, not unmapped
     assert out["mapping"]["NOTINDATA1"]["source"] in ("fixture", "none")  # not in var -> fell through to the client (offline in tests)
-    assert out["n_from_var_column"] == 2  # ERBB4, KRT14 (the empty entry counts as no_ortholog, not a mapping)
+    assert out["n_from_var_column"] == 2  # ERBB4, KRT14
     s.cfg.raw["dataset"]["human_symbol_var"] = None
     s.cfg.raw["dataset"]["species"] = "homo_sapiens"
 

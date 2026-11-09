@@ -427,3 +427,99 @@ caught the library problems before tokens were spent. It did not change the two 
 (FOLR1 with benign reference epithelium; GPC3 with HCC04N), and it costs about twice as much per
 agent run. Three prompt versions in one round, each verified once, is thin verification. The
 next step is not another method change but an independent run by someone other than the author.
+
+## 7c. Round 0.4c: the development dataset under the 0.4 skill (canine acanthomatous ameloblastoma)
+
+The dataset the method was built on (lab snRNA-seq, 205k nuclei, 6 CAA / 10 OSCC / 3 gingiva
+libraries; design row 3, tumour vs another tumour plus healthy tissue), last run under prompts v2
+and scoring v2 (results-v3), now run as the skill says: both helper checks first, key tagged
+(`caa-key-frozen-v04`, unchanged since its 0.3 freeze), floor, agent run, a pre-registered
+exclusion arm, a second agent run, then (at the author's request) the de novo arm with Harmony and
+derived lineages. Protocol 23m-23p; results `docs/results_caa_v04c.md`; notes
+`validation_0.4/NOTES.md` (round 0.4c). Three floors, five agent runs, about 9.8M input tokens.
+
+**Pre-run checks.** Design: three condition levels by design, 10-vs-3 reference imbalance, two dogs
+paired (tumour and matched gingiva; after the 0.4b fix no longer reported as pseudo-replication),
+BRAF status associated with condition (biology, not batch). Labels: PEG3 and RBFOX1 separate CAA
+from both references in every library; nothing flagged; decision recorded before the run: all 19
+libraries kept. The floor's marker-free check then flagged one OSCC library whose epithelial and
+mesenchymal pseudobulks correlate with CAA; 14.5% of its cells sit in the two CAA-exclusive
+clusters against 0.3-1.2% for the other OSCC libraries. A marker check cannot see a library that is
+"a bit CAA-like" when the marker is 10% there and 60-87% in CAA; the lineage-wise correlation can.
+Exclusion arm pre-registered (`config/caa_nos3.yaml`), the all-libraries run primary.
+
+**Results.** Floor: both CAA-exclusive keratinocyte states found by composition (clusters 6 and
+12, 95-96% disease cells, 6/6 CAA libraries); key state matched 9/5; **ERBB4 5th within its state**
+behind GABRA1, GABRA4, GABRB1 (acceptable) and GABRB2; nominated; afatinib, dacomitinib and
+neratinib found; no decoy ranked or nominated (0.3 floor: ERBB4 unranked, 24 novel genes above the
+first acceptable gene). Agent run 1 (v11): strict state match 6/5, **ERBB4 4th**, nominated, drugs
+found; FGFR2 nominated and flagged major by the critic as present in 86% of the cluster's
+reference cells - the paper's own negative control, correctly set aside. Agent run 2 (v12): strict
+5/5, **ERBB4 4th**, nominated, drugs found, no decoy nominated; top-10 Jaccard with run 1 0.67.
+Exclusion-arm floor: ERBB4 4th, otherwise unchanged; the excluded library was not what held ERBB4
+behind the GABA-A subunits. Exclusion-arm agent run (v12): strict 5/5, **ERBB4 3rd** with only
+GABRA4 and GABRB1 above it, nominated, drugs found; FGFR2 nominated and flagged again ("pan-
+epithelial, shared with reference"); the critic reviewed all ten nominations and noted that the
+marker-free check now flags only endothelial libraries, so the arm had removed what it was meant
+to remove. The GABA-A receptor subunits above ERBB4 in every run are the same
+neuroepithelial programme the paper describes (GABRB1 is in its top-20 signature); they are druggable
+only by anaesthetics and benzodiazepine-site ligands, which the critic said in both runs. The
+critic in run 2 used `subcluster(condition=OSCC)` unprompted to characterise the 1,237 OSCC cells
+inside cluster 6 and made the cluster-6 candidates conditional on them: the settling move built for
+the omentum case (23k), applied to a reference that is another tumour.
+
+**De novo arm** (Harmony on the library, Leiden recomputed, lineages derived, nothing of the paper's
+processing reused). Harmony did not absorb the CAA state: the CAA keratinocytes (59k nuclei, 99%
+disease cells, split into three Leiden clusters) formed their own derived lineage, with a smaller
+CAA cluster inside the shared epithelial lineage and a cycling CAA cluster besides. Floor: key state
+matched 7/5 to the shared-epithelium CAA cluster, **ERBB4 1st within its state** (global 4th),
+nominated, drugs found, no decoy ranked or nominated. Agent run 1 (v12): **ERBB4 1st within its
+state** in two states, global 2nd behind IGF2, nominated twice, drugs found; FGFR1 nominated from
+one CAA piece and flagged major ("not disease-elevated, shared with reference"); the critic merged
+the three CAA pieces into one population itself. Agent run 2 (v13): **ERBB4 1st within its state**,
+global 3rd behind two stromal IGF-axis genes from a fibroblast cluster that the critic flagged as a
+microenvironment candidate; nominated, drugs found, no decoy nominated; the critic wrote that the
+CAA lineage "is condition-exclusive, so the within-lineage test is void, not failed" (23p). ERBB4
+ranks 1st here and 3rd-5th with the paper's clustering because the GABA-A subunits spread across
+the three CAA pieces and the shared-epithelium CAA cluster's siblings are OSCC and gingival
+keratinocytes, not other CAA cells. Stability between the two de novo agent runs is low (top-10
+Jaccard 0.18, nominated 0.19): with derived lineages there are five enriched clusters plus program
+clusters and the two runs recorded different subsets, so the lists differ by state choice rather
+than by disagreement about one state; the scored quantity (ERBB4 1st within its state) is the same
+in the floor and both runs. Strict state recovery was not met on this arm (2/5, 2/5, 4/5): the key's
+literature markers are spread across the CAA pieces.
+
+**What the round found in the method.** The agent's own notes pointed at three defects, the
+floor at a fourth. (i) The
+critic wrote that the candidate list it received "was truncated after ERBB4". Every stage briefing
+was one JSON dump cut at a flat character cap; re-measured on every agent run of rounds 0.4 and
+0.4b, the critic's claims exceeded the cap in all of them, so in every run the critic had been
+briefed on the first three to eight nominations and had to find the rest through its own tool
+calls. PDGFRB in FLC run 1, the decoy that motivated the microenvironment flag, was among the
+nominations that critic was never shown; GPC3 in the HCC agent run and PRKACA in both FLC runs
+likewise. The "decoys nominated unflagged" numbers of rounds 0.3-0.4b stand as recorded but did not
+measure the critic's rule-following on nominations past the cap. Prompts v12 (23m): an index line
+names every nomination and state and is never shortened; free text is clipped per item until the
+list fits; gene lists shrink evenly and never lose a key. Verified in run 2 ("all 7 nominated genes
+have a recorded flag"). (ii) The ortholog tool returned "no ortholog" for GABRB1 and GPC5 because
+the dataset's precomputed table was empty for them, while the druggability lookup used the same
+symbols as human; an empty entry now falls through to Ensembl (GPC5 resolves), and when Ensembl
+Compara itself lists no human homologue for a symbol that is a human gene - GABRB1 on the dog's
+moved assembly - the symbol is kept on a flagged assumption rather than dropped (23n). (iii) The
+report's evaluation section now reflects the scoring (23o). (iv) On the de novo arm the scripted
+critic flagged two CAA clusters as "enrichment does not hold within its parent cell type" because
+their derived lineage was itself 99% CAA, so the within-lineage test compared CAA sub-states with
+each other. When a lineage is condition-exclusive the lineage is the disease population and the
+test is void, not failed; the scripted critic now checks lineage composition first and the critic
+prompt carries the rule (23p, prompts v13; verified in de novo run 2).
+
+**What the round says.** On the development dataset the 0.4 skill reproduces the 0.3 answer
+(ERBB4 found in the right state, nominated, with its drugs) with a more honest ranking (within the
+state, behind the programme's own channel subunits), records both CAA-specific states as
+distinct, flags the paper's negative control when it is nominated, and finds a reference library
+anomaly the marker check could not. Without the paper's clustering and with batch correction the
+answer is the same and ERBB4 ranks 1st within its state, at the cost of a less stable nomination
+list across runs. The briefing defect is the most consequential finding of the
+three 0.4 rounds: it was present in every agent run since the method was frozen, it was found by
+reading what the critic said about its own inputs, and nothing in the evaluator could have shown
+it. That is an argument for keeping the agent's notes in the report and reading them.

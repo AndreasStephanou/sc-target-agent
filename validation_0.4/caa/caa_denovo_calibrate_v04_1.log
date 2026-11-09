@@ -1,0 +1,29 @@
+Sun Nov  8 07:33:09 PM EST 2026
+run dir : runs/caa_denovo_calibrate_v04_1
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=47 tools=46 errors=0  stop=end_turn
+  target   turns=56 tools=55 errors=0  stop=end_turn
+  critic   turns=15 tools=14 errors=0  stop=end_turn
+report  : runs/caa_denovo_calibrate_v04_1/report.md
+elapsed : 2527.4s
+Evaluation of runs/caa_denovo_calibrate_v04_1 vs caa.yaml  (prompts v12, scoring v3)
+========================================================================
+state 'CAA_specific_keratinocytes': FOUND  (cluster 3, marker overlap 7/5 needed: BNC2, CASK, ERBB4, FHIT, NAALADL2, NFIA, PEG3)
+    strict (agent-recorded genes only): missed  (cluster 12, overlap 2/5, 15 genes recorded)
+target ranks (within its state): {'ERBB4': 1}  state: {'ERBB4': '3 (L0)'}  global: {'ERBB4': 4}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'PEG3': 5, 'GABRB1': None, 'CACNB2': 33, 'BCL2': None, 'MAGI2': 63, 'NEO1': 14, 'CASK': 14, 'MCTP2': None, 'AURKA': None, 'AURKB': None, 'MAPK8': None, 'MAPK9': None, 'ARAF': None, 'TNK2': None}
+above first true target: 0 not in answer key -> known-wrong decoys: none; novel candidates: none
+nominated: ['GABRA4', 'NALCN', 'PNOC', 'GPC5', 'TNC', 'ERBB4', 'KCNH1', 'CFTR', 'BBOX1', 'ISM1', 'FGF14', 'NTNG1', 'GABRA2', 'IGF2', 'GABRA1', 'ADAMTS5', 'IGFBP2', 'FBN2', 'ST6GAL1']  precision: 0.05263157894736842
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.75  found: ['afatinib', 'dacomitinib', 'neratinib']
+tool calls: 117 (0 errors)   tokens: {'input_tokens': 0, 'output_tokens': 0}
+PASS: True
+report.md / report.html: evaluation section refreshed in runs/caa_denovo_calibrate_v04_1
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/caa_denovo.yaml --model scripted --run-dir runs/caa_denovo_calibrate_v04_1 --scoring-version 3
+
+Calibration run finished. Before an agent run, look at:
+  - runs/caa_denovo_calibrate_v04_1/report.md: the executive summary (design, key numbers), section 1 (QC: cells kept, per-type removal) and section 2 (which clusters were enriched, split candidates, doublet/stress suspects, programme clusters)
+  - whether the states it recorded are the populations you expected, and whether anything looks like a dissociation artefact or a doublet cluster
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/caa.yaml runs/caa_denovo_calibrate_v04_1
+  - the eval line: state found? decoys above the target? If the scripted floor already finds the answer, the agent run is testing what reasoning adds.

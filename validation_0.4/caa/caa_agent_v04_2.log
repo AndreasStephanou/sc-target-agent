@@ -1,0 +1,40 @@
+Sun Nov  8 06:43:24 PM EST 2026
+run dir : runs/caa_agent_v04_2
+  planner  turns= 3 tools= 2 errors=0  stop=end_turn
+  analyst  turns=11 tools=29 errors=0  stop=end_turn
+  target   turns= 9 tools=25 errors=0  stop=end_turn
+  critic   turns= 7 tools=23 errors=0  stop=end_turn
+report  : runs/caa_agent_v04_2/report.md
+elapsed : 2299.5s
+Evaluation of runs/caa_agent_v04_2 vs caa.yaml  (prompts v12, scoring v3)
+========================================================================
+state 'CAA_specific_keratinocytes': FOUND  (cluster 12, marker overlap 13/5 needed: BNC2, ERBB4, FAM13A, FHIT, GABRB1, MAGI2, MCTP2, NAALADL2, NEO1, NFIA, PEG3, RBFOX1, SESN3)
+    strict (agent-recorded genes only): FOUND  (cluster 12, overlap 5/5, 15 genes recorded)
+target ranks (within its state): {'ERBB4': 4}  state: {'ERBB4': '12 (Epithelial Cells)'}  global: {'ERBB4': 6}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'PEG3': 12, 'GABRB1': 2, 'CACNB2': None, 'BCL2': None, 'MAGI2': 13, 'NEO1': None, 'CASK': None, 'MCTP2': None, 'AURKA': None, 'AURKB': None, 'MAPK8': None, 'MAPK9': None, 'ARAF': None, 'TNK2': None}
+above first true target: 2 not in answer key -> known-wrong decoys: none; novel candidates: ['GABRA4', 'GABRB2']
+nominated: ['KCNH8', 'CACNA2D3', 'ERBB4', 'CA10', 'GABRB1', 'EPHA3', 'GABRA1']  precision: 0.2857142857142857
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.75  found: ['afatinib', 'dacomitinib', 'neratinib']
+tool calls: 79 (0 errors)   tokens: {'input_tokens': 1570538, 'output_tokens': 42898}
+PASS: True
+report.md / report.html: evaluation section refreshed in runs/caa_agent_v04_2
+
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/caa.yaml --model claude-code --run-dir runs/caa_agent_v04_2 --scoring-version 3
+
+Done. Read runs/caa_agent_v04_2/report.md: the executive summary, then section 4 (critic flags), then section 3 (ranking, with target_class, attribution and flags). Every number traces to runs/caa_agent_v04_2/run.jsonl.
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_eval.py --ground-truth data/ground_truth/caa.yaml runs/caa_agent_v04_2
+Evaluation of runs/caa_agent_v04_2 vs caa.yaml  (prompts v12, scoring v3)
+========================================================================
+state 'CAA_specific_keratinocytes': FOUND  (cluster 12, marker overlap 13/5 needed: BNC2, ERBB4, FAM13A, FHIT, GABRB1, MAGI2, MCTP2, NAALADL2, NEO1, NFIA, PEG3, RBFOX1, SESN3)
+    strict (agent-recorded genes only): FOUND  (cluster 12, overlap 5/5, 15 genes recorded)
+target ranks (within its state): {'ERBB4': 4}  state: {'ERBB4': '12 (Epithelial Cells)'}  global: {'ERBB4': 6}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'PEG3': 12, 'GABRB1': 2, 'CACNB2': None, 'BCL2': None, 'MAGI2': 13, 'NEO1': None, 'CASK': None, 'MCTP2': None, 'AURKA': None, 'AURKB': None, 'MAPK8': None, 'MAPK9': None, 'ARAF': None, 'TNK2': None}
+above first true target: 2 not in answer key -> known-wrong decoys: none; novel candidates: ['GABRA4', 'GABRB2']
+nominated: ['KCNH8', 'CACNA2D3', 'ERBB4', 'CA10', 'GABRB1', 'EPHA3', 'GABRA1']  precision: 0.2857142857142857
+decoys nominated - flagged by critic: none; UNFLAGGED: none
+drug recall: 0.75  found: ['afatinib', 'dacomitinib', 'neratinib']
+tool calls: 79 (0 errors)   tokens: {'input_tokens': 1570538, 'output_tokens': 42898}
+PASS: True
+report.md / report.html: evaluation section refreshed in runs/caa_agent_v04_2
+

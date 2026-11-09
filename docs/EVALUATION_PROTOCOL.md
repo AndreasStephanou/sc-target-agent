@@ -823,6 +823,96 @@ from the data would be a second rule to validate. Verified by a second FLC agent
 (`runs/flc_agent_2`, also the dataset's first stability pair); the outcome is recorded in
 `validation_0.4/NOTES.md` whatever it is.
 
+### 23m. Prompts v12: a stage briefing never drops an item (round 0.4c, CAA)
+
+Motivating failure: the CAA agent run (`runs/caa_agent_v04_1`, prompts v11). The critic's summary
+ends "the candidate list I received was truncated after ERBB4, so any further candidates were not
+reviewed". Its briefing was one JSON dump of the recorded states, the nominations, the top-8 ranked
+rows per state and the abundance table, cut at a flat 9,000 characters; the claims ran 31,715.
+Re-measured after the fact on every agent run of rounds 0.4 and 0.4b (`state.json` +
+`config_used.json` through `stage_prompt`): the critic's claims ran 23-52k characters against the
+cap in all of them, so in every run the critic was briefed on the first six or seven nominations
+and had to find the rest, if at all, through its own tool calls. The nominator's briefing had the
+same cap per section (6,000) and its state list exceeded it in the ovarian runs (seven states,
+7.2-7.7k). Which nominations each run's critic never received is listed in
+`validation_0.4/NOTES.md` (round 0.4c); FLC run 1's PDGFRB, the decoy that motivated 23l, is
+among them, so part of what 23l attributed to the critic's reasoning was a briefing it did not have.
+
+Change (prompt construction only, v12; tools, scoring and the scripted critic unchanged - the
+scripted critic reads the facts directly): a briefing may shorten what it says about an item, never
+drop one. An index line names every nomination and every recorded state (gene, cluster) and is
+never shortened; free text per item (`detail`) is clipped progressively (900 -> 450 -> ... -> 120
+characters) until the list fits its budget; gene lists are shortened evenly across keys, never
+dropped by key; the critic is told that every indexed gene must appear in its review. Budgets are
+set so that no earlier run's briefing is truncated (nominator 17-27k characters, critic 17-35k;
+5-9k tokens, against 1.6-3.5M input tokens per run). Tests: `tests/test_prompt_briefing.py`.
+
+The metric "decoys nominated unflagged" in rounds 0.3-0.4b measured the critic with an incomplete
+briefing; its values stand as recorded (they are what the method did) but are not a measure of
+the critic's rule-following for nominations past the cap. Verified prospectively by the CAA agent
+run 2 (`runs/caa_agent_v04_2`, v12) and the CAA exclusion-arm agent run; outcomes in the notes.
+
+### 23n. `map_orthologs`: an empty precomputed entry is "unknown", not "no ortholog" (round 0.4c)
+
+Motivating failure: in the CAA agent run the ortholog tool returned `no_ortholog` for GABRB1 and
+GPC5 because `var[human_symbol]` was an empty string for them, while the druggability lookup
+used the same symbols as human and returned 92 interactions for GABRB1; the critic flagged the
+inconsistency as "druggability unverified" (a correct reading of what it was shown). A biomaRt
+table leaves a gene out when it has no human ortholog and when the query simply did not cover it;
+the empty cell cannot tell the two apart. Change: an empty entry falls through to Ensembl like a
+gene absent from the table (live: `one2one` or a true `no_ortholog`; offline: `assumed_same_symbol`,
+flagged), and the result carries `var_column_empty: true` and names both sources. Test updated in
+`tests/test_knowledge_parsing.py`.
+
+Verified in CAA agent run 2 (v12): GPC5 now resolves through Ensembl (`ortholog_one2one`,
+ENSG00000179399). GABRB1 still came back `no_ortholog`, this time from Ensembl itself: the dog
+symbol resolves to the current-assembly gene ENSCAFG00845008573, for which Compara lists no
+human homologue; the dataset's own identifier (ENSCAFG00000001889, CanFam3.1) is no longer served.
+That is an annotation gap in Compara, not biology (GABRB1 is a one-to-one orthologue by every
+other resource), and it will recur for any non-model species whose assembly moved. Second part of
+the change: when Ensembl reports no human homologue, the client asks whether the query symbol is
+itself a human gene (`lookup/symbol/homo_sapiens/<symbol>`); if it is, the mapping returns the
+symbol as `same_symbol_human_gene` with `symbol_unverified: true`, so the druggability lookup
+proceeds on a named assumption that the critic can see, and `assumed_or_unverified` lists the
+gene. A true absence (no human gene of that name) stays `no_ortholog`.
+
+### 23o. `run_eval` rewrites the report's evaluation section (round 0.4c)
+
+The report is built at the end of the run, before `run_eval` scores it, so every scored run's
+`report.md` carried the "no frozen answer key was scored" placeholder in section 6 while the
+result sat in `eval.json` and the log. `run_eval` now rewrites section 6 of `report.md` and
+`report.html` from `eval.json` (`sctarget.report.builder.refresh_eval_section`). Cosmetic, but
+the report is the artefact a reader opens. Tests: `tests/test_report_eval_refresh.py`.
+
+### 23p. A condition-exclusive lineage makes the within-lineage abundance test void, not failed (round 0.4c, de novo arm)
+
+Motivating case: the CAA de novo floor (`runs/caa_denovo_calibrate_v04_1`; Harmony on the library,
+lineages derived, nothing of the paper's processing reused). Harmony did not absorb the CAA state:
+the 59k CAA keratinocytes are distinct enough from OSCC and gingival keratinocytes to form their
+own coarse group, derived lineage L4 (99% disease cells, 645 reference cells), with the shared
+epithelium in L0 and L1. The scripted critic re-ran `differential_abundance(within_celltype=True)`
+as it must and flagged the two largest CAA clusters (16: 31k cells; 13) as "enrichment does not
+hold within its parent cell type" (major), because within L4 the per-sample proportion of one CAA
+sub-state against the others shows no shift. The flag is a misreading: the lineage is itself the
+disease-associated population, so its composition test is the all-cells one; the within-lineage
+test compares disease sub-states with each other and is void. Two consequences follow for the
+same reason and were visible in the run: the sibling contrast inside L4 cancels every pan-CAA
+gene (ERBB4 unranked in cluster 17, 2nd in 16, 1st in cluster 3 - the small CAA cluster inside the
+shared lineage L0, where the siblings are OSCC and gingival keratinocytes); and attribution inside
+L4 rests on a 645-cell reference pool. The same pattern will occur in any tumour-vs-other-tissue
+design run with derived lineages when the tumour cells are transcriptionally far from their tissue
+of origin (the HCC "pan-tumour gene cancels among tumour siblings" case, protocol 19/21, seen from
+the lineage side).
+
+Change: (i) scripted critic: before emitting "does not hold", it sums the disease fraction over
+the clusters of the state's lineage (`cluster_composition`); at >= 0.9 it records one minor flag
+per lineage, "Lineage L is condition-exclusive (x% disease cells): the within-lineage test is
+void for its clusters", whose detail names the two consequences (read the disease-wide axis for
+pan-state genes; thin reference pool for attribution). Below 0.9 the major flag stands unchanged.
+(ii) Critic prompt (v13): the same check and the same wording rule. Tests:
+`tests/test_critic_exclusive_lineage.py` (3). The de novo agent run 1 ran under v12; a second de
+novo agent run under v13 serves as verification and as the arm's stability pair.
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new

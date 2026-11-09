@@ -61,6 +61,24 @@ PROMPT_VERSION history
      programme with no flag, the only decoy nominated unflagged in the round; the same pattern
      (FOLH1/ESM1 from tumour endothelium, CD70/TREM2 from TAMs) ran unlabelled through the HCC and
      ccRCC runs, where the keys list KDR, FLT1, PDGFRB, COL1A1 and CSF1R as decoys for that reason.
+  12 briefings never drop an item (protocol 23m). The nominator's and the critic's stage prompts
+     were one JSON dump each, cut at a flat character cap (6,000 per section; 9,000 for the critic's
+     claims); whatever sat past the cap - the last recorded states, the last nominations - was
+     absent from the prompt. Measured after the fact on every agent run of rounds 0.4 and 0.4b:
+     the critic's claims ran 23-52k characters against the 9k cap in all of them, so the critic
+     reviewed the first six or seven nominations and never saw the rest (the CAA critic wrote
+     "the candidate list I received was truncated after ERBB4"); the nominator's state list
+     exceeded its cap in the ovarian runs. Now: an index line names every nomination and every
+     state and is never shortened; free text per item is clipped progressively until the list
+     fits; gene lists are shortened evenly, never dropped by key; the critic is told to answer
+     every indexed gene. The scripted critic (floor) is unaffected: it reads the facts directly.
+  13 critic: before reading `differential_abundance(within_celltype=True)`, check whether the state's
+     lineage is itself condition-exclusive (disease fraction over the lineage's clusters >= 0.9);
+     if so the within-lineage test is void, not failed, and the critic says so instead of "enrichment
+     does not hold" (protocol 23p; the scripted critic applies the same rule). Motivated by the CAA
+     de novo floor (round 0.4c): with Harmony and derived lineages the 59k CAA keratinocytes formed
+     their own lineage (99% disease cells), and the scripted critic flagged its two largest clusters
+     as "enrichment does not hold within its parent cell type".
 """
 
 from __future__ import annotations
@@ -68,7 +86,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PROMPT_VERSION = 11
+PROMPT_VERSION = 13
 
 PREAMBLE = """You are one role in an auditable, multi-agent pipeline that analyses single-cell /
 single-nucleus RNA-seq data to nominate disease-specific, druggable target genes.
@@ -215,7 +233,15 @@ Role: CRITIC. Your job is to break the analyst's and nominator's claims before a
 them. For every disease state and candidate target recorded:
 - Is the state's enrichment driven by a single sample? (n_disease_samples_present, per-sample
   proportions.) Re-run `differential_abundance(within_celltype=True)` to check that the
-  enrichment is not just a cell-type composition shift.
+  enrichment is not just a cell-type composition shift. Before reading that result, check the
+  lineage's own composition (`cluster_composition`: the disease fraction summed over the lineage's
+  clusters). A lineage that is itself almost entirely disease cells (derived lineages do this when
+  the disease cells are distinct enough to form their own coarse group) makes the within-lineage
+  test void, not failed: the lineage is the disease-associated population, its composition test is
+  the all-cells one, the sibling contrast inside it compares disease sub-states and cancels every
+  pan-state gene (read the disease-wide axis for those), and attribution inside it rests on a thin
+  reference pool. Say which case applies; do not report "enrichment does not hold" for a
+  condition-exclusive lineage.
 - Is the state tiny (< 50 cells) or defined by few genes?
 - Is each candidate gene specific to the state (`gene_specificity`), or is it a cell-type /
   pan-condition marker? Is it consistent across disease samples?
@@ -273,6 +299,56 @@ def _compact(obj: Any, limit: int = 6000) -> str:
     return s if len(s) <= limit else s[:limit] + " ...<truncated>"
 
 
+# Briefing rules (prompts v12, protocol 23m). A briefing may shorten what it says about an item; it
+# never drops an item. Until v11 every stage briefing was one JSON dump cut at a flat character cap
+# (6,000 for the nominator's sections, 9,000 for the critic's claims), so the items at the end of
+# a list - the last recorded states, the last nominations - were silently absent from the prompt.
+# Measured on the round 0.4/0.4b runs: the critic's claims ran 23-52k characters against the 9k cap
+# in every agent run; the nominator's state list exceeded its cap in the ovarian runs.
+_CLIP_FIELDS = ("detail", "evidence", "rationale", "note")
+
+
+def _clip_text(s: str, n: int) -> str:
+    return s if len(s) <= n else s[: max(0, n - 12)].rstrip() + " ...<clipped>"
+
+
+def _clip_items(items: list[dict[str, Any]], detail_chars: int) -> list[dict[str, Any]]:
+    """Same items, same order, long free-text fields shortened to `detail_chars`."""
+    out = []
+    for it in items:
+        d = dict(it)
+        for k in _CLIP_FIELDS:
+            if isinstance(d.get(k), str):
+                d[k] = _clip_text(d[k], detail_chars)
+        out.append(d)
+    return out
+
+
+def _fit_items(items: list[dict[str, Any]], limit: int, start: int = 900, floor: int = 120) -> str:
+    """JSON of every item, clipping free text harder until the whole list fits in `limit` characters.
+
+    If even `floor` characters per item do not fit, the list is emitted at the floor and left whole:
+    the model must see every item; an over-long prompt is the lesser failure."""
+    n = start
+    while True:
+        s = json.dumps(_clip_items(items, n), default=str, indent=None)
+        if len(s) <= limit or n <= floor:
+            return s
+        n = max(floor, n // 2)
+
+
+def _index_line(items: list[dict[str, Any]], label: str) -> str:
+    """One line naming every item (genes and cluster), never shortened: the floor under any clipping."""
+    parts = []
+    for it in items:
+        g = it.get("genes")
+        g = ", ".join(str(x) for x in g) if isinstance(g, (list, tuple)) else (str(g) if g else "")
+        name = g or str(it.get("title", "?"))[:60]
+        cl = it.get("cluster")
+        parts.append(f"{name} [cluster {cl}]" if cl not in (None, "", "None") else name)
+    return f"{label} ({len(items)}): " + "; ".join(parts) if parts else f"{label} (0): none"
+
+
 def stage_prompt(role: str, facts: dict[str, Any], cfg: dict[str, Any]) -> str:
     ds = cfg["dataset"]
     header = (
@@ -300,18 +376,44 @@ def stage_prompt(role: str, facts: dict[str, Any], cfg: dict[str, Any]) -> str:
         mk = {k: [r["gene"] for r in rows][:30] for k, rows in facts.get("markers", {}).items()}
         return (
             header
-            + f"Recorded disease states ({len(states)}):\n{_compact(states)}\n\n"
-            + f"Pseudobulk DE vs sibling clusters (what defines the state among its lineage; primary evidence):\n{_compact(pb)}\n\n"
-            + (f"Pseudobulk DE disease vs reference within the lineage's shared clusters (the DISEASE-WIDE axis: what separates disease cells from normal cells of the same lineage; when a lineage holds several disease sub-states the sibling contrast is blind to this):\n{_compact(cp)}\n\n" if cp else "")
-            + f"Cell-level marker summaries (find_markers; secondary evidence - genes here but not in the pseudobulk top list are still candidates):\n{_compact(mk)}\n\n"
+            + _index_line(states, "Recorded disease states, all of them (nominate for each)") + "\n"
+            + f"State details:\n{_fit_items(states, 16000)}\n\n"
+            + f"Pseudobulk DE vs sibling clusters (what defines the state among its lineage; primary evidence):\n{_fit_gene_lists(pb, 16000)}\n\n"
+            + (f"Pseudobulk DE disease vs reference within the lineage's shared clusters (the DISEASE-WIDE axis: what separates disease cells from normal cells of the same lineage; when a lineage holds several disease sub-states the sibling contrast is blind to this):\n{_fit_gene_lists(cp, 16000)}\n\n" if cp else "")
+            + f"Cell-level marker summaries (find_markers; secondary evidence - genes here but not in the pseudobulk top list are still candidates):\n{_fit_gene_lists(mk, 10000)}\n\n"
             + "Nominate and score druggable targets for each state. Build the candidate set from the union of the state's recorded genes, the sibling pseudobulk top genes, the disease-wide top genes (both the shared-cluster compartment contrast and the whole-lineage contrast) and the marker top genes; score_targets reports which axis carries each gene (target_class, lineage_axis_source). Cell-cycle genes are flagged proliferation_marker: they are not targets."
         )
     if role == "critic":
-        f = {
-            "disease_states": facts.get("findings", {}).get("disease_state", []),
-            "candidate_targets": facts.get("findings", {}).get("candidate_target", []),
-            "ranked_targets": {k: v[:8] for k, v in facts.get("ranked_targets", {}).items()},
-            "differential_abundance": facts.get("differential_abundance", {}).get("table", []),
-        }
-        return header + f"Claims to review:\n{_compact(f, 9000)}\n\nStress-test them and record flags."
+        states = facts.get("findings", {}).get("disease_state", [])
+        cands = facts.get("findings", {}).get("candidate_target", [])
+        slim = ("gene", "score", "rank", "attribution", "target_class", "flags")
+        ranked = {k: [{kk: r.get(kk) for kk in slim if kk in r} for r in v[:8]] for k, v in facts.get("ranked_targets", {}).items()}
+        return (
+            header
+            + _index_line(cands, "Nominated candidates, all of them (review every one; the details below are shortened, never dropped)") + "\n"
+            + _index_line(states, "Recorded disease states, all of them") + "\n\n"
+            + f"Candidate nominations:\n{_fit_items(cands, 20000)}\n\n"
+            + f"Disease states:\n{_fit_items(states, 12000)}\n\n"
+            + f"Ranked targets (top 8 per state, slim):\n{_fit_gene_lists(ranked, 12000)}\n\n"
+            + f"Differential abundance table:\n{_compact(facts.get('differential_abundance', {}).get('table', []), 8000)}\n\n"
+            + "Stress-test these claims and record flags. Every nominated gene in the index line above must appear in your review (a flag or an explicit 'no concern')."
+        )
     return header
+
+
+def _fit_gene_lists(d: dict[str, Any], limit: int, floor: int = 10) -> str:
+    """JSON of a dict whose values hold gene lists; shortens every list evenly until it fits, never drops a key."""
+
+    def shrink(obj: Any, n: int) -> Any:
+        if isinstance(obj, list):
+            return obj[:n]
+        if isinstance(obj, dict):
+            return {k: shrink(v, n) for k, v in obj.items()}
+        return obj
+
+    n = 80
+    while True:
+        s = json.dumps(shrink(d, n), default=str, indent=None)
+        if len(s) <= limit or n <= floor:
+            return s
+        n = max(floor, int(n * 0.75))

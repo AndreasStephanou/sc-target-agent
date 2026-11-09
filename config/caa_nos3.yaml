@@ -1,0 +1,46 @@
+# CAA snRNA-seq (Stephanou et al.): disease = CAA; reference = canine OSCC + healthy gingiva (HGIN).
+# Pre-registered exclusion arm (round 0.4c): sample_3 dropped. Primary arm = config/caa.yaml.
+dataset:
+  path: data/caa_processed.h5ad
+  species: canis_lupus_familiaris
+  sample_key: sample                    # each library is a replicate (some dogs have tumour + matched gingiva)
+  condition_key: condition              # copy of tumor_status
+  celltype_key: Broad_anno              # Epithelial / Endothelial / Immune / Mesenchymal -> defines "sibling clusters"
+  disease: CAA
+  reference: [OSCC, HGIN]
+  condition_descriptions:
+    CAA: canine acanthomatous ameloblastoma (odontogenic tumour; the disease of interest)
+    OSCC: canine oral squamous cell carcinoma (a different oral tumour; reference)
+    HGIN: healthy gingiva (normal tissue; reference)
+  counts_layer: counts
+  human_symbol_var: human_symbol        # same-name mapping; see var.human_symbol_source
+  already_processed: true
+  exclude_samples: [sample_3]
+  exclude_samples_reason: "pre-registered arm (protocol 18/19b/19c), written after the scripted floor and before the agent run on this arm. sample_3, labelled OSCC, is flagged by the marker-free check_reference_libraries in the floor (S13: Epithelial and Mesenchymal pseudobulks correlate with CAA libraries, 100% / 67% of nearest neighbours carry the CAA label) and places 14.5% of its cells in the two CAA-exclusive epithelial clusters 6 and 12 (other OSCC libraries 0.3-1.2%, sample_20 7.0%; healthy gingiva 4-6%). The pre-run marker check with PEG3 did not flag it (10.7%, highest OSCC but far below CAA 59-87%). Label or contamination cannot be resolved from the object. sample_20 (ERBB4 36%, 7% in clusters 6/12) is kept. The all-libraries run is the primary result."
+  reuse_clustering: leiden_1.0          # 14 clusters; the agent subclusters from here if needed
+
+analysis:
+  integration:
+    use_harmony: true                   # only used if the agent decides to recompute clustering
+    resolution: 1.0
+  differential_abundance:
+    min_cells_per_sample: 20
+    enrichment_log2fc: 1.0
+    max_mwu_p: 0.05
+  enrichment:
+    gene_sets: data/h.all.v2026.1.Hs.symbols.gmt   # MSigDB Hallmark, human symbols (download from gsea-msigdb.org)
+
+targets:
+  top_k_report: 15
+
+agent:
+  model: claude-sonnet-4-5
+  max_turns_per_role: 60
+
+privacy:
+  pseudonymize_samples: true
+  # never listed or summarised to the model:
+  #  - refined_anno encodes the paper's own cell-state conclusions (would leak the answer)
+  #  - sample_names / donor carry pet names; the rest is per-animal metadata the agent does not need
+  forbidden_obs_columns: [refined_anno, sample_names, sample_tube_number, breed_status, Sex, Age,
+                          Tumor_Location, BRAF_status, bc1_wind, bc2_wind, bc3_wind, bc1_well, bc2_well, bc3_well]

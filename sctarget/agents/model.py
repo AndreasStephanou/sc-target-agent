@@ -419,6 +419,35 @@ class ScriptedModel:
         steps.append("__critic_review__")
         return steps
 
+    EXCLUSIVE_LINEAGE_SHARE = 0.9  # protocol 23p: a lineage with >= 90% disease cells is condition-exclusive
+
+    def _lineage_disease_share(self, f: dict[str, Any]) -> dict[str, tuple[str, float]]:
+        """cluster -> (dominant lineage, share of disease cells in that whole lineage), from cluster_composition."""
+        rows = f.get("cluster_composition") or []
+        if isinstance(rows, dict):
+            rows = rows.get("table", [])
+        disease = getattr(getattr(self, "session", None), "disease", None)
+        key = f"frac_{disease}" if disease else None
+        if rows and (not key or key not in rows[0]):
+            cands = [k for k in rows[0] if k.startswith("frac_") and k != "frac_cells_from_disease"]
+            key = key if key in (rows[0] if rows else {}) else (cands[0] if len(cands) == 1 else key)
+        tot: dict[str, float] = {}
+        dis: dict[str, float] = {}
+        for r in rows:
+            lin = str(r.get("dominant_celltype"))
+            n = float(r.get("n_cells") or 0)
+            fr = r.get(key) if key else None
+            if fr is None:
+                continue
+            tot[lin] = tot.get(lin, 0.0) + n
+            dis[lin] = dis.get(lin, 0.0) + n * float(fr)
+        out: dict[str, tuple[str, float]] = {}
+        for r in rows:
+            lin = str(r.get("dominant_celltype"))
+            if tot.get(lin):
+                out[str(r.get("cluster"))] = (lin, dis[lin] / tot[lin])
+        return out
+
     def _critic_review(self) -> list[ToolUse | str]:
         f = self._facts()
         steps: list[ToolUse | str] = []
@@ -428,6 +457,8 @@ class ScriptedModel:
             steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"Library {fl['library']} (labelled {fl['label']}) resembles the opposite condition in lineage {fl['lineage']}",
                                                      "detail": f"Its {fl['n_cells']} {fl['lineage']} cells correlate more with the opposite-condition libraries (mean r {fl['mean_r_opposite_label']}) than with its own label (mean r {fl['mean_r_same_label']}); {int(100*fl['frac_nearest_opposite_label'])}% of its nearest libraries carry the other label. Either the label is wrong or the sample is contaminated with the other condition. Every disease-vs-reference contrast in this lineage is weakened by it. Verify the label; if unresolved, run a second arm with dataset.exclude_samples and a recorded reason.",
                                                      "severity": "major"}))
+        lineage_share = self._lineage_disease_share(f)
+        exclusive_noted: set[str] = set()
         for st in f.get("findings", {}).get("disease_state", []):
             cl = st["cluster"]
             row = da_rows.get(cl, {})
@@ -435,7 +466,17 @@ class ScriptedModel:
             if st.get("basis") == "program":
                 continue  # program states are judged by within-cluster DE, not by abundance
             if wrow and not wrow.get("disease_enriched"):
-                steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"Cluster {cl} enrichment does not hold within its parent cell type", "detail": f"Recomputing proportions within the dominant cell type gives log2 ratio {wrow.get('log2_ratio')} (all-cells ratio was {row.get('log2_ratio')}); the enrichment may reflect a composition shift rather than a disease-specific state.", "cluster": cl, "severity": "major"}))
+                lin, share = lineage_share.get(str(cl), (None, None))
+                if share is not None and share >= self.EXCLUSIVE_LINEAGE_SHARE:
+                    # Protocol 23p: the lineage is itself condition-exclusive (derived lineages do
+                    # this when the disease cells are distinct enough to form their own coarse
+                    # group). The within-lineage test then compares disease sub-states with each
+                    # other and is void, not failed; the state is the lineage.
+                    if lin not in exclusive_noted:
+                        exclusive_noted.add(lin)
+                        steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"Lineage {lin} is condition-exclusive ({int(round(100 * share))}% disease cells): the within-lineage test is void for its clusters", "detail": f"Cluster {cl} (and every other cluster of lineage {lin}) is almost entirely disease cells, so recomputing proportions within the lineage compares disease sub-states with each other (log2 ratio {wrow.get('log2_ratio')}; all-cells ratio {row.get('log2_ratio')}). That is not a failed enrichment: the lineage itself is the disease-associated population and its composition test is the all-cells one. Consequences: the sibling contrast within this lineage is blind to genes shared by all its clusters (pan-state genes cancel), so read the disease-wide axis (within-lineage and compartment contrasts) for those; the reference cells inside the lineage are few, so attribution classes are decided on a thin reference pool.", "cluster": cl, "severity": "minor"}))
+                else:
+                    steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"Cluster {cl} enrichment does not hold within its parent cell type", "detail": f"Recomputing proportions within the dominant cell type gives log2 ratio {wrow.get('log2_ratio')} (all-cells ratio was {row.get('log2_ratio')}); the enrichment may reflect a composition shift rather than a disease-specific state.", "cluster": cl, "severity": "major"}))
             if row and row.get("n_disease_samples_present", 0) < 2:
                 steps.append(ToolUse("record_finding", {"kind": "critic_flag", "title": f"Cluster {cl} is driven by a single disease sample", "detail": "Only one disease sample contributes cells; this cannot be distinguished from a sample-specific artefact.", "cluster": cl, "severity": "blocking"}))
             if row and row.get("n_cells", 0) < 50:

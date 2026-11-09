@@ -1,0 +1,26 @@
+Sun Nov  8 07:21:59 PM EST 2026
+run dir : runs/caa_nos3_agent_v04_1
+  planner  turns= 4 tools= 3 errors=0  stop=end_turn
+  analyst  turns= 9 tools=24 errors=0  stop=end_turn
+  target   turns=13 tools=29 errors=0  stop=end_turn
+  critic   turns= 6 tools=16 errors=0  stop=end_turn
+report  : runs/caa_nos3_agent_v04_1/report.md
+elapsed : 916.5s
+note: no answer key at data/ground_truth/caa_nos3.yaml; the run will produce hypotheses but cannot be scored. If you have a known answer, write and COMMIT the key before this run.
+$ /home/as3562/miniconda3/envs/sctarget/bin/python scripts/run_pipeline.py --config config/caa_nos3.yaml --model claude-code --run-dir runs/caa_nos3_agent_v04_1 --scoring-version 3
+
+Done. Read runs/caa_nos3_agent_v04_1/report.md: the executive summary, then section 4 (critic flags), then section 3 (ranking, with target_class, attribution and flags). Every number traces to runs/caa_nos3_agent_v04_1/run.jsonl.
+Evaluation of runs/caa_nos3_agent_v04_1 vs caa.yaml  (prompts v12, scoring v3)
+========================================================================
+state 'CAA_specific_keratinocytes': FOUND  (cluster 12, marker overlap 12/5 needed: BNC2, ERBB4, FAM13A, GABRB1, MAGI2, MCTP2, NAALADL2, NEO1, NFIA, PEG3, RBFOX1, SESN3)
+    strict (agent-recorded genes only): FOUND  (cluster 12, overlap 5/5, 15 genes recorded)
+target ranks (within its state): {'ERBB4': 3}  state: {'ERBB4': '12 (Epithelial Cells)'}  global: {'ERBB4': 4}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'PEG3': 9, 'GABRB1': 2, 'CACNB2': None, 'BCL2': None, 'MAGI2': 11, 'NEO1': None, 'CASK': None, 'MCTP2': None, 'AURKA': None, 'AURKB': None, 'MAPK8': None, 'MAPK9': None, 'ARAF': None, 'TNK2': None}
+above first true target: 1 not in answer key -> known-wrong decoys: none; novel candidates: ['GABRA4']
+nominated: ['CA10', 'FGFR2', 'COL25A1', 'TNC', 'GABRA4', 'ERBB4', 'GABRB1', 'TNFRSF11B', 'GABRA1', 'EPHA3']  precision: 0.2
+decoys nominated - flagged by critic: ['FGFR2']; UNFLAGGED: none
+drug recall: 0.75  found: ['afatinib', 'dacomitinib', 'neratinib']
+tool calls: 72 (0 errors)   tokens: {'input_tokens': 1707592, 'output_tokens': 37679}
+PASS: True
+report.md / report.html: evaluation section refreshed in runs/caa_nos3_agent_v04_1
+

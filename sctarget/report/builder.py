@@ -116,7 +116,36 @@ def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
 
 
 def _eval_section(session: AnalysisSession) -> str:
-    p = session.run_dir / "eval.json"
+    return eval_section_from_dir(session.run_dir)
+
+
+_NO_KEY_TEXT = "## 6. Evaluation\n\n_No frozen answer key was scored for this run (no `eval.json`). Without a key the sanity checks of the no-key protocol apply: lineage markers classed shared_with_reference, artefact genes flagged, stability across repeat runs, per-library panels, direction._\n"
+
+
+def refresh_eval_section(run_dir: Path | str) -> bool:
+    """Rewrite section 6 of an existing report.md (and report.html) from the run's eval.json.
+
+    The report is built at the end of the run, before `run_eval` scores it, so every scored run
+    used to carry the "no key" placeholder in section 6 while the result sat in eval.json and the
+    log. `run_eval` calls this after writing eval.json. Returns True when the report was rewritten."""
+    run_dir = Path(run_dir)
+    md_path = run_dir / "report.md"
+    if not md_path.exists():
+        return False
+    new = eval_section_from_dir(run_dir) or _NO_KEY_TEXT
+    md = md_path.read_text()
+    start = md.find("\n## 6. ")
+    end = md.find("\n## 7. ", start + 1) if start >= 0 else -1
+    if start < 0 or end < 0:
+        return False
+    md = md[: start + 1] + new.rstrip("\n") + "\n\n" + md[end + 1 :]
+    md_path.write_text(md)
+    _write_html(run_dir, md)
+    return True
+
+
+def eval_section_from_dir(run_dir: Path) -> str:
+    p = Path(run_dir) / "eval.json"
     if not p.exists():
         return ""
     try:
@@ -373,7 +402,7 @@ def build_markdown(session: AnalysisSession) -> str:
 
     # ---- 6. evaluation (only with a key; without one the heading reads 'not scored')
     ev_md = _eval_section(session)
-    md.append(ev_md if ev_md else "## 6. Evaluation\n\n_No frozen answer key was scored for this run (no `eval.json`). Without a key the sanity checks of the no-key protocol apply: lineage markers classed shared_with_reference, artefact genes flagged, stability across repeat runs, per-library panels, direction._\n")
+    md.append(ev_md if ev_md else _NO_KEY_TEXT)
 
     # ---- 7. provenance
     md.append("## 7. Provenance\n")
@@ -391,7 +420,12 @@ def build_report(session: AnalysisSession) -> tuple[Path, Path]:
     md = build_markdown(session)
     md_path = session.run_dir / "report.md"
     md_path.write_text(md)
-    html_path = session.run_dir / "report.html"
+    html_path = _write_html(session.run_dir, md)
+    return md_path, html_path
+
+
+def _write_html(run_dir: Path, md: str) -> Path:
+    html_path = Path(run_dir) / "report.html"
     try:
         import markdown as mdlib
 
@@ -404,7 +438,7 @@ def build_report(session: AnalysisSession) -> tuple[Path, Path]:
 
     def _inline(m: "re.Match[str]") -> str:
         rel = m.group(1)
-        p = session.run_dir / rel
+        p = Path(run_dir) / rel
         if p.exists() and p.suffix.lower() == ".png":
             b64 = base64.b64encode(p.read_bytes()).decode()
             return f'src="data:image/png;base64,{b64}"'
@@ -412,4 +446,4 @@ def build_report(session: AnalysisSession) -> tuple[Path, Path]:
 
     body = re.sub(r'src="(figures/[^"]+)"', _inline, body)
     html_path.write_text(f"<!doctype html><html><head><meta charset='utf-8'><title>sc-target-agent report</title><style>{CSS}</style></head><body>{body}</body></html>")
-    return md_path, html_path
+    return html_path
