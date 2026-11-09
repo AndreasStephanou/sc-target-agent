@@ -13,7 +13,13 @@ relative to the run directory or None, and writes PDF + SVG beside it (see style
   up the score, with class and attribution.
 * state_volcanoes: per recorded state, the replicate-aware contrast that carried its scoring, with
   the candidates labelled.
+* state_map: the recorded states on the embedding under the final cluster key (the one cell-level
+  figure: a location map, drawn at report time so a merge made after the clustering UMAP shows).
 * candidate_evidence_rows: the compact evidence table used by the report.
+
+Recorded states are resolved to cells by `resolve_states` (protocol 23q): a state recorded under a
+label that `merge_clusters` later folded into a merged label ('16' -> '13+16+17') is drawn as the
+merged cluster, together with its other pieces, instead of as an empty state.
 """
 from __future__ import annotations
 
@@ -26,6 +32,7 @@ import pandas as pd
 import scipy.sparse as sp
 
 from .style import (
+    CATEGORICAL,
     DISEASE_COLOR,
     DIVERGING_CMAP,
     DOUBLE_COL,
@@ -59,8 +66,73 @@ def _lib_order(session, libs: np.ndarray, conds: np.ndarray) -> tuple[list[str],
     return order, cond_of
 
 
+_CLUSTER_COLUMN_HINTS = ("leiden", "louvain", "sct_leiden")
+
+
+def resolve_states(session) -> list[dict[str, Any]]:
+    """Recorded disease states resolved to cells under the active cluster key (protocol 23q).
+
+    A state is recorded by its cluster label at the time it was found. When `merge_clusters` later
+    folds that label into a merged one ('16' -> '13+16+17'), or `subcluster` moves the active key,
+    the label no longer exists in the active column and every cell-level figure used to draw an
+    empty state. Resolution order: the label itself in the active key; the merged label that lists
+    it as a piece (all recorded pieces of one merge collapse into one entry, so the merged cluster
+    is drawn as one state); the label in any other clustering column (the base clustering before a
+    merge or a subcluster step). A label found nowhere is skipped.
+
+    Each entry: label (the drawn cluster), cells (bool mask), recorded (labels recorded for it),
+    basis (of the first recorded state), note (None, or how the label was resolved)."""
+    a = session.require_adata()
+    ck = session.cluster_key
+    states = session.facts.get("findings", {}).get("disease_state", [])
+    out: list[dict[str, Any]] = []
+    if not states or not ck or ck not in a.obs:
+        return out
+    labels = a.obs[ck].astype(str).to_numpy()
+    present = set(labels)
+    merged_of: dict[str, str] = {}
+    for lab in present:
+        if "+" in lab:
+            for piece in lab.split("+"):
+                merged_of.setdefault(piece, lab)
+    other_cols = [c for c in a.obs.columns if c != ck and (c.lower().startswith(_CLUSTER_COLUMN_HINTS) or c.endswith(("_sub", "_merged")))]
+    by_label: dict[str, dict[str, Any]] = {}
+    for st in states:
+        cl = str(st.get("cluster"))
+        if cl in present:
+            key, mask, note = cl, labels == cl, None
+        elif cl in merged_of:
+            key = merged_of[cl]
+            mask, note = labels == key, "merged"
+        else:
+            col = next((c for c in other_cols if cl in set(a.obs[c].astype(str))), None)
+            if col is None:
+                continue
+            key, mask, note = cl, a.obs[col].astype(str).to_numpy() == cl, f"label from column {col}; the active key is {ck}"
+        e = by_label.get(key)
+        if e is None:
+            e = {"label": key, "cells": mask, "recorded": [], "basis": st.get("basis", "composition"), "note": note}
+            by_label[key] = e
+            out.append(e)
+        if cl not in e["recorded"]:
+            e["recorded"].append(cl)
+    for e in out:
+        if e["note"] == "merged":
+            e["note"] = f"recorded as state{'s' if len(e['recorded']) > 1 else ''} {', '.join(e['recorded'])}, merged by merge_clusters into {e['label']}"
+    return out
+
+
+def resolved_state_label(session, cluster: str) -> str | None:
+    """The drawn label for a recorded cluster (the merged label when it was merged), or None."""
+    for e in resolve_states(session):
+        if str(cluster) in e["recorded"] or str(cluster) == e["label"]:
+            return e["label"]
+    return None
+
+
 def _groups(session) -> tuple[np.ndarray, list[str]]:
-    """Group label per cell: lineage name, with each recorded disease-state cluster as its own group."""
+    """Group label per cell: lineage name, with each recorded disease-state cluster as its own group
+    (a merged state as one group, see resolve_states)."""
     from ..tools.analysis import _lineage_key
 
     a = session.require_adata()
@@ -71,16 +143,12 @@ def _groups(session) -> tuple[np.ndarray, list[str]]:
     lin = a.obs[lk].astype(str).to_numpy() if lk and lk in a.obs else np.array(["all cells"] * a.n_obs)
     groups = lin.copy()
     order = sorted(set(lin))
-    ck = session.cluster_key
-    if ck and ck in a.obs:
-        labels = a.obs[ck].astype(str).to_numpy()
-        for st in session.facts.get("findings", {}).get("disease_state", []):
-            cl = str(st.get("cluster"))
-            m = labels == cl
-            if m.any():
-                name = f"state {cl}"
-                groups[m] = name
-                order.append(name)
+    for e in resolve_states(session):
+        m = e["cells"]
+        if m.any():
+            name = f"state {e['label']}"
+            groups[m] = name
+            order.append(name)
     return groups, order
 
 
@@ -253,10 +321,11 @@ def library_expression_panel(session, genes: list[str], name: str, title: str | 
     handles = [plt.Line2D([], [], marker="o", ls="", color=DISEASE_COLOR, label=f"{session.disease} libraries"),
                plt.Line2D([], [], marker="o", ls="", color=REFERENCE_COLOR, label=f"{' / '.join(session.reference)} libraries"),
                plt.Rectangle((0, 0), 1, 1, color=LIGHT, alpha=0.5, label="recorded state")]
-    fig.legend(handles=handles, loc="upper right", ncol=3, bbox_to_anchor=(0.99, 1.0))
+    # legend below the panels: a long title (a state drawn as a merged state) must not run into it
+    fig.legend(handles=handles, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.0), frameon=False)
     if title:
         fig.suptitle(title, fontsize=8, fontweight="bold", x=0.01, ha="left")
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.tight_layout(rect=(0, 0.07, 1, 0.95))
     p = session.save_figure(name, fig, f"Per-library pseudobulk expression of {', '.join(genes)} by lineage and recorded state (shaded); one point per library, coloured by condition, boxes per condition (libraries with < {min_cells} cells in a group omitted). A real candidate has most disease libraries above the reference ones in its own lineage.")
     return str(p.relative_to(session.run_dir))
 
@@ -264,24 +333,24 @@ def library_expression_panel(session, genes: list[str], name: str, title: str | 
 def state_library_bars(session, name: str = "state_library_shares") -> str | None:
     plt = _plt()
     a = session.require_adata()
-    ck = session.cluster_key
-    states = session.facts.get("findings", {}).get("disease_state", [])
-    if not ck or ck not in a.obs or not states:
+    states = resolve_states(session)
+    if not states:
         return None
-    labels = a.obs[ck].astype(str).to_numpy()
     libs = a.obs[session.sample_key].astype(str).to_numpy()
     conds = a.obs[session.condition_key].astype(str).to_numpy()
     lib_order, cond_of = _lib_order(session, libs, conds)
     fig, axes = plt.subplots(len(states), 1, figsize=(max(SINGLE_COL, min(DOUBLE_COL, 0.16 * len(lib_order) + 1.2)), 1.1 * len(states) + 0.6), squeeze=False, sharex=True)
     for k, (ax, st) in enumerate(zip(axes.ravel(), states)):
-        cl = str(st.get("cluster"))
-        m = labels == cl
+        m = st["cells"]
         n = int(m.sum())
         shares = pd.Series(libs[m]).value_counts()
         vals = [shares.get(l, 0) / max(1, n) for l in lib_order]
         ax.bar(range(len(lib_order)), vals, color=[DISEASE_COLOR if cond_of[l] == session.disease else REFERENCE_COLOR for l in lib_order], width=0.75)
         ax.set_ylabel("share of\nstate cells")
-        ax.set_title(f"state {cl} ({st.get('basis', 'composition')}): {n:,} cells; {int((pd.Series(vals) > 0.01).sum())} libraries contribute > 1%")
+        title = f"state {st['label']} ({st['basis']}): {n:,} cells; {int((pd.Series(vals) > 0.01).sum())} libraries contribute > 1%"
+        if st["note"]:
+            title += f"\n{st['note']}"
+        ax.set_title(title)
         panel_label(ax, chr(ord("a") + k))
         despine(ax)
     axes.ravel()[-1].set_xticks(range(len(lib_order)))
@@ -290,6 +359,54 @@ def state_library_bars(session, name: str = "state_library_shares") -> str | Non
         lab.set_color(DISEASE_COLOR if cond_of[l] == session.disease else REFERENCE_COLOR)
     fig.tight_layout()
     p = session.save_figure(name, fig, "Share of each recorded state's cells contributed by each library (disease libraries vermilion, reference blue). A state carried by one or two libraries is a patient-specific claim.")
+    return str(p.relative_to(session.run_dir))
+
+
+def state_map(session, name: str = "state_map", max_points: int = 250_000) -> str | None:
+    """The recorded states on the embedding, drawn at report time under the final cluster key.
+
+    The clustering UMAP is drawn when the clusters are computed; a state merged or re-labelled after
+    that (`merge_clusters`, `subcluster`) never appeared on it. This is the one cell-level figure in
+    the report and it is a location map only: the claims about each state are the replicate-level
+    figures that follow. Needs `X_umap` in obsm (computed in the run, or reloaded from
+    `umap_coordinates.csv` on a rebuild)."""
+    plt = _plt()
+    a = session.require_adata()
+    if "X_umap" not in a.obsm:
+        return None
+    states = resolve_states(session)
+    if not states:
+        return None
+    xy = np.asarray(a.obsm["X_umap"])[:, :2]
+    rng = np.random.default_rng(0)
+    keep = np.ones(a.n_obs, dtype=bool)
+    if a.n_obs > max_points:
+        keep[:] = False
+        keep[rng.choice(a.n_obs, max_points, replace=False)] = True
+    fig, ax = plt.subplots(figsize=(MID_COL, MID_COL * 0.85))
+    ax.scatter(xy[keep, 0], xy[keep, 1], s=0.8, color=LIGHT, edgecolor="none", rasterized=True, zorder=1)
+    pal = [c for c in CATEGORICAL if c not in (LIGHT,)]
+    for i, st in enumerate(states):
+        m = st["cells"] & keep
+        if not m.any():
+            continue
+        col = pal[i % len(pal)]
+        ax.scatter(xy[m, 0], xy[m, 1], s=1.2, color=col, edgecolor="none", rasterized=True, zorder=2, label=f"state {st['label']} ({int(st['cells'].sum()):,} cells)")
+        cx, cy = np.median(xy[m, 0]), np.median(xy[m, 1])
+        ax.text(cx, cy, st["label"], fontsize=6, fontweight="bold", ha="center", va="center", color="black", zorder=3, bbox={"boxstyle": "round,pad=0.15", "fc": "white", "ec": "none", "alpha": 0.7})
+    ax.set_axis_off()
+    ax.set_title(f"Recorded states on the embedding (cluster key `{session.cluster_key}`)", fontsize=7)
+    handles, labels_ = ax.get_legend_handles_labels()
+    if handles:
+        leg = ax.legend(handles, labels_, loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=2, markerscale=6, handlelength=1.0, columnspacing=0.8, frameon=False)
+        for h in leg.legend_handles:
+            try:
+                h.set_sizes([12])
+            except Exception:  # noqa: BLE001
+                pass
+    notes = [st["note"] for st in states if st["note"]]
+    fig.tight_layout()
+    p = session.save_figure(name, fig, "Recorded disease states on the UMAP computed at clustering time, drawn at report time under the final cluster key, so a state merged or re-labelled after the clustering figure (merge_clusters, subcluster) appears as one population; grey: all other cells. A location map only; the claims about each state are replicate-level (figures below)." + (" " + "; ".join(notes) + "." if notes else ""))
     return str(p.relative_to(session.run_dir))
 
 

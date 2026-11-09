@@ -1,0 +1,15 @@
+runs/flc_agent_1: wrote report.md, report.html; 18 figures
+Evaluation of runs/flc_agent_1 vs flc.yaml  (prompts v8, scoring v3)
+========================================================================
+state 'FLC_tumour_cells': missed  (cluster 10, marker overlap 3/5 needed: AKAP12, CA12, TESC)
+    strict (agent-recorded genes only): missed  (cluster 10, overlap 3/5, 15 genes recorded)
+target ranks (within its state): {'PRKACA': 2}  state: {'PRKACA': '6 (L1)'}  global: {'PRKACA': 7}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'CA12': 1, 'SLC16A14': None, 'AURKA': None, 'ERBB2': 2, 'MTOR': None, 'KRT7': 7, 'CYP19A1': None}
+above first true target: 0 not in answer key -> known-wrong decoys: none; novel candidates: none
+nominated: ['SLC7A5', 'ERBB2', 'FST', 'CA12', 'CA5A', 'VWF', 'ITGA6', 'PRKACA', 'FAP', 'PDGFRB', 'INHBA']  precision: 0.2727272727272727
+decoys nominated - flagged by critic: none; UNFLAGGED: ['PDGFRB']
+drug recall: 0.25  found: ['neratinib']
+tool calls: 95 (0 errors)   tokens: {'input_tokens': 2481637, 'output_tokens': 42906}
+PASS: False
+report.md / report.html: evaluation section refreshed in runs/flc_agent_1
+

@@ -1,0 +1,15 @@
+runs/caa_denovo_agent_v04_1: wrote report.md, report.html; 17 figures
+Evaluation of runs/caa_denovo_agent_v04_1 vs caa.yaml  (prompts v12, scoring v3)
+========================================================================
+state 'CAA_specific_keratinocytes': FOUND  (cluster 3, marker overlap 7/5 needed: BNC2, CASK, ERBB4, FHIT, NAALADL2, NFIA, PEG3)
+    strict (agent-recorded genes only): missed  (cluster 3, overlap 2/5, 18 genes recorded)
+target ranks (within its state): {'ERBB4': 1}  state: {'ERBB4': '16 (L4)'}  global: {'ERBB4': 2}   recall@5: 1.0
+acceptable-target ranks (reported, not scored): {'PEG3': 2, 'GABRB1': None, 'CACNB2': 5, 'BCL2': None, 'MAGI2': None, 'NEO1': 5, 'CASK': None, 'MCTP2': None, 'AURKA': None, 'AURKB': None, 'MAPK8': None, 'MAPK9': None, 'ARAF': None, 'TNK2': None}
+above first true target: 0 not in answer key -> known-wrong decoys: none; novel candidates: none
+nominated: ['ERBB4', 'GABRA2', 'FGFR1', 'PNOC', 'FGF14', 'IGF2', 'CHRM2']  precision: 0.14285714285714285
+decoys nominated - flagged by critic: ['FGFR1']; UNFLAGGED: none
+drug recall: 0.75  found: ['afatinib', 'dacomitinib', 'neratinib']
+tool calls: 92 (1 errors)   tokens: {'input_tokens': 2158280, 'output_tokens': 44608}
+PASS: True
+report.md / report.html: evaluation section refreshed in runs/caa_denovo_agent_v04_1
+

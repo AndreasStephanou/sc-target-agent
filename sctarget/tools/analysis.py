@@ -574,6 +574,9 @@ def integrate_and_cluster(
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
+        # per-cell coordinates stay on disk in the run dir (never sent to the model), so a report
+        # rebuilt later can draw the recorded states on the same embedding (report figure state_map)
+        pd.DataFrame(np.asarray(a.obsm["X_umap"])[:, :2], index=a.obs_names, columns=["umap_1", "umap_2"]).to_csv(session.run_dir / "umap_coordinates.csv")
         fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
         sc.pl.umap(a, color=key, ax=axes[0], show=False, legend_loc="on data", title=f"clusters ({key})", frameon=False)
         sc.pl.umap(a, color=session.condition_key, ax=axes[1], show=False, title="condition", frameon=False)
@@ -1054,6 +1057,32 @@ def _lineage_key(session: AnalysisSession) -> str | None:
         except Exception as e:  # structural fallback: tools then treat all clusters as one lineage
             session.log.note("analyst", f"derive_lineages failed ({e}); proceeding without lineages")
     return key
+
+
+def lineage_column_from_facts(labels: Any, facts: dict[str, Any]) -> np.ndarray | None:
+    """Rebuild the derived-lineage column from the run's own record (protocol 23q).
+
+    `derive_lineages` assigns every fine cluster wholly to one lineage and records the map in
+    facts['lineages']['fine_to_lineage'], so the per-cell column is a function of the cluster
+    labels: exact for the recorded clusters, and for a merged label ('13+16+17') or a subcluster
+    label ('6_2') through its first piece / its parent. Returns None when the record is missing
+    or no label can be mapped; a reloaded session then re-derives lineages, which may renumber
+    them, so the report code prefers this restore."""
+    rec = (facts or {}).get("lineages") or {}
+    f2l = rec.get("fine_to_lineage") or {}
+    if not f2l:
+        return None
+    labels = np.asarray(labels, dtype=str)
+    out = np.empty(len(labels), dtype=object)
+    hit = False
+    for lab in np.unique(labels):
+        lin = f2l.get(lab) or f2l.get(lab.split("+")[0]) or f2l.get(lab.split("_")[0])
+        if lin is None:
+            lin = "unassigned"
+        else:
+            hit = True
+        out[labels == lab] = lin
+    return out.astype(str) if hit else None
 
 
 @tool(

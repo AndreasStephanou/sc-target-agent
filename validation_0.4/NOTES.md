@@ -758,3 +758,30 @@ Three floors, five agent runs (9.8M input tokens), four generic fixes (issues 12
 23m-23p; prompts v13), tests 104 passed / 1 skipped (`validation_0.4/full_tests_round_0.4c_close.log`),
 results table `docs/results_caa_v04c.md` (+ .json) regenerated from the run directories. Not pushed;
 the original clone, the incubator and GitHub untouched.
+
+## Issue 16 (fixed, report-side, generic; protocol 23q): figures could not draw a state whose cluster was merged after it was recorded
+
+Reported by the author after the round closed ("whenever clusters are merged the subsequent plots
+aren't able to plot the merged clusters together"). Confirmed in `caa_denovo_agent_v04_1`: the
+state-share figure shows "state 16: 0 cells", "state 17: 0 cells", "state 13: 0 cells" and the
+per-library expression panels have no shaded state group for them, because the critic's
+`merge_clusters(16, 17, 13)` relabelled those cells `13+16+17` in the active column and the report
+looked the recorded labels up there. Checked every run that merged (12): the same defect in
+`flc_agent_1` (state 8 recorded, then merged into 8+19); the other ten recorded the state under the
+merged label or merged clusters that were not recorded states. The UMAP is drawn at clustering
+time, so no figure ever showed a merge. Analysis tools were not affected (they resolve a label
+against the base clustering), and no number changes.
+
+Fix in the report code only: `resolve_states` (recorded label → the merged label that contains it,
+pieces collapsed into one drawn state; or the base-clustering column after a subcluster step), used
+by the state-share panels and the expression-panel groups; a report-time `state_map` figure of the
+recorded states on the embedding under the final key; UMAP coordinates saved per run so rebuilt
+reports can draw the map (older runs: only if the dataset carries `X_umap`). The first rebuild
+showed a second rebuild defect: the reloaded session re-derived the data-derived lineages and
+renumbered them (panels said L14, L8, L9 where the run says L1, L5, L6); the resume now restores
+the lineage column from the run's own fine-cluster-to-lineage record instead. A third: the reloaded
+FLC file brought back the QC-removed cells, which had no cluster assignment and formed an
+"unassigned" lineage group; the resume now drops cells without an assignment. Tests
+`tests/test_report_merged_states.py` (6). The two affected reports were rebuilt in place with
+`scripts/rebuild_report.py` and their evaluation sections refreshed; see the rebuild logs
+`validation_0.4/caa/caa_denovo_agent_v04_1_rebuild.log` and `validation_0.4/flc_agent_1_rebuild.log`.

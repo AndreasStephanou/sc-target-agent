@@ -72,9 +72,31 @@ def _resume_session(session: AnalysisSession, source: Path, keep_findings_from: 
     if key and key not in a.obs and (source / "cluster_assignments.csv").exists():
         import pandas as pd
 
-        assign = pd.read_csv(source / "cluster_assignments.csv", index_col=0)["cluster"].astype(str)
-        a.obs[key] = assign.reindex(a.obs_names).astype(str).to_numpy()
+        assign = pd.read_csv(source / "cluster_assignments.csv", index_col=0)["cluster"].astype(str).reindex(a.obs_names)
+        missing = assign.isna().to_numpy()
+        if missing.any() and not missing.all():
+            # cells the run's QC removed are back in the reloaded file; they took no part in the
+            # analysis and would otherwise form a spurious "unassigned" group in the figures
+            a = a[~missing].copy()
+            session.adata = a
+            assign = assign.reindex(a.obs_names)
+            session.log.note("resume", f"{int(missing.sum()):,} cells without a cluster assignment (removed by the run's QC) dropped on reload")
+        a.obs[key] = assign.astype(str).to_numpy()
+    if "X_umap" not in a.obsm and (source / "umap_coordinates.csv").exists():
+        import pandas as pd
+
+        xy = pd.read_csv(source / "umap_coordinates.csv", index_col=0).reindex(a.obs_names)
+        if xy.notna().all(axis=None):
+            a.obsm["X_umap"] = xy.to_numpy(dtype=float)
     session.cluster_key = key
+    # derived lineages are a function of the cluster labels (derive_lineages): restore them from the
+    # run's own record rather than re-deriving, which can renumber the lineages the report names
+    if key and key in a.obs and session.lineage_key is None and (facts.get("lineages") or {}).get("key") == session.DERIVED_LINEAGE_KEY:
+        from ..tools.analysis import lineage_column_from_facts
+
+        col = lineage_column_from_facts(a.obs[key].astype(str).to_numpy(), facts)
+        if col is not None:
+            a.obs[session.DERIVED_LINEAGE_KEY] = col
     session.figures = state.get("figures", [])
     session.log.stage("resume", "loaded", source=str(source), cluster_key=key, kept_findings=sorted(keep_findings_from))
 

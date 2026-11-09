@@ -913,6 +913,50 @@ pan-state genes; thin reference pool for attribution). Below 0.9 the major flag 
 `tests/test_critic_exclusive_lineage.py` (3). The de novo agent run 1 ran under v12; a second de
 novo agent run under v13 serves as verification and as the arm's stability pair.
 
+### 23q. Report figures draw a state under the label it has at report time, so a merged state is drawn as one population (round 0.4c; report only)
+
+Motivating case: CAA de novo agent run 1 (`runs/caa_denovo_agent_v04_1`). The analyst recorded
+states 16, 17 and 13; the critic then ran `merge_clusters(16, 17, 13)`, which wrote the label
+`13+16+17` into a new active cluster column. Every cell-level report figure looked each recorded
+state up by its recorded label in the active column, found no cell, and drew "state 16: 0 cells"
+(state-share panels empty, no shaded state group in the per-library expression panels). FLC agent
+run 1 (state 8, merged into 8+19 after the record) shows the same. Runs that recorded the state
+under the merged label itself (ccRCC, IPF, FLC run 2) were not affected. Independently, the
+clustering UMAP is drawn when the clusters are computed, so a merge or a subcluster step made
+afterwards never appeared on any figure: the report could not show the merged clusters together.
+The analysis tools were never affected (`_resolve_key` finds a recorded label in the base
+clustering column); this is report code only, and no number in any report changes.
+
+Change (report code only; `scripts/rebuild_report.py` applies it to an existing run):
+(i) `figures.resolve_states` maps every recorded state to cells under the active key: the label
+itself if present; else the merged label that lists it as a piece, with all recorded pieces of one
+merge collapsed into one drawn state (title "state 13+16+17 ... recorded as states 16, 17, 13,
+merged by merge_clusters"); else the label in another clustering column (the base clustering after
+a subcluster step). `_groups` (expression panels) and `state_library_bars` use it; a candidate
+panel for a merged piece says "drawn as merged state ...". (ii) New report-time figure `state_map`:
+the recorded states on the embedding under the final cluster key, grey elsewhere, one colour and a
+centroid label per resolved state. It is the report's one cell-level figure and a location map
+only; the replicate-level figures carry the claims. (iii) `integrate_and_cluster` writes
+`umap_coordinates.csv` (per cell, run directory only, never sent to the model) and `_resume_session`
+reloads it, so a rebuilt report can draw the map when the dataset file has no embedding. Runs
+made before this change have no coordinates file; their rebuilt reports get (i) and skip the map
+unless the dataset carries `X_umap`. (iv) Found while rebuilding: a reloaded session re-derived
+the data-derived lineages, which renumbered them (the rebuilt CAA de novo panels said L14, L8, L9
+where the run and its report text say L1, L5, L6). `derive_lineages` assigns every fine cluster
+wholly to one lineage and records the map in `facts.lineages.fine_to_lineage`, so the column is a
+function of the cluster labels; `_resume_session` now restores it from that record
+(`lineage_column_from_facts`; a merged or subcluster label through its first piece / parent)
+instead of re-deriving. (v) Also found while rebuilding: the reloaded dataset file brings back the
+cells the run's QC removed; they have no cluster assignment and formed a spurious "unassigned"
+lineage group in the rebuilt FLC panels. `_resume_session` now drops cells without an assignment
+and logs the count, so a rebuilt or resumed session sees exactly the run's cells. Tests:
+`tests/test_report_merged_states.py` (6: pieces resolve to one drawn state with the merged cell
+count; groups, shares, map and expression panel draw it; unmerged states unchanged; a state
+recorded on the base clustering after a subcluster step; lineage column restored from the record;
+a session resumed from a scripted run has the run's cells, labels, lineages and embedding).
+Reports of the two affected runs rebuilt in place (section 6 refreshed by `run_eval`); no number in
+either changed.
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new

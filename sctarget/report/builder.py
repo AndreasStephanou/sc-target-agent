@@ -90,6 +90,7 @@ def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
     if session.adata is not None:
         out["design"] = _try("design_overview", g("design_overview"))
         out["abundance"] = _try("abundance_overview", g("abundance_overview"))
+        out["state_map"] = _try("state_map", g("state_map"))
         out["state_shares"] = _try("state_library_shares", g("state_library_bars"))
         f = session.facts
         cands = f.get("findings", {}).get("candidate_target", [])
@@ -101,12 +102,19 @@ def _report_time_figures(session: AnalysisSession) -> dict[str, Any]:
         if not per_state:
             for cl, rows in rt.items():
                 per_state[str(cl)] = [r["gene"] for r in rows[:6]]
+        resolve = g("resolved_state_label")
         for cl, genes in per_state.items():
             genes = list(dict.fromkeys(genes))[:8]
             if not genes:
                 continue
             name = f"library_expression_state{cl}_" + "_".join(genes[:3])
-            x = _try(name, g("library_expression_panel"), genes, name, title=f"Nominated candidates for state {cl}: per-library pseudobulk expression")
+            shown = None
+            try:
+                shown = resolve(session, cl) if resolve else None
+            except Exception:  # noqa: BLE001
+                shown = None
+            where = f"state {cl}" if not shown or shown == str(cl) else f"state {cl} (drawn as merged state {shown})"
+            x = _try(name, g("library_expression_panel"), genes, name, title=f"Nominated candidates for {where}: per-library pseudobulk expression")
             if x:
                 out["candidate_panels"].append(x)
     out["library_corr"] = _try("library_correlation", g("library_correlation_heatmaps"))
@@ -333,6 +341,7 @@ def build_markdown(session: AnalysisSession) -> str:
     dp = f.get("disease_programs", {})
     if dp.get("table"):
         md.append(f"\nExpression route (`disease_programs`, on clustering `{dp.get('cluster_key')}`): disease-altered programmes in clusters **{', '.join(dp.get('disease_altered_clusters', [])) or 'none'}**" + (f"; ambient-suspect: {', '.join(dp.get('ambient_suspect_clusters', []))}" if dp.get("ambient_suspect_clusters") else "") + ".\n")
+    md.append(_fig_md(report_figs.get("state_map")))
     md.append(_fig_md(report_figs.get("state_shares")))
     for st in states:
         cl = st.get("cluster")

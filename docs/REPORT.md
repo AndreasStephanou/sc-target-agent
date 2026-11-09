@@ -511,7 +511,13 @@ critic flagged two CAA clusters as "enrichment does not hold within its parent c
 their derived lineage was itself 99% CAA, so the within-lineage test compared CAA sub-states with
 each other. When a lineage is condition-exclusive the lineage is the disease population and the
 test is void, not failed; the scripted critic now checks lineage composition first and the critic
-prompt carries the rule (23p, prompts v13; verified in de novo run 2).
+prompt carries the rule (23p, prompts v13; verified in de novo run 2). (v) Reading the de novo run 1
+report showed that its figures drew the three CAA states as empty: the critic had merged them after
+the analyst recorded them, and the figures looked the recorded labels up in the merged column. The
+report now resolves a recorded state to the label it has at report time, draws merged pieces as one
+state, and adds a map of the recorded states on the embedding under the final cluster key; the two
+affected reports (this run and FLC agent run 1) were rebuilt in place (23q, report code only; no
+number changed).
 
 **What the round says.** On the development dataset the 0.4 skill reproduces the 0.3 answer
 (ERBB4 found in the right state, nominated, with its drugs) with a more honest ranking (within the
