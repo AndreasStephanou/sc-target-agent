@@ -788,3 +788,49 @@ FLC file brought back the QC-removed cells, which had no cluster assignment and 
 Full suite after the fix: 110 passed, 1 skipped (`validation_0.4/full_tests_round_0.4c_23q.log`).
 Committed as 9dd9dbc; the unpushed `results-v6` tag was moved onto it so the tag the skill manifest
 names (protocol 23-23q) carries the report fix.
+
+## CAA agent results read against the paper's fine annotation (`refined_anno`, never shown to the agent)
+
+Asked by the author whether the CAA agent results make sense. Cross-tabulation of the agents'
+clusters against the paper's labels (a check, not an input: the column is in
+`forbidden_obs_columns`):
+
+- **Clusters 6 and 12 are one paper state.** 97% of cluster 6 (29,449 of 30,237) and 84% of
+  cluster 12 are "CAA-specific Basal KCs"; all six dogs contribute to both (S17 is 78% in cluster
+  6, the others 18-34% in each). The agents' "EMT-like" (6) versus "PEG3 / GABA-high" (12) split is
+  substructure within the paper's basal state at resolution 1.0, not the paper's two states. The
+  exclusion-arm critic's reading ("one CAA epithelial spectrum") was right.
+- **The paper's junctional state was missed in the primary arm.** The 8,358 CAA-specific junctional
+  KCs sit in cluster 13 (1,558; the cluster is 2,300 cells, 70% CAA, 6/6 dogs, log2 1.59, MWU
+  p 0.07, so it fails the enrichment rule on the p-value), cluster 12 (3,328), cluster 0 (1,946)
+  and cluster 11 (648). No primary-arm run recorded it; the expression route flagged clusters 0, 11
+  and 4 as CAA-altered programmes, which is where the junctional and the CAA basal cells inside
+  shared clusters show up. The de novo arm's cluster 3 (3,049 cells: 1,558 junctional, 999
+  suprabasal) is the only recorded state that isolates part of it, and it is the state where
+  ERBB4 ranks 1st with siblings that are OSCC and gingival keratinocytes.
+- **Cluster 4 (programme state in all three primary runs)** is 85% OSCC proliferating basal KCs
+  with 2,012 CAA proliferating basal KCs inside; GABRA1 / EPHA3 / CA10 / GPC5 there are the
+  CAA-wide neuro programme measured in cycling CAA cells against cycling OSCC cells. The critics
+  said "CAA-wide, not a cluster-4 state" each time. The score still puts GABRA1 at rank 1 globally
+  (score 1.000) in all three runs because a programme candidate's effect size is the
+  within-cluster contrast and nothing discounts a programme drawn from a 13% minority of a shared
+  cluster; the evaluator uses within-state ranks so this does not touch the scores, but a reader
+  of section 3 sees a sparse GABA-A subunit above ERBB4.
+- **De novo clusters:** 13+16+17 = 54,060 CAA basal + 4,461 junctional KCs (the merge was right);
+  cluster 12 = proliferating basal KCs of both conditions (the critic's "cycling sub-state" is
+  right); cluster 15 = fibroblasts, 2,287 CAA vs 6,980 OSCC (the critic's "stromal, not a
+  tumour-cell target" is right).
+- **Candidates:** GABA-A subunits above ERBB4 are the paper's neuroepithelial programme and the
+  critics dismissed them as targets for the right reason; ERBB4 survives in every run at medium
+  confidence with the right caveats (normal epithelium expresses it; approved pan-ERBB drugs act
+  through EGFR/ERBB2); CA10 correctly dismissed (catalytically inactive, no inhibitors). FGFR2 is
+  genuinely state-specific in the data (72% of cluster 6 cells) while the paper's kinase screen
+  showed no response to FGFR inhibition: the exclusion-arm critic calling it "best-supported
+  actionable" is where the expression data and the functional result disagree, and the key's
+  decoy label reflects the functional result. KCNH8 (v12 run) is a novel marker with no literature.
+
+Consequence for the write-up: REPORT 7c, README and the skill's validation text said "both
+CAA-specific states recorded as distinct"; corrected to "the basal population as two clusters;
+the junctional state missed in the primary arm". The key is frozen and scores one shared
+signature, so this changes no score; recorded as a key-design limitation (one marker list per
+reported state next time). Not a method change.

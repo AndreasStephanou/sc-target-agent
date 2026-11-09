@@ -448,8 +448,9 @@ clusters against 0.3-1.2% for the other OSCC libraries. A marker check cannot se
 "a bit CAA-like" when the marker is 10% there and 60-87% in CAA; the lineage-wise correlation can.
 Exclusion arm pre-registered (`config/caa_nos3.yaml`), the all-libraries run primary.
 
-**Results.** Floor: both CAA-exclusive keratinocyte states found by composition (clusters 6 and
-12, 95-96% disease cells, 6/6 CAA libraries); key state matched 9/5; **ERBB4 5th within its state**
+**Results.** Floor: two CAA-exclusive keratinocyte clusters found by composition (clusters 6 and
+12, 95-96% disease cells, 6/6 CAA libraries; read against the paper's fine annotation after the
+round, both are the paper's CAA-specific basal state split by Leiden, see below); key state matched 9/5; **ERBB4 5th within its state**
 behind GABRA1, GABRA4, GABRB1 (acceptable) and GABRB2; nominated; afatinib, dacomitinib and
 neratinib found; no decoy ranked or nominated (0.3 floor: ERBB4 unranked, 24 novel genes above the
 first acceptable gene). Agent run 1 (v11): strict state match 6/5, **ERBB4 4th**, nominated, drugs
@@ -519,11 +520,26 @@ state, and adds a map of the recorded states on the embedding under the final cl
 affected reports (this run and FLC agent run 1) were rebuilt in place (23q, report code only; no
 number changed).
 
+**Read against the paper's annotation (after the round; the agent never saw it).** The paper's
+fine labels put 97% of cluster 6 and 84% of cluster 12 in "CAA-specific basal keratinocytes", with
+all six dogs contributing to both clusters: the two recorded states are one paper state split at
+resolution 1.0 (an EMT-like and a PEG3/GABA-high part), not the paper's two states. The paper's
+second state, the CAA-specific junctional keratinocytes (8,358 nuclei), sits mainly in cluster 13
+(2,300 cells, 70% CAA, log2 ratio 1.6, MWU p 0.07, so below the enrichment rule) and inside the
+shared clusters 0, 11 and 12; no primary-arm run recorded it. The de novo arm's cluster 3 (3,049
+cells, 51% junctional, 33% suprabasal) is the only recorded state that isolates part of it, and it
+is where ERBB4 ranked 1st. The programme state in cluster 4 is the CAA proliferating basal cells
+inside an OSCC-dominated cycling cluster; the de novo fibroblast cluster the critic set aside is
+indeed fibroblasts. The frozen key scores one shared signature, so the evaluator cannot see that
+two recorded states are one paper state or that the other was missed; the key stays frozen and
+this is recorded as a limitation of the key, not a score change.
+
 **What the round says.** On the development dataset the 0.4 skill reproduces the 0.3 answer
-(ERBB4 found in the right state, nominated, with its drugs) with a more honest ranking (within the
-state, behind the programme's own channel subunits), records both CAA-specific states as
-distinct, flags the paper's negative control when it is nominated, and finds a reference library
-anomaly the marker check could not. Without the paper's clustering and with batch correction the
+(ERBB4 found in the right population, nominated, with its drugs) with a more honest ranking (within
+the state, behind the programme's own channel subunits), flags the paper's negative control when
+it is nominated, and finds a reference library anomaly the marker check could not. It did not
+separate the paper's two CAA states with the paper's clustering: the junctional state failed the
+enrichment rule by its p-value and was reached only as part of a de novo cluster. Without the paper's clustering and with batch correction the
 answer is the same and ERBB4 ranks 1st within its state, at the cost of a less stable nomination
 list across runs. The briefing defect is the most consequential finding of the
 three 0.4 rounds: it was present in every agent run since the method was frozen, it was found by
