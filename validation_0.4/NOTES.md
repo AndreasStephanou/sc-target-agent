@@ -785,3 +785,6 @@ FLC file brought back the QC-removed cells, which had no cluster assignment and 
 `tests/test_report_merged_states.py` (6). The two affected reports were rebuilt in place with
 `scripts/rebuild_report.py` and their evaluation sections refreshed; see the rebuild logs
 `validation_0.4/caa/caa_denovo_agent_v04_1_rebuild.log` and `validation_0.4/flc_agent_1_rebuild.log`.
+Full suite after the fix: 110 passed, 1 skipped (`validation_0.4/full_tests_round_0.4c_23q.log`).
+Committed as 9dd9dbc; the unpushed `results-v6` tag was moved onto it so the tag the skill manifest
+names (protocol 23-23q) carries the report fix.
