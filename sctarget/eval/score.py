@@ -30,6 +30,8 @@ from typing import Any
 import pandas as pd
 import yaml
 
+from ..runlog import usage_totals_from_events
+
 
 @dataclass
 class EvalResult:
@@ -244,10 +246,8 @@ def evaluate_run(run_dir: str | Path, ground_truth: str | Path, k: int | None = 
     tcs = [e for e in events if e["type"] == "tool_call"]
     res.n_tool_calls = len(tcs)
     res.n_tool_errors = sum(1 for e in tcs if e.get("error"))
-    for e in events:
-        if e["type"] == "model_call":
-            for kk, v in (e.get("usage") or {}).items():
-                res.tokens[kk] = res.tokens.get(kk, 0) + int(v)
+    for kk, v in usage_totals_from_events(events).items():  # numeric fields only; usage also carries the model id (23r)
+        res.tokens[kk] = res.tokens.get(kk, 0) + v
 
     res.passed = bool(
         all(v["found"] for v in res.state_recovery.values())

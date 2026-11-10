@@ -834,3 +834,65 @@ CAA-specific states recorded as distinct"; corrected to "the basal population as
 the junctional state missed in the primary arm". The key is frozen and scores one shared
 signature, so this changes no score; recorded as a key-design limitation (one marker list per
 reported state next time). Not a method change.
+
+## Context audit and the model behind the runs (protocol 23r)
+
+Asked by the author whether the skill runs out of context. The skill package itself is small:
+SKILL.md ~5.8K tokens (287 lines, description 721 characters), all references together ~14K, so
+~20K with everything open. The agent roles are where context grows. From the `model_call` usage
+records of the 16 agent runs: per-role peak input tokens 14K planner, 80-186K analyst, 110-217K
+nominator (ovarian no-leak run 1: three consecutive turns over 200K), 40-88K critic. Fixed material
+per role is 7-9K tokens (system prompt 0.4-2K, protocol 0.2K, tool schemas 5-7K) plus Claude Code's
+own system prompt (~5K); growth is tool results re-sent on every turn by the stateless CLI backend
+(condition_attribution ~3.2K tokens per call, gene_specificity and score_targets ~3K,
+check_reference_libraries ~4K). Every role conversation in every run ended with `end_turn`; no turn
+budget and no context error anywhere.
+
+Found while doing this: every agent run of rounds 0.4a-0.4c was launched as bare `--model
+claude-code`, so the CLI chose its own default model and the run log recorded only the backend name
+(`"model": "claude-code"`). Which model answered cannot be established from the logs. On this
+machine the CLI's non-interactive default resolves today to `claude-sonnet-5-5` (checked with a
+one-word `claude -p` call); the 217K-token turns succeeded, so the window was above 200K. The API
+backend default in every dataset config (`agent.model: claude-sonnet-4-5`, a 200K model) would have
+failed in the nominator on the larger datasets; left as is for now because `AnthropicModel` also
+sends `temperature`, which the 5.x models reject, so moving that default is a separate change.
+
+Fix (generic; protocol 23r; commit e212986): `ClaudeCodeModel` reads `modelUsage` from the CLI
+result envelope and writes the model id into every `model_call` usage record (`usage.model`),
+into `facts.model_ids`, and into the report header; `--model claude-code:<id>` pins the model.
+The evaluator then broke on the new non-numeric usage field (`int('claude-fable-5-1')`): token
+totals for `run_eval` and the report now go through one helper that sums numeric fields only
+(`usage_totals_from_events`; test `tests/test_eval_usage_totals.py`). Full suite 110 passed,
+1 skipped (`validation_0.4/full_tests_model_id.log`).
+
+## CAA agent run 3, pinned to Claude Fable 5.1 (`runs/caa_agent_v04_3`, prompts v13, scoring v3) — 27 min, 2.13M input tokens, 94 calls, 1 tool error — PASS
+
+Asked by the author to run the pipeline on the latest model. `--model claude-code:claude-fable-5-1`
+(the CLI accepted `claude-fable-5-1` and `claude-opus-5-5` under this login), all libraries,
+prompts v13; every model call records `claude-fable-5-1`. 27.2 min, 2.13M input tokens (1.6M for
+the two primary runs on the CLI default), 94 tool calls (71 / 79), peak context 166K in the
+nominator.
+
+Evaluation (`validation_0.4/caa_agent_v04_3.log`, `runs/caa_agent_v04_3/eval.json`): PASS. State
+found (cluster 12, 13/5 lenient); strict missed by one gene in each CAA cluster (cluster 6 recorded
+BCL2, CACNB2, RBFOX1, COL8A1; cluster 12 GABRB1, PEG3, NAALADL2, ERBB4; 4/5 each: the analyst
+recorded the sibling-contrast tops rather than the lineage-wide list the earlier runs recorded).
+ERBB4 4th within its state (global 5th, the best global rank of the three primary runs); above it
+GABRA4 and GABRB2 (novel, as in every run) and GABRB1 (acceptable). Drugs 0.75 (afatinib,
+dacomitinib, neratinib). FGFR2 nominated and flagged ("disease-wide, 86% of the reference cells in
+the cluster express it"); no unflagged decoy. Nominated precision 0.2: 10 nominations, five of them
+microenvironment candidates from the three programme states (SELE, EPHA3, IGF1, KIT, TNFRSF11B),
+each flagged "not the disease cells" or "no inhibitor". Stability with the v12 run: top-10 Jaccard
+0.54, nominated-set 0.31 (v11 vs v12 was 0.67 / 0.42).
+
+What differed with this model: (i) the critic ran the reference-only subcluster on the 1,237 OSCC
+cells inside cluster 6 unprompted (as the v12 critic did) and read the largest piece as an
+EMT/invasive carcinoma programme (MDGA2, SULF1, FN1, ZEB1, PTHLH; CACNA2D3 in 97% of its cells),
+making CACNA2D3 conditional; the one tool error is its attempt to do the same for the 42 HGIN
+cells (the tool refused, the critic moved on). (ii) It named the exclusion arm (S13) as the next
+step, which the round had already run. (iii) More programme-state nominations, all flagged as
+microenvironment, which lowers precision without touching the within-state rank. (iv) Its ERBB4
+note ("disease-wide across both CAA epithelial states, shared with cluster 6") says what the
+fine-annotation check found afterwards. Same answer, a third more tokens, a longer critic section.
+
+Not a method change; no prompt or rule touched. Tag results-v7 (working copy only; nothing pushed).

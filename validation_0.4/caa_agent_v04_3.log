@@ -1,0 +1,8 @@
+run dir : runs/caa_agent_v04_3
+  planner  turns= 4 tools= 3 errors=0  stop=end_turn
+  analyst  turns= 9 tools=24 errors=0  stop=end_turn
+  target   turns=10 tools=33 errors=0  stop=end_turn
+  critic   turns=12 tools=34 errors=1  stop=end_turn
+report  : runs/caa_agent_v04_3/report.md
+elapsed : 1632.4s
+exit 0

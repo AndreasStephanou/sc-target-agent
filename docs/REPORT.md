@@ -436,7 +436,8 @@ and scoring v2 (results-v3), now run as the skill says: both helper checks first
 (`caa-key-frozen-v04`, unchanged since its 0.3 freeze), floor, agent run, a pre-registered
 exclusion arm, a second agent run, then (at the author's request) the de novo arm with Harmony and
 derived lineages. Protocol 23m-23p; results `docs/results_caa_v04c.md`; notes
-`validation_0.4/NOTES.md` (round 0.4c). Three floors, five agent runs, about 9.8M input tokens.
+`validation_0.4/NOTES.md` (round 0.4c). Three floors, five agent runs, about 9.8M input tokens;
+after the round, a sixth agent run pinned to a named model (protocol 23r; last paragraph).
 
 **Pre-run checks.** Design: three condition levels by design, 10-vs-3 reference imbalance, two dogs
 paired (tumour and matched gingiva; after the 0.4b fix no longer reported as pseudo-replication),
@@ -545,3 +546,19 @@ list across runs. The briefing defect is the most consequential finding of the
 three 0.4 rounds: it was present in every agent run since the method was frozen, it was found by
 reading what the critic said about its own inputs, and nothing in the evaluator could have shown
 it. That is an argument for keeping the agent's notes in the report and reading them.
+
+**The model behind the runs (after the round; protocol 23r).** A context audit of the 16 agent
+runs showed that every one had been launched as bare `claude-code`, so the Claude Code CLI chose
+its own default model and the run log recorded only the backend name; which model answered in
+rounds 0.4a-0.4c cannot be read from the logs (the window was above 200K: single turns of 217K
+input tokens succeeded). The backend now records the model id the CLI reports, in the run log, the
+run facts and the report header, and runs are launched with an explicit id. The first such run,
+the CAA primary arm on Claude Fable 5.1 (prompts v13): PASS, ERBB4 4th within its state (global
+5th), FGFR2 nominated and flagged, no unflagged decoy, drugs 0.75, 2.1M input tokens against 1.6M
+for the two earlier primary runs, top-10 Jaccard 0.54 with the v12 run. Same answer; the critic
+wrote more and nominated more microenvironment candidates, each flagged as such. The audit also
+measured context use: per-role peaks across the 16 runs of 14K (planner), up to 186K (analyst),
+up to 217K (nominator) and up to 88K (critic) input tokens, growing by tool results re-sent on every
+turn by the stateless CLI backend; the prompts and tool schemas are 7-9K per role and the skill
+package itself about 20K. An API-backend model with a 200K window, such as the configs'
+`agent.model` default, would not finish the nominator on the larger datasets.

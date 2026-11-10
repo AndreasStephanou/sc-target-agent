@@ -94,10 +94,16 @@ class RunLog:
         return [e for e in self.events() if e["type"] == "tool_call"]
 
     def usage_totals(self) -> dict[str, int]:
-        tot: dict[str, int] = {}
-        for e in self.events():
-            if e["type"] == "model_call":
-                for k, v in (e.get("usage") or {}).items():
-                    if isinstance(v, (int, float)):
-                        tot[k] = tot.get(k, 0) + int(v)
-        return tot
+        return usage_totals_from_events(self.events())
+
+
+def usage_totals_from_events(events: list[dict[str, Any]]) -> dict[str, int]:
+    """Sum the numeric usage fields over the model calls. A usage record may also carry non-numeric
+    fields (the model id the backend reports, protocol 23r); those are skipped, not summed."""
+    tot: dict[str, int] = {}
+    for e in events:
+        if e.get("type") == "model_call":
+            for k, v in (e.get("usage") or {}).items():
+                if isinstance(v, (int, float)) and not isinstance(v, bool):
+                    tot[k] = tot.get(k, 0) + int(v)
+    return tot
