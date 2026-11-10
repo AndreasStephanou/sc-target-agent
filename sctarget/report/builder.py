@@ -184,7 +184,12 @@ def build_markdown(session: AnalysisSession) -> str:
     flags = findings.get("critic_flag", [])
     summaries = findings.get("summary", [])
     events = session.log.events()
+    # backend name as configured, plus the model ids the backend reported having used (a CLI backend
+    # without --model runs on a default the pipeline does not set; facts["model_ids"] records it)
     model_names = sorted({e.get("model") for e in events if e["type"] == "model_call" and e.get("model")})
+    model_ids = sorted({str(m) for m in (session.facts.get("model_ids") or []) if m})
+    if model_ids and not any(any(m.endswith(":" + i) or m == i for m in model_names) for i in model_ids):
+        model_names = [f"{n} ({', '.join(model_ids)})" for n in model_names] or model_ids
     usage = session.log.usage_totals()
     calls = [e for e in events if e["type"] == "tool_call"]
     n_err = len([e for e in calls if e.get("error")])

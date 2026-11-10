@@ -1,0 +1,24 @@
+..........................................s............................. [ 64%]
+.......................................                                  [100%]
+=============================== warnings summary ===============================
+tests/test_ambient.py: 2 warnings
+tests/test_analysis_tools.py: 2 warnings
+tests/test_attribution.py: 6 warnings
+tests/test_cli_and_collect.py: 2 warnings
+tests/test_generalisation_guards.py: 8 warnings
+tests/test_knowledge_parsing.py: 2 warnings
+tests/test_lineages.py: 8 warnings
+tests/test_loop.py: 2 warnings
+tests/test_pipeline_e2e.py: 4 warnings
+tests/test_program_route.py: 8 warnings
+tests/test_reference_library_check.py: 2 warnings
+tests/test_report_figures.py: 2 warnings
+tests/test_report_merged_states.py: 2 warnings
+tests/test_scoring_v2.py: 8 warnings
+tests/test_scoring_v3.py: 6 warnings
+tests/test_subcluster_condition.py: 4 warnings
+  /home/as3562/miniconda3/envs/sctarget/lib/python3.11/site-packages/scanpy/plotting/_tools/scatterplots.py:184: PendingDeprecationWarning: The set_bad function will be deprecated in a future version. Use cmap.with_extremes(bad=...) or Colormap(bad=...) instead.
+    cmap.set_bad(na_color)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+110 passed, 1 skipped, 68 warnings in 567.89s (0:09:27)

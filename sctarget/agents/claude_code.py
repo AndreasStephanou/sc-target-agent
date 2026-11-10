@@ -134,6 +134,9 @@ class ClaudeCodeModel:
         self.keep_api_key = keep_api_key
         self.extra_args = extra_args or []
         self._cwd = tempfile.mkdtemp(prefix="sctarget_cc_")
+        # model ids the CLI reports having used. Without --model the CLI picks its own default, which
+        # changes with the user's Claude Code settings and over time, so the run log must record what ran.
+        self.models_seen: set[str] = set()
 
     # ---- subprocess
     def _argv(self, system: str) -> list[str]:
@@ -181,22 +184,28 @@ class ClaudeCodeModel:
         if env.get("is_error"):
             raise RuntimeError(f"claude CLI reported an error: {str(env.get('result'))[:800]}")
         u = env.get("usage") or {}
-        usage = {
+        usage: dict[str, Any] = {
             "input_tokens": int(u.get("input_tokens", 0)) + int(u.get("cache_creation_input_tokens", 0)) + int(u.get("cache_read_input_tokens", 0)),
             "output_tokens": int(u.get("output_tokens", 0)),
         }
+        models = sorted(str(k) for k in (env.get("modelUsage") or {}) if k)
+        if models:
+            usage["model"] = ",".join(models)
+            self.models_seen.update(models)
         return str(env.get("result", "")), usage
 
     # ---- Model interface
     def create(self, *, system: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]], role: str) -> ModelResponse:
         full_system = system + PROTOCOL + render_tools(tools)
         prompt = render_transcript(messages)
-        total = {"input_tokens": 0, "output_tokens": 0}
+        total: dict[str, Any] = {"input_tokens": 0, "output_tokens": 0}
         last_text = ""
         for attempt in range(self.max_parse_retries + 1):
             text, usage = self._call(full_system, prompt)
-            for k in total:
+            for k in ("input_tokens", "output_tokens"):
                 total[k] += usage.get(k, 0)
+            if usage.get("model"):
+                total["model"] = usage["model"]
             last_text = text
             obj = extract_json(text)
             problem = None

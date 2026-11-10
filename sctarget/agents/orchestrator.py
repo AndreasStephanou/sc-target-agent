@@ -177,6 +177,12 @@ def run_pipeline(
             rr.stopped_reason = rr2.stopped_reason
         result.roles[role] = rr
         session.facts.setdefault("role_summaries", {})[role] = rr.final_text
+        # the model ids that actually answered (a CLI backend without --model uses a default we do not set)
+        seen = set(getattr(model, "models_seen", ()) or ())
+        if not seen and getattr(model, "model", None) and model.name != "scripted":
+            seen = {str(model.model)}
+        if seen:
+            session.facts["model_ids"] = sorted(seen)
         session.dump_state()
 
     # knowledge client isn't JSON-serialisable; drop before persisting

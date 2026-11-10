@@ -957,6 +957,29 @@ a session resumed from a scripted run has the run's cells, labels, lineages and 
 Reports of the two affected runs rebuilt in place (section 6 refreshed by `run_eval`); no number in
 either changed.
 
+### 23r. The run log records the model id the Claude Code backend actually used (round 0.4d)
+
+Motivating case: a context-size audit of the 16 agent runs of rounds 0.4a-0.4c. All were launched
+as `--model claude-code` with no model id, so the backend ran `claude -p` without `--model` and
+the CLI chose its own default. That default is set by the user's Claude Code settings and changes
+over time; in non-interactive mode on this machine it resolves today to `claude-sonnet-5-5`. The
+run log recorded only the backend name (`"model": "claude-code"` on every `model_call`), so which
+model answered in those runs cannot be established from the logs. What the logs do show: single
+turns of 207K-217K input tokens (ovarian no-leak run 1, nominator) succeeded, so the model had a
+context window above 200K; and the API-backend default in every dataset config
+(`agent.model: claude-sonnet-4-5`, a 200K model) would have failed there. The per-role peaks were
+14K (planner), 80K-186K (analyst), 110K-217K (nominator) and 40K-88K (critic); growth is tool
+results re-sent on every turn by the stateless CLI backend (condition_attribution ~3.2K tokens per
+call, gene_specificity and score_targets ~3K, check_reference_libraries ~4K), not the prompts
+(fixed material per role 7K-9K tokens, of which 5K-7K are the tool schemas).
+
+Change: `ClaudeCodeModel` reads the model ids from the CLI result envelope (`modelUsage`) and
+writes them into every `model_call` usage record (`usage.model`) and into `facts.model_ids`; the
+report header shows them next to the backend name. A run launched as `--model claude-code:<id>`
+pins the id and the stage records already carry it. Agent runs from this section on are launched
+with an explicit id. Test: `tests/test_claude_code_model.py` (fake CLI emits `modelUsage`; usage
+and `models_seen` carry the id). No analysis code changed; no number in any report changes.
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new

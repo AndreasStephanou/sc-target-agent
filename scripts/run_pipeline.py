@@ -8,7 +8,8 @@ Examples
     python scripts/run_pipeline.py --config config/caa.yaml --model claude-sonnet-4-5
 
     # no API key: drive the pipeline through a Claude Code subscription login (separate experimental arm)
-    python scripts/run_pipeline.py --config config/caa.yaml --model claude-code            # or claude-code:sonnet
+    python scripts/run_pipeline.py --config config/caa.yaml --model claude-code:claude-fable-5-1
+    # bare `claude-code` uses the CLI's own default model; whichever model answers is recorded in run.jsonl (usage.model)
 
     # re-run only the nominator + critic on an existing run's analysis (no re-clustering / DE)
     python scripts/run_pipeline.py --config config/caa.yaml --model scripted --resume-from runs/caa_dry6 --run-dir runs/caa_dry6b

@@ -27,7 +27,7 @@ def make_fake(tmp_path, replies, record=None):
         "prompt = sys.stdin.read()\n"
         "replies = json.load(open(q)); r = replies.pop(0); json.dump(replies, open(q, 'w'))\n"
         "open(rec, 'a').write(json.dumps({'argv': sys.argv[1:], 'prompt': prompt, 'has_key': 'ANTHROPIC_API_KEY' in os.environ, 'cwd': os.getcwd()}) + '\\n')\n"
-        "print(json.dumps({'type': 'result', 'is_error': False, 'result': r, 'usage': {'input_tokens': 10, 'cache_read_input_tokens': 90, 'output_tokens': 7}}))\n"
+        "print(json.dumps({'type': 'result', 'is_error': False, 'result': r, 'usage': {'input_tokens': 10, 'cache_read_input_tokens': 90, 'output_tokens': 7}, 'modelUsage': {'claude-fake-9-9': {'inputTokens': 10}}}))\n"
     )
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
     return str(script), rec
@@ -51,7 +51,8 @@ def test_parses_tool_calls_and_final(tmp_path, monkeypatch):
     r1 = m.create(system="SYS", messages=[{"role": "user", "content": "go"}], tools=TOOLS, role="planner")
     assert r1.stop_reason == "tool_use" and r1.tool_uses[0].name == "load_dataset" and r1.text == "loading"
     assert r1.raw_content[1]["type"] == "tool_use" and r1.raw_content[1]["id"] == r1.tool_uses[0].id
-    assert r1.usage == {"input_tokens": 100, "output_tokens": 7}  # cache reads counted as input
+    assert r1.usage == {"input_tokens": 100, "output_tokens": 7, "model": "claude-fake-9-9"}  # cache reads counted as input; model id as the CLI reports it
+    assert m.models_seen == {"claude-fake-9-9"}
     r2 = m.create(system="SYS", messages=[{"role": "user", "content": "go"}], tools=TOOLS, role="planner")
     assert r2.stop_reason == "end_turn" and not r2.tool_uses and r2.text == "done"
     c = calls(rec)[0]
