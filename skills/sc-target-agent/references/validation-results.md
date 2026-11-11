@@ -19,6 +19,9 @@ identifiers or per-cell data are reproduced here.
 | agent, v2 + scoring v2 | yes / no | 1 (×4) | FGFR2, flagged | 0.75 | 3 rescored + 1 |
 | de novo clustering, inherited annotation | yes / no | none → 4 after thin-pool guard | none | 0 → 0.75 | 2 |
 | de novo clustering, derived lineages | yes / no | 1 | none | 0.75 | 1 |
+| **skill 0.4 (round 0.4c)**: floor; floor without the CAA-like OSCC library | yes / no | 5 within its state; 4 | none | 0.75 | 2 |
+| skill 0.4 (round 0.4c): agent, prompts v11; v12; v12 exclusion arm; v13 pinned to claude-fable-5-1 | yes / **yes** (6/5; 5/5; 5/5; 4/5 on the pinned run) | 4, 4, 3, 4 within its state | FGFR2 nominated three times, flagged each time | 0.75 | 4 |
+| skill 0.4 (round 0.4c): de novo clustering, Harmony on the library, derived lineages: floor; agent v12; agent v13 | yes / no (2/5; 2/5; 4/5) | **1, 1, 1** within its state | FGFR1 nominated once, flagged | 0.75 | 3 |
 
 Reading: the tools reached the right cluster in every agent run; the differences between arms are
 hand-off and rule defects, each fixed by a generic versioned rule. FGFR2 (a decoy in the key) ranked
@@ -206,6 +209,83 @@ nominations from non-disease-cell lineages (v11, 23l). What did not change: FOLR
 agent runs now place in the right state and hold back on 59-151 benign reference epithelial cells;
 GPC3's fate with HCC04N in the reference. The FLC tumour state came through the expression route
 because per-library integration co-clustered tumour nuclei with normal hepatocytes.
+
+## Round 0.4c — the development dataset under skill 0.4 (canine ameloblastoma; prompts v11-v13, scoring v3)
+
+The dataset the method was built on, last run under prompts v2 (round 0.3), now run as the skill
+says: both helper checks first (nothing flagged by the marker check; the floor's marker-free check
+then found one OSCC library whose epithelial and mesenchymal pseudobulks correlate with CAA, with
+14.5% of its cells in the CAA-exclusive clusters against 0.3-1.2% for the other OSCC libraries),
+key tagged unchanged, floor, agent run, a pre-registered exclusion arm, a second agent run, then at
+the author's request a de novo arm: Harmony on the library, clustering recomputed, lineages derived,
+nothing of the paper's processing reused.
+
+| arm | state (lenient / strict) | ERBB4 rank within its state | decoys | drugs | tokens |
+|---|---|---|---|---|---|
+| floor, all libraries | 9/5 / 2/5 | **5th** behind GABRA1, GABRA4, GABRB1 (acceptable), GABRB2 | none | afatinib, dacomitinib, neratinib | - |
+| floor, CAA-like OSCC library excluded | 9/5 / 2/5 | **4th** | none | same | - |
+| agent, all libraries (v11) | 13/5 / **6/5** | **4th**, nominated | FGFR2 nominated, **flagged** (the paper's negative control) | same | 1.6M |
+| agent, all libraries (v12) | 13/5 / **5/5** | **4th**, nominated; top-10 Jaccard with v11 run 0.67 | none | same | 1.6M |
+| agent, exclusion arm (v12) | 12/5 / **5/5** | **3rd**, nominated; only GABRA4 above it besides GABRB1 | FGFR2 nominated, **flagged** | same | 1.7M |
+| agent, all libraries (v13, pinned to claude-fable-5-1; after the round) | 13/5 / 4/5 | **4th**, nominated; global 5th; top-10 Jaccard with the v12 run 0.54 | FGFR2 nominated, **flagged** | same | 2.1M |
+| de novo floor (Harmony, derived lineages) | 7/5 / 2/5 | **1st**, nominated | none | same | - |
+| de novo agent (v12) | 7/5 / 2/5 | **1st** (in two states), nominated twice; global 2nd | FGFR1 nominated, **flagged** | same | 2.2M |
+| de novo agent (v13) | 6/5 / 4/5 | **1st**, nominated; global 3rd behind two stromal genes the critic flagged; top-10 Jaccard with the v12 run 0.18 | none | same | 2.8M |
+
+Reading: the 0.3 answer is reproduced (ERBB4 in the right state, nominated, with its drugs) with a
+more honest ranking: within the state, behind the neuroepithelial programme's own GABA-A subunits,
+which are druggable only by anaesthetics and benzodiazepine-site ligands (the critic said so in both
+runs). Read against the paper's fine annotation afterwards, the two recorded clusters are both the
+paper's CAA-specific basal state split at resolution 1.0; the paper's smaller junctional state sat
+in a cluster that failed the enrichment rule on its p-value (70% CAA, 2,300 cells, p 0.07) and was
+reached only as part of a de novo cluster. A frozen key with one shared signature cannot show this;
+when a paper reports several states, give each its own marker list in the key. In the v12 run the critic
+used the reference-only subcluster (step 6) unprompted on the 1,237 OSCC cells inside the EMT-like
+CAA cluster and made that cluster's candidates conditional on them.
+
+The model behind the runs: every agent run of rounds 0.4-0.4c was launched without a model id, so
+the Claude Code CLI chose its own default (set by the user's Claude Code settings) and the run log
+recorded only the backend name; which model answered cannot be read from those logs (repository
+protocol 23r: the model id the CLI reports is recorded per run now, and runs name the model). The
+one run pinned to a named model so far, Claude Fable 5.1 on the primary arm, gave the same answer
+(PASS, ERBB4 4th within its state, FGFR2 flagged) with a third more tokens; its critic split the
+OSCC cells inside the EMT-like CAA cluster unprompted, as the v12 critic had, and nominated more
+microenvironment candidates, each flagged as not the disease cells.
+
+De novo arm: Harmony did not absorb the CAA state (unlike FLC in round 0.4b); the CAA keratinocytes
+(59k nuclei, 99% disease cells, three Leiden clusters) formed their own derived lineage, with a
+smaller CAA cluster inside the shared epithelium. ERBB4 ranks 1st within its state in the floor and
+both agent runs, against 3rd-5th with the paper's clustering, because the GABA-A subunits spread
+across the three CAA pieces and the shared-epithelium CAA cluster's siblings are OSCC and gingival
+keratinocytes rather than other CAA cells. Strict state recovery is not met on this arm (the key's
+literature markers are spread across the pieces), and the nomination lists of the two agent runs
+overlap little (Jaccard 0.18-0.19): with derived lineages there are five enriched clusters plus
+program clusters and the runs recorded different subsets. Read a de novo arm's stability by the
+within-state rank of the candidate you care about, not by the nomination list.
+
+**A second method finding, from this arm (repository protocol 23p, prompts v13).** The scripted
+critic flagged two CAA clusters as "enrichment does not hold within its parent cell type" because
+their derived lineage was itself 99% CAA, so the within-lineage test compared CAA sub-states with
+each other. When a lineage is condition-exclusive, the lineage is the disease population and the
+within-lineage test is void, not failed; pan-state genes cancel in the sibling contrast and
+attribution rests on a thin reference pool. The critic now checks lineage composition first and
+says so; the v13 agent critic wrote exactly that on its own. Expect this whenever
+`lineages.ignore_annotation: true` meets a disease population distinct enough to cluster apart from
+every reference lineage.
+
+**What this round found in the method, and why the skill now says "read the agent's notes".** The
+v11 critic wrote that the candidate list it received "was truncated after ERBB4". Every stage
+briefing had been one JSON dump cut at a flat character cap; re-measured on every agent run of
+rounds 0.4 and 0.4b, the critic's claims exceeded the cap in all of them, so the critic had been
+briefed on the first three to eight nominations and reached the rest, when it did, through its own
+tool calls. PDGFRB in FLC run 1 (the unflagged decoy of round 0.4b), GPC3 in the HCC agent run and
+PRKACA in both FLC runs were among the nominations their critics were never shown. The "decoys
+nominated unflagged" counts above stand as recorded but measured a critic working from a partial
+list. Prompts v12 (repository protocol 23m) never drop an item from a briefing; verified here ("all
+7 nominated genes have a recorded flag"). Two smaller fixes: an empty entry in a precomputed
+ortholog table is treated as unknown, not as "no ortholog", and a symbol that Ensembl Compara
+cannot pair but that names a human gene is kept on a flagged assumption (23n; GABRB1 on the dog's
+moved assembly); the report's evaluation section now reflects the scoring (23o).
 
 ## What has and has not been tested (added in skill 0.4.0)
 

@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.4.4 — 2026-11-10 (the model behind a run is recorded; one run on a named model)
+
+No helper-script change. Documentation of one repository fix and one run (repository tag
+results-v7; prompts v13, scoring v3):
+
+- Workflow step 6: launch the agent with an explicit model id, `--model claude-code:<model id>`
+  (for example `claude-code:claude-fable-5-1`). Bare `claude-code` runs on the Claude Code CLI's
+  own default model, which depends on the user's settings and changes over time; every agent run of
+  rounds 0.4-0.4c was launched that way and the logs recorded only the backend name. Repository
+  protocol 23r: the run log (`usage.model` on every model call), the run facts (`model_ids`) and the
+  report header now carry the model id the CLI reports, whether or not one was requested.
+- `validation-results.md`: the CAA primary arm on Claude Fable 5.1 (prompts v13): PASS, ERBB4 4th
+  within its state, FGFR2 nominated and flagged, 2.1M input tokens, top-10 Jaccard 0.54 with the
+  v12 run; same answer, more tokens, more microenvironment nominations, each flagged.
+- Context: the skill package is about 20K tokens with every reference open and does not approach
+  any limit. The agent roles do grow: per-role peaks across the 16 recorded runs reach 217K input
+  tokens in the nominator on the largest datasets, because the stateless CLI backend re-sends every
+  tool result each turn. The API backend therefore needs a model with a context window above 200K
+  for datasets of 100k cells and more; the configs' `agent.model` default (claude-sonnet-4-5, 200K)
+  is not that model.
+- Maintainer line (`README.md`, `copair.yaml`) names both affiliations: De Vlaminck lab and
+  Sethupathy lab, Cornell University.
+
+## 0.4.3 — 2026-11-08 (round 0.4c: the development dataset, canine ameloblastoma, under skill 0.4)
+
+No helper-script change. Documentation of the round and of four repository fixes the skill relies on
+(repository tag results-v6; prompts v13, scoring v3):
+
+- Workflow step 7 adds: read the agent notes (report section 5) for what each role says about its
+  own inputs, not only its conclusions. The round's most consequential finding came from one such
+  sentence: the critic reported that the candidate list it had been given was cut short. Every
+  stage briefing had been truncated at a flat character cap since the method was frozen, in every
+  agent run; the evaluator could not have shown it (repository protocol 23m, prompts v12: a
+  briefing never drops an item).
+- `validation-results.md`: round 0.4c section and the CAA table rows (three floors, five agent
+  runs, including a de novo arm with Harmony on the library and derived lineages: ERBB4 1st within
+  its state there); the statement that the "decoys nominated unflagged" counts of rounds 0.3-0.4b
+  measured a critic working from a partial list; how to read a de novo arm's stability.
+- Repository fix recorded (23p, prompts v13): when a derived lineage is itself condition-exclusive
+  (>= 90% disease cells), the within-lineage abundance test is void, not failed; the scripted critic
+  and the critic prompt say so instead of flagging the state. Found on the CAA de novo arm, where
+  the CAA keratinocytes formed their own lineage.
+- Repository fix recorded (23q, report only): a state recorded before `merge_clusters` folded its
+  cluster into a merged label was drawn as empty in the report figures; the figures now draw the
+  merged pieces as one state and the report gains a map of the recorded states on the embedding
+  under the final cluster key. `scripts/rebuild_report.py` applies it to an existing run; no number
+  changes. If a report shows a state with 0 cells, rebuild it.
+- Repository fixes recorded: an empty entry in a precomputed ortholog table is "unknown", not "no
+  ortholog", and a symbol Ensembl Compara cannot pair but that names a human gene is kept on a
+  flagged assumption (23n); `run_eval` rewrites the report's evaluation section (23o).
+- Lesson for step 3 written into the text: a whole-library marker check cannot see a reference
+  library that is partly case-like (10% marker-positive against 60-87% in the case libraries); the
+  floor's marker-free lineage-wise correlation check can, and the exclusion arm is pre-registered
+  from that result before the agent run on the arm.
+
 ## 0.4.2 — 2026-11-05 (round 0.4b: HCC, ovarian and FLC under skill 0.4; in progress)
 
 Helper-script fixes from the pre-run checks on the three rebuilt tumour datasets; no change to the

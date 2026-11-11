@@ -22,7 +22,7 @@ python scripts/sctarget.py check-env
 python scripts/sctarget.py demo
 python scripts/sctarget.py inspect   data/my.h5ad --name mydata [--force]
 python scripts/sctarget.py calibrate --config config/mydata.yaml [--ground-truth data/ground_truth/mydata.yaml] [--run-dir DIR] [--scoring-version 1|2|3]
-python scripts/sctarget.py run       --config config/mydata.yaml [--model claude-code | <claude model id>] [--run-dir DIR] [--scoring-version 1|2|3]   # default scoring 3
+python scripts/sctarget.py run       --config config/mydata.yaml [--model claude-code:<model id> | claude-code | <claude model id>] [--run-dir DIR] [--scoring-version 1|2|3]   # default scoring 3
 python scripts/sctarget.py report    --ground-truth data/ground_truth/mydata.yaml [--out docs/results.md] runs/mydata_*
 
 # data builders
@@ -42,6 +42,9 @@ python -I <skill>/scripts/label_check.py  data/my.h5ad --sample-key S --conditio
 ```
 
 `run` refuses to start while the config has scaffold placeholders and warns if no key is committed.
+`--model claude-code:<model id>` pins the Claude Code CLI to a model; bare `claude-code` runs on
+the CLI's own default, and in either case the run log records the model that answered
+(`usage.model` on every model call, `facts.model_ids` in state.json; protocol 23r).
 `--model <claude model id>` switches to the API backend (`ANTHROPIC_API_KEY` in the environment,
 never in a file or chat). `SCTARGET_OFFLINE=1` keeps all lookups local (bundled fixtures; results
 marked `source=fixture`).

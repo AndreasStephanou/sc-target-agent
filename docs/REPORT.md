@@ -1,6 +1,7 @@
 # Can an agent rediscover a known drug target from single-cell data, blind?
 
-*sc-target-agent: validation on four datasets. Draft for the CoPAIR fellowship report. Numbers in
+*sc-target-agent: validation on four datasets. Andreas Stephanou, De Vlaminck lab and Sethupathy
+lab, Cornell University. Draft for the CoPAIR fellowship report. Numbers in
 the tables are regenerated from the run directories by `scripts/collect_results.py`
 (`docs/results_caa.md`, `docs/results_ccrcc.md`, `docs/results_hcc.md`, `docs/results_ovarian.md`); the method history is `docs/EVALUATION_PROTOCOL.md`.*
 

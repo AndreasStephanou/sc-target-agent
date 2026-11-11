@@ -116,7 +116,7 @@ and has not been tested.
 
 ## Maintainers
 
-Andreas Stephanou (@AndreasStephanou), De Vlaminck lab, Cornell University.
+Andreas Stephanou (@AndreasStephanou), De Vlaminck lab and Sethupathy lab, Cornell University.
 
 ## Changelog
 

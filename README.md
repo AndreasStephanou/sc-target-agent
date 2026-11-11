@@ -464,5 +464,5 @@ Cornell CoPAIR skills incubator (`skills/genomics/sc-target-agent`).
 Knowledge sources: DGIdb, Open Targets Platform, Ensembl, PubMed / NCBI E-utilities, MSigDB
 Hallmark. Analysis: scanpy, anndata, PyDESeq2, harmonypy, leidenalg, scrublet. Validation datasets:
 GSE159115 (Zhang et al., ccRCC), GSE149614 (Lu et al., HCC), GSE286057 (ovarian cancer omental
-metastases). Developed by Andreas Stephanou (Cornell University) as a CoPAIR fellowship project.
-MIT licence.
+metastases). Developed by Andreas Stephanou (De Vlaminck lab and Sethupathy lab, Cornell
+University) as a CoPAIR fellowship project. MIT licence.

@@ -128,8 +128,14 @@ or published marker set for an answer key; the researcher's tolerance for run ti
    disease states however enriched), the recorded signatures (do they look like the biology?), the
    library check, and the eval line if a key exists. Iterate on **config only**: thresholds, caps,
    pre-registered exclusions. Never change code or prompts to fit one dataset.
-6. **Run the agent.** `python scripts/sctarget.py run --config config/<name>.yaml` uses the Claude
-   Code login; `--model <claude model id>` uses `ANTHROPIC_API_KEY` from the environment. Expect
+6. **Run the agent.** `python scripts/sctarget.py run --config config/<name>.yaml --model
+   claude-code:<model id>` uses the Claude Code login on a named model (for example
+   `claude-code:claude-fable-5-1`). Bare `claude-code` runs on the CLI's own default model, which
+   depends on the user's Claude Code settings; whichever model answers is recorded in the run log
+   and the report header (`usage.model`, `facts.model_ids`), so a report can always say which model
+   produced it. `--model <claude model id>` alone uses the API with `ANTHROPIC_API_KEY` from the
+   environment; on datasets of 100k cells and more the nominator's context reaches 150-220K tokens,
+   so that model needs a window above 200K. Expect
    0.6-2.3M input tokens and 20-90 minutes for 30k-200k cells; run one dataset at a time (the
    druggability services rate-limit). Tell the researcher what leaves the machine: cluster-level
    tables, marker lists and gene symbols go to the model; gene symbols go to DGIdb, Open Targets and
@@ -165,9 +171,16 @@ or published marker set for an answer key; the researcher's tolerance for run ti
      activate and whether that is the therapeutic direction for this design (a PHD inhibitor
      stabilises HIF; an agonist antibody on a checkpoint is not an inhibitor); ask the critic
      explicitly if the flag is absent;
-   - ortholog status for non-human data; "novel" genes above a known target are hypotheses to look
+   - ortholog status for non-human data (`same_symbol_human_gene` and `assumed_same_symbol` are
+     flagged assumptions, not mappings); "novel" genes above a known target are hypotheses to look
      up, not errors.
    The nominator over-nominates (precision 0.1-0.3): treat the top 3-5 per state as the list.
+   Then read the **agent notes** (report section 5) for what each role says about its own inputs
+   and limits, not only its conclusions. In round 0.4c one such sentence - the critic reporting
+   that the candidate list it had been given was cut short - exposed a briefing truncated at a flat
+   character cap in every agent run since the method was frozen (repository protocol 23m); no
+   evaluator metric could have shown it. A role saying "I could not run X" or "the list I received
+   ended at Y" is a method finding to record, whatever the scores say.
 8. **Optional arms and reporting.** Annotation-free run (`analysis.lineages.ignore_annotation:
    true`) to compare with an inherited annotation; three repeat runs for a stability estimate
    (`scripts/run_eval.py --stability`, which currently needs a key; without one, compare the top-k
