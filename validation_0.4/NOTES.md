@@ -921,6 +921,8 @@ CI build of the image is the first full-suite run inside the container.
 
 CI run 1 (9f4484a) failed: the image built, `pytest` died at collection with `libgomp.so.1` missing.
 Cause: `~/.condarc` lists `defaults` before conda-forge with `channel_priority: disabled`, so 8
-locked packages come from `defaults` (listed with the commit) and link the system libgomp, which
+locked packages come from `defaults` (`_openmp_mutex`, `libxcrypt`, `libdrm`, `libexpat`, `tk`,
+`xcb-util-image`, `xorg-libxdamage`, `python-dateutil`); the defaults `_openmp_mutex` brings no conda
+libgomp, so scikit-learn and numba use the system one, which
 the scratch prefix on this machine found and the Debian base image lacks. Fix: `apt-get install
 libgomp1` in the Dockerfile; the lock is left as the record of what ran. Written into protocol 23s.

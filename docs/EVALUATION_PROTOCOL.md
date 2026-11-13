@@ -1005,9 +1005,10 @@ the user's login, which is not in the image.
 before the commit (110 passed, 1 skipped); CI builds the image from the committed lock files and
 runs the full suite. The first CI build failed at collection with `libgomp.so.1: cannot open
 shared object file`: the development machine's conda configuration lists the `defaults` channel
-before conda-forge with channel priority disabled, so 8 of the 182 locked packages (among them
-`_openmp_mutex` and `scikit-learn`) come from `defaults` and link the operating system's libgomp,
-which the fresh prefix on the same machine also found and the container did not. The Dockerfile
+before conda-forge with channel priority disabled, so 8 of the 182 locked packages come from `defaults`, `_openmp_mutex` among them; its
+`defaults` build does not pull in a conda `libgomp` the way the conda-forge build does, so the
+OpenMP-linked packages (scikit-learn, numba) fall back to the operating system's libgomp, which the
+fresh prefix on the same machine also found and the container did not. The Dockerfile
 installs that one OS library; the lock stays what the machine had. This is the kind of hidden host
 dependency the image exists to expose. Nothing in the analysis changed; no run number changes.
 
