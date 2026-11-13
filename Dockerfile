@@ -13,6 +13,11 @@ FROM condaforge/miniforge3:latest
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     MPLBACKEND=Agg NUMBA_CACHE_DIR=/tmp/numba_cache
 
+# OS library the locked packages expect from the host: 8 of the 182 conda packages (among them
+# _openmp_mutex and scikit-learn) come from the defaults channel and link the system libgomp rather than
+# a conda one; without it `import sklearn` fails with "libgomp.so.1: cannot open shared object file".
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
+
 # conda layer: explicit URLs + md5, installed without a solver
 COPY environment/conda-linux-64.lock /tmp/conda-linux-64.lock
 RUN conda create -y -p /opt/sctarget --file /tmp/conda-linux-64.lock && conda clean -afy
