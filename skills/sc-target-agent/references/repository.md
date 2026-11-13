@@ -9,8 +9,14 @@ skill was written against (prompts v6, scoring v3, the lineage-relative attribut
 ```bash
 git clone https://github.com/AndreasStephanou/sc-target-agent
 cd sc-target-agent
-conda env create -f environment.yml && conda activate sctarget
-pytest -q                            # 87 passed, 1 skipped
+conda env create -f environment.yml && conda activate sctarget   # loose spec: whatever resolves today
+# exact versions behind the current results tag (environment/*.lock, written by scripts/freeze_env.sh):
+#   conda create -n sctarget --file environment/conda-linux-64.lock && conda activate sctarget
+#   pip install --no-deps -r environment/pip-linux-64.lock.txt && pip install --no-deps -e .
+# or the image built from those lock files (the agent run itself stays on the host, with the CLI login):
+#   docker run --rm -v "$PWD":/work -w /work ghcr.io/andreasstephanou/sc-target-agent:<tag> python scripts/sctarget.py demo
+#   apptainer exec --bind "$PWD":/work --pwd /work docker://ghcr.io/andreasstephanou/sc-target-agent:<tag> python scripts/sctarget.py demo
+pytest -q                            # 111 passed, 1 skipped
 python scripts/sctarget.py check-env # the sparse / large-data tool chain (what the tests and demo cannot exercise)
 python scripts/sctarget.py demo      # offline synthetic demo: env check, then scripted PASS, baseline lets decoys through
 ```
@@ -91,7 +97,8 @@ Analyst only: `run_qc`, `detect_doublets`, `integrate_and_cluster`, `subcluster`
 | `docs/EVALUATION_PROTOCOL.md` | the method history: every rule and the named failure that motivated it (22 sections) |
 | `docs/REPORT.md`, `docs/results_*.md` | the four-dataset write-up and the regenerated results tables |
 | `skills/sc-target-agent/SKILL.md`, `.claude/skills/sc-target-agent/SKILL.md` | the repository's own copies of this skill (keep them in sync with the incubator copy) |
-| `tests/` | 87 tests; must pass after any change |
+| `environment/`, `Dockerfile`, `.github/workflows/ci.yml` | exact versions behind the current results tag (`scripts/freeze_env.sh`), the image built from them, and the CI that tests and publishes it (protocol 23s) |
+| `tests/` | 111 tests; must pass after any change |
 
 ## Versioning rules the skill depends on
 

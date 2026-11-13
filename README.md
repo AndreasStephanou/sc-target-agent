@@ -46,8 +46,9 @@ Research); the method history is in `docs/EVALUATION_PROTOCOL.md` and the valida
 
 ## 1. What you need
 
-- **A Linux or macOS machine with conda** (Miniconda or Mambaforge). No GPU. 32 GB RAM is
-  comfortable for 150k cells; 16 GB works to about 60k.
+- **A Linux or macOS machine with conda** (Miniconda or Mambaforge), or Docker / Apptainer for the
+  published image (section 2). No GPU. 32 GB RAM is comfortable for 150k cells; 16 GB works to
+  about 60k.
 - **Data**: raw UMI counts for one dataset, as an `.h5ad`, per-sample 10x matrices, or a GEO
   "one matrix + metadata" deposit; a column that identifies the **library / biological replicate**
   (at least 3 per condition, or the per-sample tests are weak); a column that identifies the
@@ -68,13 +69,39 @@ conda activate sctarget
 
 python scripts/sctarget.py check-env     # 1 minute: exercises the sparse / large-data tool chain
 python scripts/sctarget.py demo          # 5 minutes, offline: synthetic data with a planted answer
-SCTARGET_OFFLINE=1 pytest -q             # 87 tests, ~7 minutes
+SCTARGET_OFFLINE=1 pytest -q             # 111 tests, ~6 minutes
 ```
+
+**Exact versions.** `environment.yml` is the loose specification; `environment/` holds the exact
+versions that produced the current results tag (`conda-linux-64.lock`: every conda package by URL
+and checksum; `pip-linux-64.lock.txt`: the pip layer), written by `scripts/freeze_env.sh` before
+each tag. To reproduce the numbers in `docs/results_*.md` rather than install whatever resolves
+today:
+
+```bash
+conda create -n sctarget --file environment/conda-linux-64.lock
+conda activate sctarget
+pip install --no-deps -r environment/pip-linux-64.lock.txt
+pip install --no-deps -e .
+```
+
+**Container.** The same lock files build a Docker image, published by CI on every push to `master`
+and every tag as `ghcr.io/andreasstephanou/sc-target-agent:<tag>` (`latest` follows `master`). The
+image is the environment; run your clone inside it so data and runs stay on your disk:
+
+```bash
+docker run --rm -v "$PWD":/work -w /work ghcr.io/andreasstephanou/sc-target-agent:results-v7 python scripts/sctarget.py demo
+apptainer exec --bind "$PWD":/work --pwd /work docker://ghcr.io/andreasstephanou/sc-target-agent:results-v7 python scripts/sctarget.py demo   # clusters without Docker
+```
+
+The agent run is the exception: it shells out to the Claude Code CLI with your login, which is on
+the host, not in the image. Run `run` from the conda environment; everything else (`check-env`,
+`demo`, `calibrate`, `report`, the tests) runs in the container.
 
 `check-env` matters: a fresh install once passed every test and the demo yet could not cluster any
 real dataset (a dependency drifted). It builds a 9k-cell sparse object and runs approximate
 neighbours, Leiden, Scrublet, Harmony and DESeq2 through the installed packages. If it fails, the
-message says which step and how to rebuild from the pinned `environment.yml`.
+message says which step and how to rebuild from the lock files.
 
 `demo` runs the whole pipeline with a deterministic scripted model and a naive baseline on a
 synthetic dataset, then scores both against the planted answer. Expected: the scripted run finds the
@@ -379,11 +406,14 @@ scripts/
   build_ccrcc.py        worked example: the ccRCC validation set (label correction from authors' files)
   new_dataset.py        behind `inspect`
   run_pipeline.py, run_baseline.py, run_eval.py, rescore.py, collect_results.py, make_synthetic.py
+  freeze_env.sh         writes environment/*.lock from the active conda environment (run before each results tag)
+environment/            conda-linux-64.lock, pip-linux-64.lock.txt: the exact versions behind the current results tag
+Dockerfile              the environment from the lock files plus the code; built, tested and published by .github/workflows/ci.yml
 config/                 default.yaml, synthetic*.yaml, ccrcc.yaml, hcc*.yaml, ovarian*.yaml
 data/ground_truth/      frozen keys: synthetic, ccrcc, hcc, ovarian
 docs/                   REPORT.md, EVALUATION_PROTOCOL.md (22 sections), results_*.md
 skills/sc-target-agent/ the Claude Code skill (also under .claude/skills/)
-tests/                  87 tests
+tests/                  111 tests
 ```
 
 Each run directory holds `report.md`, `report.html`, `run.jsonl`, `state.json`, `config_used.json`,
@@ -412,7 +442,7 @@ Change weights in the config, not in code, so the choice is recorded in `config_
 
 | symptom | cause | fix |
 |---|---|---|
-| `check-env` fails at neighbours or Scrublet with `'csr_array' object has no attribute 'getnnz'` | a newer `pynndescent` with an older `scanpy` | `conda env create -f environment.yml` (pinned), or `pip install 'pynndescent<0.7'` |
+| `check-env` fails at neighbours or Scrublet with `'csr_array' object has no attribute 'getnnz'` | a newer `pynndescent` with an older `scanpy` | rebuild from `environment/*.lock` (section 2), use the container image, or `pip install 'pynndescent<0.7'` |
 | calibration report says "Run aborted: tool X failed" | an environment or data-format problem, not a biological negative | read the error in the finding; `check-env`; check `counts_layer` and the obs columns |
 | `run` says the config still has placeholders | `inspect` scaffold not edited | edit `config/<name>.yaml` (`SAMPLE_COLUMN`, `DISEASE`, `DESCRIBE`...) |
 | `pseudobulk_de needs raw counts` | counts not integer, or not found | ensure `X` or `counts_layer` holds integer UMI counts (the loader stashes `X` automatically when it looks like counts) |

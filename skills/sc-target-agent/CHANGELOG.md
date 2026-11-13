@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.5 — 2026-11-13 (exact versions and a container image for the repository)
+
+No helper-script change. Documentation of repository protocol 23s: `environment/*.lock` holds the
+exact versions behind the current results tag (written by `scripts/freeze_env.sh`), a `Dockerfile`
+installs from those lock files only, and CI builds, tests and publishes the image to GHCR on every
+push and tag. Workflow step 1 and `references/repository.md` give the lock-file and container
+commands beside the conda one; the agent run stays on the host because it uses the Claude Code
+CLI login. Conda remains the primary path.
+
 ## 0.4.4 — 2026-11-10 (the model behind a run is recorded; one run on a named model)
 
 No helper-script change. Documentation of one repository fix and one run (repository tag

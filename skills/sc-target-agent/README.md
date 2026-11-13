@@ -83,7 +83,8 @@ data alone; human-centric drug knowledge with ortholog mapping for other species
 ## Dependencies
 
 Runs code. The `sc-target-agent` repository with its conda environment (`environment.yml`:
-scanpy, harmonypy, pydeseq2, scrublet, pyyaml, anthropic). The agent run needs a Claude Code
+scanpy, harmonypy, pydeseq2, scrublet, pyyaml, anthropic; `environment/*.lock` for the exact
+versions behind a results tag, or the container image built from them). The agent run needs a Claude Code
 login or an `ANTHROPIC_API_KEY`; calibration and the demo run offline. Gene-level lookups go to
 DGIdb, Open Targets and NCBI E-utilities. The two helper scripts in `scripts/` need only anndata,
 h5py, numpy, pandas and scipy and send nothing anywhere.

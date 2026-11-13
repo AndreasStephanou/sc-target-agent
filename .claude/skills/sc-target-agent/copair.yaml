@@ -1,7 +1,7 @@
 name: sc-target-agent
 domain: genomics
 status: experimental
-version: 0.4.4
+version: 0.4.5
 
 maintainers:
   - "Andreas Stephanou (@AndreasStephanou), De Vlaminck lab and Sethupathy lab, Cornell University"
@@ -16,7 +16,8 @@ tested_with:
   - "0.4d (tag results-v7): the CAA primary arm on a named model, Claude Code CLI with --model claude-code:claude-fable-5-1, prompts v13; from this tag the run log records the model id the CLI reports (earlier claude-code runs used the CLI's default model and did not record it)"
 
 environments:
-  - conda environment sctarget (environment.yml in the sc-target-agent repository)
+  - conda environment sctarget (environment.yml in the sc-target-agent repository; environment/*.lock for the exact versions behind a results tag)
+  - container image ghcr.io/andreasstephanou/sc-target-agent:<tag>, built from the lock files (Docker or Apptainer); the agent run stays on the host with the Claude Code login
   - Cornell BioHPC workdir (Linux); any Linux/macOS machine with conda should work
 
 dependencies:

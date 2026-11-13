@@ -61,7 +61,9 @@ or published marker set for an answer key; the researcher's tolerance for run ti
    that design. Tell the researcher plainly when their design is in the *untested* set.
 1. **Check the environment.** `python scripts/sctarget.py check-env` exercises the sparse,
    large-data tool chain on a synthetic object. A fresh install once passed every test and the demo
-   yet could not cluster a real dataset. If it fails, rebuild from the pinned `environment.yml`.
+   yet could not cluster a real dataset. If it fails, rebuild from the lock files in `environment/`
+   (the exact versions behind the current results tag) or run the container image built from them;
+   `references/repository.md` has both commands.
 2. **Inspect, then check the design.** `python scripts/sctarget.py inspect data/<file>.h5ad --name
    <name>` guesses the columns, prints the compartment composition per condition (immune, epithelial,
    fibroblast, endothelial marker-positive fractions), and scaffolds `config/<name>.yaml` and a key

@@ -1,0 +1,16 @@
+# the image carries the code and the environment, never data or run outputs
+.git
+data/
+!data/fixtures/
+!data/ground_truth/
+!data/*.gmt
+runs/*/
+cache/
+validation_0.4/*.log
+**/__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.env

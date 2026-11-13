@@ -980,6 +980,31 @@ pins the id and the stage records already carry it. Agent runs from this section
 with an explicit id. Test: `tests/test_claude_code_model.py` (fake CLI emits `modelUsage`; usage
 and `models_seen` carry the id). No analysis code changed; no number in any report changes.
 
+### 23s. The environment behind a results tag is frozen to exact versions and shipped as an image (round 0.4d; not a method change)
+
+**Failure it answers.** The `check-env` step exists because a fresh install once passed every test
+and the demo yet could not cluster a real dataset: `pynndescent` 0.7 had started returning
+`csr_array`, which the installed `scanpy` could not read (section 23c, troubleshooting table). The
+fix then was a version pin in `environment.yml`. Every other dependency in that file floats, so
+the versions that produced results-v7 (scanpy 1.11.5, anndata 0.12.19, PyDESeq2 0.5.4, numpy
+2.4.6, pandas 2.3.3) were recorded nowhere; an install made later resolves to other versions, and
+the differential expression and neighbour-graph numbers depend on them.
+
+**Rule.** Before each results tag, `scripts/freeze_env.sh` writes `environment/conda-linux-64.lock`
+(every conda package by URL and md5, installable with `conda create --file` and no solver) and
+`environment/pip-linux-64.lock.txt` (the pip layer, `name==version`). `environment.yml` stays the
+loose specification for a fresh install; the lock files are what reproduces a tag's numbers. The
+`Dockerfile` installs from the lock files only, never from `environment.yml`, and the CI workflow
+builds it, runs the offline test suite and the offline demo inside it, and publishes it to GHCR
+under the tag name. Containers do not run on the shared cluster this work was done on, so the
+image is the reviewer's and CI's path, not the author's; Apptainer runs the same image where
+Docker is unavailable. The agent run stays on the host: it shells out to the Claude Code CLI with
+the user's login, which is not in the image.
+
+**Check.** The lock files were installed into a fresh prefix and the fast test suite run against it
+before the commit; CI builds the image from the committed lock files and runs the full suite.
+Nothing in the analysis changed; no run number changes.
+
 ## 24. results-v4
 
 Tag `results-v4`: round 0.4 (protocol 23-23g, prompts v7-v8, scoring unchanged at v3): two new

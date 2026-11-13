@@ -1,0 +1,52 @@
+name: tests and image
+
+# Builds the container from the lock files, runs the test suite and the offline demo inside it, and
+# publishes the image to GHCR on master and on every tag (results-vN, *-key-frozen*, method-freeze-*).
+# Pull requests build and test but do not publish.
+
+on:
+  push:
+    branches: [master]
+    tags: ["*"]
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image from the lock files
+        run: docker build -t sc-target-agent:ci .
+
+      - name: Test suite (offline)
+        run: docker run --rm sc-target-agent:ci pytest -q
+
+      - name: Offline demo (env check, synthetic data, scripted calibration, evaluation)
+        run: docker run --rm sc-target-agent:ci python scripts/sctarget.py demo
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        if: github.event_name == 'push'
+        run: |
+          IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          REF="${GITHUB_REF_NAME}"
+          docker tag sc-target-agent:ci "$IMAGE:$REF"
+          docker push "$IMAGE:$REF"
+          if [ "$REF" = "master" ]; then
+            docker tag sc-target-agent:ci "$IMAGE:latest"
+            docker push "$IMAGE:latest"
+          fi
+          echo "published $IMAGE:$REF"

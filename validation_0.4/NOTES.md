@@ -896,3 +896,25 @@ note ("disease-wide across both CAA epithelial states, shared with cluster 6") s
 fine-annotation check found afterwards. Same answer, a third more tokens, a longer critic section.
 
 Not a method change; no prompt or rule touched. Tag results-v7 (working copy only; nothing pushed).
+
+## Frozen environment, container image, CI (protocol 23s; 2026-11-13)
+
+The user asked whether to move from conda to Docker. Answer given: keep conda as the primary path,
+add a lock file, ship Docker as the secondary path for reviewers and CI. Reasons: Docker is
+installed on this machine but the daemon is not reachable for the account (rootless podman fails
+too, no subuid range), Singularity is; the real gap was that `environment.yml` floats every version
+but two and the versions behind results-v7 were recorded nowhere; the agent run needs the Claude
+Code CLI login on the host.
+
+Done: `scripts/freeze_env.sh` (explicit conda lock with md5 + pip layer), `environment/*.lock`
+(182 conda packages, 57 pip), `Dockerfile` installing from the lock files only, `.dockerignore`
+(no data, no runs), `.github/workflows/ci.yml` (build, `pytest -q`, offline demo, publish to GHCR
+on master and tags). README sections 1, 2, 9, 11 and the skill's install notes updated. The lock
+files were re-installed into a scratch prefix and the fast tests run against it (result in this
+section's follow-up line).
+
+Follow-up: the lock files were installed into a fresh prefix (`conda create --file` then the pip
+layer with `--no-deps`, then `pip install --no-deps -e .`); `pip check` clean; the same versions
+(scanpy 1.11.5, anndata 0.12.19, pydeseq2 0.5.4, numpy 2.4.6, pandas 2.3.3, pynndescent 0.6.0);
+`pytest -m "not slow"`: 110 passed, 1 skipped, 1 deselected in 6.5 min. Committed and pushed; the
+CI build of the image is the first full-suite run inside the container.
