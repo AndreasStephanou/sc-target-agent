@@ -86,12 +86,13 @@ pip install --no-deps -e .
 ```
 
 **Container.** The same lock files build a Docker image, published by CI on every push to `master`
-and every tag as `ghcr.io/andreasstephanou/sc-target-agent:<tag>` (`latest` follows `master`). The
-image is the environment; run your clone inside it so data and runs stay on your disk:
+and every tag as `ghcr.io/andreasstephanou/sc-target-agent:<tag>` (`latest` follows `master`;
+the first tag with its own image will be the next results tag, since results-v7 predates the
+workflow). The image is the environment; run your clone inside it so data and runs stay on your disk:
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work ghcr.io/andreasstephanou/sc-target-agent:results-v7 python scripts/sctarget.py demo
-apptainer exec --bind "$PWD":/work --pwd /work docker://ghcr.io/andreasstephanou/sc-target-agent:results-v7 python scripts/sctarget.py demo   # clusters without Docker
+docker run --rm -v "$PWD":/work -w /work ghcr.io/andreasstephanou/sc-target-agent:latest python scripts/sctarget.py demo
+apptainer exec --bind "$PWD":/work --pwd /work docker://ghcr.io/andreasstephanou/sc-target-agent:latest python scripts/sctarget.py demo   # clusters without Docker
 ```
 
 The agent run is the exception: it shells out to the Claude Code CLI with your login, which is on

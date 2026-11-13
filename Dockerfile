@@ -1,8 +1,8 @@
 # sc-target-agent: the frozen analysis environment plus the code, for reviewers and CI.
 #
 # The image is the environment. Run your own clone inside it so runs/ and data/ stay on your disk:
-#   docker run --rm -v "$PWD":/work -w /work ghcr.io/andreasstephanou/sc-target-agent:results-v7 python scripts/sctarget.py demo
-#   apptainer exec --bind "$PWD":/work --pwd /work docker://ghcr.io/andreasstephanou/sc-target-agent:results-v7 python scripts/sctarget.py demo
+#   docker run --rm -v "$PWD":/work -w /work ghcr.io/andreasstephanou/sc-target-agent:latest python scripts/sctarget.py demo
+#   apptainer exec --bind "$PWD":/work --pwd /work docker://ghcr.io/andreasstephanou/sc-target-agent:latest python scripts/sctarget.py demo
 # Without a mount the copy baked into the image at /opt/sc-target-agent is used (tests, demo, check-env).
 # The agent run needs the Claude Code CLI login or ANTHROPIC_API_KEY; neither is in the image.
 #
